@@ -72,7 +72,7 @@ a {
 }
 
 html {
-  background: darken($page-bg, 5);
+  background: darken($page-bg, 5) image-url('background.jpg');
 }
 body {
   > div {
@@ -83,4 +83,46 @@ body {
       border-right: 1px solid $sidebar-border;
     }
   }
+}
+
+.b1 {
+	background-color: rgba(14,251,252,0.247059);
+}
+
+.b2 {
+	background-color: rgba(214, 17, 21, 0.247059);
+}
+
+.b3 {
+	background-color: rgba(60, 255, 20, 0.247059);
+}
+
+.b4 {
+	background-color: rgba(251, 34, 240, 0.247059);
+}
+
+.b5 {
+	background-color: rgba(158, 134, 255, 0.247059);
+}
+
+.b6 {
+	background-color: rgba(225, 211, 20, 0.247059);
+}
+
+.b7 {
+	background-color: rgba(100, 117, 121, 0.247059);
+}
+
+.blog-index {
+	background-image: image-url('background.jpg');
+}
+
+#main {
+	background-color: rgba(66, 66, 66, 0.247059);
+}
+
+#content .blog-index article {
+	border-radius: 15px;
+	margin-top: 5px;
+	margin-bottom: 5px;
 }

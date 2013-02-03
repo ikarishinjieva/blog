@@ -7,7 +7,7 @@ categories: javascript
 ---
 需要写多行HTML string到javascript中，怎么排版代码都很难看，最后发现这个利用注释凶残的方法。(不过此方法对firefox无效，firefox中function#toString会吃掉注释)
 
-```
+{% codeblock lang:js %}
 Function.prototype.getMultiLine = function() {  
 	var lines = new String(this);  
 	lines = lines.substring(lines.indexOf("/*") + 3, lines.lastIndexOf("*/"));  
@@ -22,8 +22,8 @@ var ffff = function() {
 	 */  
  }  
    
-document.write(ffff.getMultiLine());  
-```
+document.write(ffff.getMultiLine());
+{% endcodeblock %}
 一些参考：
 
 [代码抄自这里](http://www.cnblogs.com/starlet/archive/2010/05/24/1742572.html)

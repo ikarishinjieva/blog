@@ -7,7 +7,7 @@ categories: Q javascript
 ---
 
 [Q](https://github.com/kriskowal/q) 其中nextTick的一部分是用MessageChannel实现
-```
+{% codeblock lang:js %}
 	var channel = new MessageChannel();
 	// linked list of tasks (single, with head node)
 	var head = {}, tail = head;
@@ -21,7 +21,7 @@ categories: Q javascript
 		tail = tail.next = {task: task};
 		channel.port2.postMessage(0);
 	};
-```
+{% endcodeblock %}
 也有一种实现是用setTimeout(task, 0);
 
 测试下两者的性能区别：[http://jsperf.com/messagechannel-vs-settimeout](http://jsperf.com/messagechannel-vs-settimeout). MessageChannel还是有明显的性能优势
