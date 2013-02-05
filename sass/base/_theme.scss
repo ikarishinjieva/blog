@@ -72,7 +72,7 @@ a {
 }
 
 html {
-  background: darken($page-bg, 5) image-url('background.jpg');
+  background: darken($page-bg, 5) image-url('bg.png');
 }
 body {
   > div {
@@ -114,7 +114,7 @@ body {
 }
 
 .blog-index {
-	background-image: image-url('background.jpg');
+	background-image: image-url('bg.png');
 }
 
 #main {
