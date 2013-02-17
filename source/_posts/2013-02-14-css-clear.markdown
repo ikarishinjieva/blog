@@ -6,7 +6,7 @@ comments: true
 categories: css clear float cookbook
 ---
 开始学习css。
-[<css cookbook>](http://www.amazon.com/CSS-Cookbook-Edition-Animal-Guide/dp/059615593X/) 2.21讨论了clear的用法。
+[css cookbook](http://www.amazon.com/CSS-Cookbook-Edition-Animal-Guide/dp/059615593X/) 2.21讨论了clear的用法。
 
 简单做了个实验。
 {% codeblock http://jsfiddle.net/PzwkP lang:js %}
