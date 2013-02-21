@@ -1,0 +1,8 @@
+---
+layout: post
+title: "测试一下ifttt根据blog rss更新linkedin和evernote"
+date: 2013-02-19 23:16
+comments: true
+categories: ifttt
+---
+测试一下ifttt根据blog rss更新linkedin和evernote
