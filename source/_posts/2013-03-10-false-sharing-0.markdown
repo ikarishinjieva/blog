@@ -1,0 +1,15 @@
+---
+layout: post
+title: "False Sharing 阅读"
+date: 2013-03-10 23:40
+comments: true
+categories: false_sharing performance concurrency
+---
+应该说[这篇](http://ifeve.com/disruptor-cacheline-padding/)和[这篇文章](http://ifeve.com/false-sharing/)是最近读的最有意思的一篇文章，关于多线程访问时，内存预读到寄存器的内容产生的数据竞争(false sharing)对性能的影响(我已经不知道我在说什么了，文章里解释的很清楚)。
+
+重做了第二篇里的试验，发现六个padding不够，需要七个padding(p7)才能有两倍的性能差异。(没有文献里说的那么离谱，测试环境的差异吧)
+{% codeblock lang:java %}
+public long p1, p2, p3, p4, p5, p6; // comment out
+{% endcodeblock %}
+
+TODO：了解第七个padding的来源
