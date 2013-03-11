@@ -12,4 +12,10 @@ categories: false_sharing performance concurrency
 public long p1, p2, p3, p4, p5, p6; // comment out
 {% endcodeblock %}
 
-TODO：了解第七个padding的来源
+~~TODO：了解第七个padding的来源~~
+
+看了第二篇文章的[更新篇](http://ifeve.com/false-shareing-java-7-cn/), 用这个稳定的代码跑测试，就不会有之前p7的问题。（可能是之前p1-p6被优化掉了？不解。）
+
+在公司八核的机器上也测过，性能提升也就在2-4倍左右。没有那么夸张。
+
+原理基本清楚，对不同平台间的差异完全没想法。不做深入了解。
