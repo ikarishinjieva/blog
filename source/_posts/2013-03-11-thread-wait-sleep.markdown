@@ -47,6 +47,8 @@ public class MultiThread {
         executorService.execute(new T1());
         Thread.sleep(1000);
         executorService.execute(new T2());
+		
+		//dispose
         executorService.awaitTermination(1, TimeUnit.HOURS);
     }
 }
@@ -88,6 +90,8 @@ public class MultiThread2 {
         executorService.execute(new T1());
         Thread.sleep(1000);
         executorService.execute(new T2());
+		
+		//dispose
         Thread.sleep(10000);
         synchronized (MultiThread2.class) {
             MultiThread2.class.notify();
