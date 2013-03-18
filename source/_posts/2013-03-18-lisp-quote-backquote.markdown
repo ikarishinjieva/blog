@@ -13,22 +13,22 @@ categories: lisp
 
 [第三份参考](http://stackoverflow.com/questions/7549550/using-two-backquotes-and-commas-common-lisp) 对嵌套quote做了很好地解释。
 
-{% codeblock 贴一些自己的学习代码 lang:lisp %}
+{% codeblock 贴一些自己的学习代码 %}
 CL-USER> (list 1 2)
 (1 2)
-CL-USER> '(1 2) 
-(1 2) ;Quote与list相同
+CL-USER> '(1 2)
+(1 2) ;Quote act as list
 CL-USER> `(1 2)
-(1 2) ;Backquote与list相同
+(1 2) ;Backquote act as list
 
 CL-USER> (let ((x 1)) '(,x))
-; Evaluation aborted on #<CCL::SIMPLE-READER-ERROR #xC78878E>. ;Quote不能和comma联用
+; Evaluation aborted on #<CCL::SIMPLE-READER-ERROR #xC78878E>. ;Quote can't work with comma
 CL-USER> (let ((x 1)) `(,x))
-(1) ;Backquote可以和comma联用
+(1) ;Backquote can work with comma
 
 CL-USER> (let ((x `(1 2))) `(,@x))
-(1 2) ;BackQuote和comma-at-sign联用
+(1 2) ;BackQuote can work with comma-at-sign
 
 CL-USER> (let ((x `(1 2))) `(,x))
-((1 2)) ;用comma替代comma-at-sign，列表不会被展开
+((1 2)) ;x will not be "expand" when use comma instead of comma-at-sign
 {% endcodeblock %}
