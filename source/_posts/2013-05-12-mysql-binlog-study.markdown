@@ -7,9 +7,9 @@ categories:  mysql binlog replication
 ---
 差不多一个月没更新了。除了忙些琐事，就是偷点懒。
 
-在读<Mysql High Availability>，扫了一遍，读第二遍的时候开始做些实验，所以这之后的blog写的也会没什么章法。
+在读&lt;Mysql High Availability&gt;，扫了一遍，读第二遍的时候开始做些实验，所以这之后的blog写的也会没什么章法。
 
-<Mysql High Availability>第三章介绍binlog时特地提到了Rand()/Now()/User variable/Password()在基于sql复制时的行为，简单做些实验。
+&lt;Mysql High Availability&gt;第三章介绍binlog时特地提到了Rand()/Now()/User variable/Password()在基于sql复制时的行为，简单做些实验。
 
 1. Rand()
 
