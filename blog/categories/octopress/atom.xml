@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: octopress | Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/blog/categories/octopress/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2013-07-30T22:57:11+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[octopress win7上遭遇invalid GBK character exception]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/02/04/octopress-chinese-character/"/>
+    <updated>2013-02-04T21:59:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/02/04/octopress-chinese-character</id>
+    <content type="html"><![CDATA[<p>解决方案：
+将markdown文件保存格式设为 UTF-8 without BOM，并
+在环境变量里加上 LC_ALL=zh_CN.UTF-8</p>
+]]></content>
+  </entry>
+  
+</feed>

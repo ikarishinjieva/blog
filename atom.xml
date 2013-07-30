@@ -1,114 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
 
-<!DOCTYPE html>
-<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
-<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
-<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
-<head>
-  <meta charset="utf-8">
-  <title>Tac say</title>
-  <meta name="author" content="Tac Huang (ikari_shinji@github)">
-
-  
-  <meta name="description" content="之前是用scp copy较大文件的，别人推荐了bbcp，于是试用一下并做些性能测试 用法：两侧机器都需安装bbcp，且安装在$PATH下。如果碰到连接不上，请参看这里的trouble shooting 场景一：用200MB的.tar.gz文件拼成一个复合文件，大小2236269410 &hellip;">
-  
-
-  <!-- http://t.co/dKP3o1e -->
-  <meta name="HandheldFriendly" content="True">
-  <meta name="MobileOptimized" content="320">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  
-  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/">
-  <link href="/blog/favicon.png" rel="icon">
-  <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
-  <script src="/blog/javascripts/modernizr-2.0.js"></script>
-  <script src="/blog/javascripts/ender.js"></script>
-  <script src="/blog/javascripts/octopress.js" type="text/javascript"></script>
-  <link href="/atom.xml" rel="alternate" title="Tac say" type="application/atom+xml">
-  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
-<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
-<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
-
-  
-
-</head>
-
-<body   >
-  <header role="banner"><hgroup>
-  <h1><a href="/blog/">Tac say</a></h1>
-  
-    <h2>只想做个程序演奏家</h2>
-  
-</hgroup>
-
-</header>
-  <nav role="navigation"><ul class="subscription" data-subscription="rss">
-  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
-  
-</ul>
-  
-<ul class="main-navigation">
-  <li><a href="/blog/">Blog</a></li>
-  <li><a href="/blog/blog/archives">Archives</a></li>
-</ul>
-
-</nav>
-  <div id="main">
-    <div id="content">
-      <div class="blog-index">
-  
-  
-  
-    <article class="b1">
-      
-  <header>
+  <title><![CDATA[Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2013-07-30T22:57:11+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
     
-      <h1 class="entry-title"><a href="/blog/blog/2013/07/30/bbcp-performance/" style='font-size:20px'>Bbcp的性能测试，基本取代scp</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
 
   
-
-
-<time datetime="2013-07-30T21:32:00+08:00" pubdate data-updated="true">Jul 30<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/07/30/bbcp-performance/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"bbcp的性能测试，基本取代scp", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>之前是用scp copy较大文件的，别人推荐了bbcp，于是试用一下并做些性能测试</p>
+  <entry>
+    <title type="html"><![CDATA[bbcp的性能测试，基本取代scp]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/07/30/bbcp-performance/"/>
+    <updated>2013-07-30T21:32:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/07/30/bbcp-performance</id>
+    <content type="html"><![CDATA[<p>之前是用scp copy较大文件的，别人推荐了bbcp，于是试用一下并做些性能测试</p>
 
 <p>用法：两侧机器都需安装bbcp，且安装在$PATH下。如果碰到连接不上，请参看<a href="https://confluence.slac.stanford.edu/display/PCDS/Using+BBCP">这里</a>的trouble shooting</p>
 
@@ -262,64 +172,15 @@
 <li><p><a href="https://confluence.slac.stanford.edu/display/PCDS/Using+BBCP">这里</a> 有非常详细的bbcp使用介绍，trouble shooting一节非常有用</p></li>
 </ol>
 
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b2">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/05/28/interesting-js/" style='font-size:20px'>有意思的javascript笔误</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-05-28T22:33:00+08:00" pubdate data-updated="true">May 28<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/05/28/interesting-js/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"有意思的javascript笔误", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>前两天被拉去查一个很怪的错，描述是“一个js文件压缩前和压缩后执行结果不一样”</p>
+  <entry>
+    <title type="html"><![CDATA[有意思的javascript笔误]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/05/28/interesting-js/"/>
+    <updated>2013-05-28T22:33:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/05/28/interesting-js</id>
+    <content type="html"><![CDATA[<p>前两天被拉去查一个很怪的错，描述是“一个js文件压缩前和压缩后执行结果不一样”</p>
 
 <p>查了很久锁定以下代码</p>
 
@@ -357,64 +218,15 @@
 
 
 <p>那个多出来的加号，被解释成取数字正值，就像减号在数字前是取数字的负值一样。</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b3">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/05/18/java-offheap-memory/" style='font-size:20px'>Java Off-heap的一些参考</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-05-18T23:00:00+08:00" pubdate data-updated="true">May 18<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/05/18/java-offheap-memory/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"Java off-heap的一些参考", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>读了Hazelcast的文档，很有意思的部分是&#8221;Elastic Memory&#8221;，为了减少GC，用到了java off-heap(off-heap允许Java直接操作内存空间, 类似于C的malloc和free)。之前孤陋寡闻，记录一些off-heap的参考。</p>
+  <entry>
+    <title type="html"><![CDATA[Java off-heap的一些参考]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/05/18/java-offheap-memory/"/>
+    <updated>2013-05-18T23:00:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/05/18/java-offheap-memory</id>
+    <content type="html"><![CDATA[<p>读了Hazelcast的文档，很有意思的部分是&#8221;Elastic Memory&#8221;，为了减少GC，用到了java off-heap(off-heap允许Java直接操作内存空间, 类似于C的malloc和free)。之前孤陋寡闻，记录一些off-heap的参考。</p>
 
 <p>1.做了以下对比试验，来对比Heap和Non-heap</p>
 
@@ -487,10 +299,10 @@
 
 
 <p>Heap GC的测试结果：
-<img src="/blog/images/2013-05-18-java-offheap-memory-0.png" title="Heap" ></p>
+<img src="http://ikarishinjieva.github.com/blog/images/2013-05-18-java-offheap-memory-0.png" title="Heap" ></p>
 
 <p>Off-heap GC的测试结果：
-<img src="/blog/images/2013-05-18-java-offheap-memory-1.png" title="Off-heap" ></p>
+<img src="http://ikarishinjieva.github.com/blog/images/2013-05-18-java-offheap-memory-1.png" title="Off-heap" ></p>
 
 <p>尽管这种测试没啥意义，只能给个直观感受，还是可以看到Heap GC Pause Time还是很多的。</p>
 
@@ -503,64 +315,15 @@
 <p>3.<a href="http://mentablog.soliveirajr.com/2012/11/real-time-java-programming-without-gc">这篇文章</a> 讨论了如何让Java避开GC并提供了memory的测试类GCUtils。</p>
 
 <p>4.<a href="http://stackoverflow.com/questions/12246533/where-to-find-the-evidence-of-how-to-calculate-the-size-of-a-java-object">在这里</a> Peter Lawrey谈到了如何测量一个Java对象的大小和TLAB对测量的影响。仅供参考。</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b4">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/05/15/mysql-master-slave-standby-failover/" style='font-size:20px'>实验：Mysql Master-slave-standby将source从master切换到standby</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-05-15T22:40:00+08:00" pubdate data-updated="true">May 15<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/05/15/mysql-master-slave-standby-failover/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"实验：Mysql master-slave-standby将source从master切换到standby", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>尝试了&lt;Mysql High Availability&gt;第四章热备份一节的实验,记录步骤.</p>
+  <entry>
+    <title type="html"><![CDATA[实验：Mysql master-slave-standby将source从master切换到standby]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/05/15/mysql-master-slave-standby-failover/"/>
+    <updated>2013-05-15T22:40:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/05/15/mysql-master-slave-standby-failover</id>
+    <content type="html"><![CDATA[<p>尝试了&lt;Mysql High Availability&gt;第四章热备份一节的实验,记录步骤.</p>
 
 <p>先统一原语,master/slave/standby表示三台机器名,source/target代表replication关系的两端（不适用master/slave用以和机器名区分）.&#8221;master(3)&#8221;表示master机器的db里有三条数据1,2,3.</p>
 
@@ -711,64 +474,15 @@
 <p>总的思路就是讲master(3),standby(2),slave(1)同步成master(3),standby(2),slave(2),然后将master->slave切换成standby->slave.</p>
 
 <p>遗留了两个问题,其一是slave和standby同步时使用了&#8221;坏掉&#8221;的master;其二是master超前了standby和slave, 也就是standby->slave丢失了master的超前数据。留待慢慢学习。</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b5">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/05/12/mysql-binlog-study/" style='font-size:20px'>关于Mysql Binlog的一点学习</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-05-12T22:59:00+08:00" pubdate data-updated="true">May 12<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/05/12/mysql-binlog-study/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"关于Mysql binlog的一点学习", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>差不多一个月没更新了。除了忙些琐事，就是偷点懒。</p>
+  <entry>
+    <title type="html"><![CDATA[关于Mysql binlog的一点学习]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/05/12/mysql-binlog-study/"/>
+    <updated>2013-05-12T22:59:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/05/12/mysql-binlog-study</id>
+    <content type="html"><![CDATA[<p>差不多一个月没更新了。除了忙些琐事，就是偷点懒。</p>
 
 <p>在读&lt;Mysql High Availability&gt;，扫了一遍，读第二遍的时候开始做些实验，所以这之后的blog写的也会没什么章法。</p>
 
@@ -963,64 +677,15 @@
 
 
 <p>简单一点学习如上。</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/" style='font-size:20px'>Lisp一个大写的坑</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-16T23:12:00+08:00" pubdate data-updated="true">Apr 16<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/04/16/lisp-symbol-upper-case/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"lisp一个大写的坑", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>最近一直掉在一个坑里，今天刚出坑</p>
+  <entry>
+    <title type="html"><![CDATA[lisp一个大写的坑]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/04/16/lisp-symbol-upper-case/"/>
+    <updated>2013-04-16T23:12:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/04/16/lisp-symbol-upper-case</id>
+    <content type="html"><![CDATA[<p>最近一直掉在一个坑里，今天刚出坑</p>
 
 <p>想用宏定义不同的函数，类似于:</p>
 
@@ -1067,64 +732,15 @@
 <p>参考：</p>
 
 <p><a href="http://www.cs.rochester.edu/~schubert/247-447/symbols-in-lisp.html">How to handle symbols in LISP</a></p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b7">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/31/java-method-passing/" style='font-size:20px'>我写了半辈子程序 & Java的重载方法选择基于编译期参数类型</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-31T23:22:00+08:00" pubdate data-updated="true">Mar 31<span>st</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/31/java-method-passing/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"我写了半辈子程序 & java的重载方法选择基于编译期参数类型", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>一段时间没更新过blog,因为花了些时间在读lisp的入门,还将继续一段时间</p>
+  <entry>
+    <title type="html"><![CDATA[我写了半辈子程序 & java的重载方法选择基于编译期参数类型]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/31/java-method-passing/"/>
+    <updated>2013-03-31T23:22:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/31/java-method-passing</id>
+    <content type="html"><![CDATA[<p>一段时间没更新过blog,因为花了些时间在读lisp的入门,还将继续一段时间</p>
 
 <p>先庆祝下自己25岁,可以正式对外宣称&#8221;我写了半辈子程序&#8221;</p>
 
@@ -1190,64 +806,15 @@
 
 
 <p>运行结果是&#8221;B/A&#8221;,B这个类是根据运行类型找到的,foo(A)这个方法是根据编译类型找到的。</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b1">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/19/some-readings-about-localStorage/" style='font-size:20px'>读了“There Is No Simple Solution for Local Storage”</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-19T23:35:00+08:00" pubdate data-updated="true">Mar 19<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/19/some-readings-about-localStorage/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"读了“There is no simple solution for local storage”", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>作为一个非专职Client开发,偶然读了读关于localStorage的<a href="http://www.36ria.com/6075">这篇有趣的文字</a>,非常有意思,引文也很值得一读。</p>
+  <entry>
+    <title type="html"><![CDATA[读了“There is no simple solution for local storage”]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/19/some-readings-about-localStorage/"/>
+    <updated>2013-03-19T23:35:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/19/some-readings-about-localStorage</id>
+    <content type="html"><![CDATA[<p>作为一个非专职Client开发,偶然读了读关于localStorage的<a href="http://www.36ria.com/6075">这篇有趣的文字</a>,非常有意思,引文也很值得一读。</p>
 
 <p>作者的思考方向很全面。摘取其中重要的部分：</p>
 
@@ -1266,64 +833,15 @@
 <p><a href="http://htmlui.com/blog/2011-08-23-5-obscure-facts-about-html5-localstorage.html">这篇引文</a> 描述了LocalStorage的几个限制。值得注意的是http和https的localStorage不能互通。</p>
 
 <p><a href="https://hacks.mozilla.org/2012/02/saving-images-and-files-in-localstorage/">Saving images and files in localStorage</a></p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b2">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/18/lisp-quote-backquote/" style='font-size:20px'>略学习Lisp的quote和backquote</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-18T23:59:00+08:00" pubdate data-updated="true">Mar 18<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/18/lisp-quote-backquote/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"略学习Lisp的quote和backquote", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>略学习了lisp里面奇怪的符号集，解释这些符号上，人类的语言基本是苍白的。</p>
+  <entry>
+    <title type="html"><![CDATA[略学习Lisp的quote和backquote]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/18/lisp-quote-backquote/"/>
+    <updated>2013-03-18T23:59:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/18/lisp-quote-backquote</id>
+    <content type="html"><![CDATA[<p>略学习了lisp里面奇怪的符号集，解释这些符号上，人类的语言基本是苍白的。</p>
 
 <p><a href="http://www.lispworks.com/documentation/HyperSpec/Body/02_df.htm">第一份参考</a>来自lispworks的文档，对[`&#8217;@,]这几种符号做了定义。</p>
 
@@ -1367,124 +885,26 @@
 </span><span class='line'>CL-USER> (let ((x `(1 2))) `(,x))
 </span><span class='line'>((1 2)) ;x will not be "expand" when use comma instead of comma-at-sign</span></code></pre></td></tr></table></div></figure>
 
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b3">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/17/jquery-noconflict/" style='font-size:20px'>读了‘谈谈 jQuery 中的防冲突（noConflict）机制’</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-17T23:49:00+08:00" pubdate data-updated="true">Mar 17<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/17/jquery-noconflict/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"读了‘谈谈 jQuery 中的防冲突（noConflict）机制’", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>文章在此：<a href="http://ued.taobao.com/blog/2013/03/jquery-noconflict/">http://ued.taobao.com/blog/2013/03/jquery-noconflict/</a></p>
+  <entry>
+    <title type="html"><![CDATA[读了‘谈谈 jQuery 中的防冲突（noConflict）机制’]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/17/jquery-noconflict/"/>
+    <updated>2013-03-17T23:49:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/17/jquery-noconflict</id>
+    <content type="html"><![CDATA[<p>文章在此：<a href="http://ued.taobao.com/blog/2013/03/jquery-noconflict/">http://ued.taobao.com/blog/2013/03/jquery-noconflict/</a></p>
 
 <p>倒是也没什么大不了的，略感叹jquery的api设计的周到。</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b4">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/14/read-write-lock-read-reentrant/" style='font-size:20px'>读写锁-读可重入</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-14T21:37:00+08:00" pubdate data-updated="true">Mar 14<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/14/read-write-lock-read-reentrant/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"读写锁-读可重入", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>发现<a href="http://tutorials.jenkov.com/java-concurrency/read-write-locks.html">这篇文献</a>描写读写锁和可重入性非常具体。</p>
+  <entry>
+    <title type="html"><![CDATA[读写锁-读可重入]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/14/read-write-lock-read-reentrant/"/>
+    <updated>2013-03-14T21:37:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/14/read-write-lock-read-reentrant</id>
+    <content type="html"><![CDATA[<p>发现<a href="http://tutorials.jenkov.com/java-concurrency/read-write-locks.html">这篇文献</a>描写读写锁和可重入性非常具体。</p>
 
 <p>尝试实现文章中的读可重入的读写锁：</p>
 
@@ -1741,64 +1161,15 @@
 </span><span class='line'><span class="o">}</span>
 </span></code></pre></td></tr></table></div></figure>
 
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b5">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/13/reentrant-lock/" style='font-size:20px'>可重入Lock</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-13T23:01:00+08:00" pubdate data-updated="true">Mar 13<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/13/reentrant-lock/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"可重入Lock", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>参考：<a href="http://book.douban.com/subject/10484692/">Java并发编程实践</a></p>
+  <entry>
+    <title type="html"><![CDATA[可重入Lock]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/13/reentrant-lock/"/>
+    <updated>2013-03-13T23:01:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/13/reentrant-lock</id>
+    <content type="html"><![CDATA[<p>参考：<a href="http://book.douban.com/subject/10484692/">Java并发编程实践</a></p>
 
 <p>参考书里2.3.2对锁的重入性一句话搞定：“获取所得粒度是&#8221;线程&#8221;，而不是&#8221;调用&#8221;”</p>
 
@@ -1993,64 +1364,15 @@
 
 
 <p>不同线程可以看到T2一定会等到T1释放锁之后。</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/13/notify-and-notify-all/" style='font-size:20px'>Thread Notify 和 NotifyAll</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-13T21:47:00+08:00" pubdate data-updated="true">Mar 13<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/13/notify-and-notify-all/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"Thread Notify 和 NotifyAll", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>参考：<a href="http://blog.csdn.net/iceman1952/article/details/2159812">http://blog.csdn.net/iceman1952/article/details/2159812</a></p>
+  <entry>
+    <title type="html"><![CDATA[Thread Notify 和 NotifyAll]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/13/notify-and-notify-all/"/>
+    <updated>2013-03-13T21:47:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/13/notify-and-notify-all</id>
+    <content type="html"><![CDATA[<p>参考：<a href="http://blog.csdn.net/iceman1952/article/details/2159812">http://blog.csdn.net/iceman1952/article/details/2159812</a></p>
 
 <figure class='code'><figcaption><span>notify  </span></figcaption>
  <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
@@ -2121,64 +1443,15 @@
 <p>Notify版本主线程是不会退出的，因为释放了一个wait，另一个就会等到天荒地老。</p>
 
 <p>NotifyAll主线程会退出。</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b7">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/11/thread-wait-sleep/" style='font-size:20px'>Thread Wait 和 Sleep</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-11T22:32:00+08:00" pubdate data-updated="true">Mar 11<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/11/thread-wait-sleep/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"Thread wait 和 sleep", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>ifeve上发现几个多线程的<a href="http://ifeve.com/javaconcurrency-interview-questions-base/">基础问题</a>。我一直不写多线程（我这两年到底都写了些什么~），重头学起。</p>
+  <entry>
+    <title type="html"><![CDATA[Thread wait 和 sleep]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/11/thread-wait-sleep/"/>
+    <updated>2013-03-11T22:32:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/11/thread-wait-sleep</id>
+    <content type="html"><![CDATA[<p>ifeve上发现几个多线程的<a href="http://ifeve.com/javaconcurrency-interview-questions-base/">基础问题</a>。我一直不写多线程（我这两年到底都写了些什么~），重头学起。</p>
 
 <p>sleep和wait的区别。sleep让出cpu，等一段时间，重新进入竞争，不释放锁。wait等一个状态notify，才重新进入竞争，但释放锁。</p>
 
@@ -2365,64 +1638,15 @@
 <p>sleep的执行结果是T1 run, T1 sleep, T1 wake up, T2 run</p>
 
 <p>wait的执行结果是T1 run, T1 wait, T2 run (此处锁被释放, T2获得锁), T1 wake up</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b1">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/10/false-sharing-0/" style='font-size:20px'>False Sharing 阅读</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-10T23:40:00+08:00" pubdate data-updated="true">Mar 10<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/10/false-sharing-0/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"False Sharing 阅读", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>应该说<a href="http://ifeve.com/disruptor-cacheline-padding/">这篇</a>和<a href="http://ifeve.com/false-sharing/">这篇文章</a>是最近读的最有意思的一篇文章，关于多线程访问时，内存预读到寄存器的内容产生的数据竞争(false sharing)对性能的影响(我已经不知道我在说什么了，文章里解释的很清楚)。</p>
+  <entry>
+    <title type="html"><![CDATA[False Sharing 阅读]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/10/false-sharing-0/"/>
+    <updated>2013-03-10T23:40:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/10/false-sharing-0</id>
+    <content type="html"><![CDATA[<p>应该说<a href="http://ifeve.com/disruptor-cacheline-padding/">这篇</a>和<a href="http://ifeve.com/false-sharing/">这篇文章</a>是最近读的最有意思的一篇文章，关于多线程访问时，内存预读到寄存器的内容产生的数据竞争(false sharing)对性能的影响(我已经不知道我在说什么了，文章里解释的很清楚)。</p>
 
 <p>重做了第二篇里的试验，发现六个padding不够，需要七个padding(p7)才能有两倍的性能差异。(没有文献里说的那么离谱，测试环境的差异吧)</p>
 
@@ -2438,64 +1662,15 @@
 <p>在公司八核的机器上也测过，性能提升也就在2-4倍左右。没有那么夸张。</p>
 
 <p>原理基本清楚，对不同平台间的差异完全没想法。不做深入了解。</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b2">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/05/chrome-workspace/" style='font-size:20px'>Chrome Workspace和File Mapping的使用方法</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-05T22:21:00+08:00" pubdate data-updated="true">Mar 5<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/05/chrome-workspace/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"Chrome Workspace和File Mapping的使用方法", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>前几天微博上一直在转Chrome browser引进了workspace的功能，可以在developer tools里直接进行源码编辑。</p>
+  <entry>
+    <title type="html"><![CDATA[Chrome Workspace和File Mapping的使用方法]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/05/chrome-workspace/"/>
+    <updated>2013-03-05T22:21:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/05/chrome-workspace</id>
+    <content type="html"><![CDATA[<p>前几天微博上一直在转Chrome browser引进了workspace的功能，可以在developer tools里直接进行源码编辑。</p>
 
 <p>但是迄今为止搜索到的文档都没有详细描述使用步骤和限制，36kr上的<a href="http://www.36kr.com/p/201304.html">这篇guide</a>也没有关于mapping的描述，更没有一些坑描述。</p>
 
@@ -2511,22 +1686,22 @@
 
 <ol>
 <li><p>开启&#8221;开发者工具实验&#8221;(这翻译真心烂&#8230;): 在browser输入chrome://flags/，启用&#8221;开发者工具实验&#8221;
-<img src="/blog/images/2013-03-05-chrome-workspace-1.png" title="启用&#34;开发者工具实验&#34;" alt="启用&#34;开发者工具实验&#34;"></p></li>
+<img src="http://ikarishinjieva.github.com/blog/images/2013-03-05-chrome-workspace-1.png" title="启用&#34;开发者工具实验&#34;" alt="启用&#34;开发者工具实验&#34;"></p></li>
 <li><p>重启chrome</p></li>
 <li><p>打开要调试的site，进入Developer tools的setting
-<img src="/blog/images/2013-03-05-chrome-workspace-2.png" title="进入Developer tools的setting" ></p></li>
+<img src="http://ikarishinjieva.github.com/blog/images/2013-03-05-chrome-workspace-2.png" title="进入Developer tools的setting" ></p></li>
 <li><p>启用Workspace功能 (Developer tools -> setting -> Experiments -> File system folders in Sources Panel)
-<img src="/blog/images/2013-03-05-chrome-workspace-3.png" title="启用Workspace功能" ></p></li>
+<img src="http://ikarishinjieva.github.com/blog/images/2013-03-05-chrome-workspace-3.png" title="启用Workspace功能" ></p></li>
 <li><p>重启Developer Tools, 可以看到Settings里Workspace页
-<img src="/blog/images/2013-03-05-chrome-workspace-4.png" title="Settings里Workspace页" ></p></li>
+<img src="http://ikarishinjieva.github.com/blog/images/2013-03-05-chrome-workspace-4.png" title="Settings里Workspace页" ></p></li>
 <li><p>假设源js的目录为c:\test, 需要现在这个目录下创建空文件.allow-devtools-edit, browser才会认可这个为源文件夹
-<img src="/blog/images/2013-03-05-chrome-workspace-5.png" title="创建空文件.allow-devtools-edit" ></p></li>
+<img src="http://ikarishinjieva.github.com/blog/images/2013-03-05-chrome-workspace-5.png" title="创建空文件.allow-devtools-edit" ></p></li>
 <li><p>在Developer tool -> setting ->Workspace -> File system里，添加源js的目录
-<img src="/blog/images/2013-03-05-chrome-workspace-6.png" title="创建空文件.allow-devtools-edit" ></p></li>
+<img src="http://ikarishinjieva.github.com/blog/images/2013-03-05-chrome-workspace-6.png" title="创建空文件.allow-devtools-edit" ></p></li>
 <li><p>重启Developer Tools, 可以在Sources页里看到本地folder
-<img src="/blog/images/2013-03-05-chrome-workspace-7.png" title="可以在Sources页里看到本地folder" ></p></li>
+<img src="http://ikarishinjieva.github.com/blog/images/2013-03-05-chrome-workspace-7.png" title="可以在Sources页里看到本地folder" ></p></li>
 <li><p>此时在Chrome用Ctrl + O打开文件列表，可以看到两个相同的文件，一个是远端，一个是本地。在本地文件上打断点没有作用
-<img src="/blog/images/2013-03-05-chrome-workspace-8.png" title="Ctrl + O打开文件列表，可以看到两个相同的文件" ></p></li>
+<img src="http://ikarishinjieva.github.com/blog/images/2013-03-05-chrome-workspace-8.png" title="Ctrl + O打开文件列表，可以看到两个相同的文件" ></p></li>
 <li><p>在Developer tool -> setting ->Workspace -> Mappings里，添加mapping：
 <code>
 http://localhost:7001/.../js/slickgrid C:\test
@@ -2535,7 +1710,7 @@ http://localhost:7001/.../js/slickgrid C:\test
 
 
 <p><em>URL是以http开头的完整路径，url和path都万万不要以/结尾，虽然添加后会自动显示为以/结尾。千万注意大小写会坑爹，要保持mapping和folder的大小写一致</em>
-<img src="/blog/images/2013-03-05-chrome-workspace-9.png" title="添加mapping" ></p>
+<img src="http://ikarishinjieva.github.com/blog/images/2013-03-05-chrome-workspace-9.png" title="添加mapping" ></p>
 
 <ol>
 <li>此时，用Ctrl + O打开文件列表，只能看到一个文件，在本地文件上可以打断点(此处有坑，请阅读坑部分)，对本地文件的修改也会灵验的(直接反应在C:\test中)。</li>
@@ -2552,240 +1727,44 @@ http://localhost:7001/.../js/slickgrid C:\test
 
 
 <p>应该说workspace是挺有用的功能，不过由于坑3，在项目中的运用不畅。本想自己修修，发现这个bug涉及c++代码，表示放弃。</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article class="b3">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/02/28/lisp-book/" style='font-size:20px'>在读lisp入门</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-02-28T00:20:00+08:00" pubdate data-updated="true">Feb 28<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/02/28/lisp-book/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"在读lisp入门", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>花了几天时间在读<a href="http://book.douban.com/subject/11238123">lisp的入门</a>。</p>
+  <entry>
+    <title type="html"><![CDATA[在读lisp入门]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/02/28/lisp-book/"/>
+    <updated>2013-02-28T00:20:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/02/28/lisp-book</id>
+    <content type="html"><![CDATA[<p>花了几天时间在读<a href="http://book.douban.com/subject/11238123">lisp的入门</a>。</p>
 
 <p>是本写得十分中肯的语言书。冗长，事无巨细，配图和代码样例精准。就算不看冗长的英文只看代码样例，也能了解个大概。对lisp辅助工具的介绍非常详尽，就算是programming ruby也没达到这个程度。习题丰富。</p>
-</div>
+]]></content>
+  </entry>
   
+  <entry>
+    <title type="html"><![CDATA[Git入门]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/02/21/git-study/"/>
+    <updated>2013-02-21T21:10:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/02/21/git-study</id>
+    <content type="html"><![CDATA[<p>花了两天完成<a href="http://pcottle.github.com/learnGitBranching">这个教程</a>。作为git的入门非常好。</p>
+]]></content>
+  </entry>
   
-
-
-    </article>
+  <entry>
+    <title type="html"><![CDATA[测试一下ifttt根据blog rss更新linkedin和evernote]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/02/19/ifttt/"/>
+    <updated>2013-02-19T23:16:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/02/19/ifttt</id>
+    <content type="html"><![CDATA[<p>测试一下ifttt根据blog rss更新linkedin和evernote</p>
+]]></content>
+  </entry>
   
-  
-    <article class="b4">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/02/21/git-study/" style='font-size:20px'>Git入门</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-02-21T21:10:00+08:00" pubdate data-updated="true">Feb 21<span>st</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/02/21/git-study/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"Git入门", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>花了两天完成<a href="http://pcottle.github.com/learnGitBranching">这个教程</a>。作为git的入门非常好。</p>
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article class="b5">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/02/19/ifttt/" style='font-size:20px'>测试一下ifttt根据blog Rss更新linkedin和evernote</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-02-19T23:16:00+08:00" pubdate data-updated="true">Feb 19<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/02/19/ifttt/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"测试一下ifttt根据blog rss更新linkedin和evernote", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>测试一下ifttt根据blog rss更新linkedin和evernote</p>
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/02/14/css-clear/" style='font-size:20px'>Css Clear属性</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-02-14T23:00:00+08:00" pubdate data-updated="true">Feb 14<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/02/14/css-clear/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"css clear属性", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>开始学习css。
+  <entry>
+    <title type="html"><![CDATA[css clear属性]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/02/14/css-clear/"/>
+    <updated>2013-02-14T23:00:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/02/14/css-clear</id>
+    <content type="html"><![CDATA[<p>开始学习css。
 <a href="http://www.amazon.com/CSS-Cookbook-Edition-Animal-Guide/dp/059615593X/">css cookbook</a> 2.21讨论了clear的用法。</p>
 
 <p>简单做了个实验。</p>
@@ -2813,179 +1792,7 @@ http://localhost:7001/.../js/slickgrid C:\test
 <p>一些参考：</p>
 
 <p><a href="http://www.w3school.com.cn/css/css_positioning_floating.asp">http://www.w3school.com.cn/css/css_positioning_floating.asp</a> 介绍了floating和clear，涵盖了<css cookbook>2.21 &amp; 2.22的内容</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  <div class="pagination">
-    
-      <a class="prev" href="/blog/blog/page/2/">&larr; Older</a>
-    
-    <a href="/blog/blog/archives">Blog Archives</a>
-    
-  </div>
-</div>
-<aside class="sidebar">
-  
-    <section>
-  <h1>Recent Posts</h1>
-  <ul id="recent_posts">
-    
-      <li class="post">
-        <a href="/blog/blog/2013/07/30/bbcp-performance/">bbcp的性能测试，基本取代scp</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/05/28/interesting-js/">有意思的javascript笔误</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/05/18/java-offheap-memory/">Java off-heap的一些参考</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/05/15/mysql-master-slave-standby-failover/">实验：Mysql master-slave-standby将source从master切换到standby</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/05/12/mysql-binlog-study/">关于Mysql binlog的一点学习</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/">lisp一个大写的坑</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/31/java-method-passing/">我写了半辈子程序 & java的重载方法选择基于编译期参数类型</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/19/some-readings-about-localStorage/">读了“There is no simple solution for local storage”</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/18/lisp-quote-backquote/">略学习Lisp的quote和backquote</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/17/jquery-noconflict/">读了‘谈谈 jQuery 中的防冲突（noConflict）机制’</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/14/read-write-lock-read-reentrant/">读写锁-读可重入</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/13/reentrant-lock/">可重入Lock</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/13/notify-and-notify-all/">Thread Notify 和 NotifyAll</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/11/thread-wait-sleep/">Thread wait 和 sleep</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/10/false-sharing-0/">False Sharing 阅读</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/05/chrome-workspace/">Chrome Workspace和File Mapping的使用方法</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/02/28/lisp-book/">在读lisp入门</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/02/21/git-study/">Git入门</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/02/19/ifttt/">测试一下ifttt根据blog rss更新linkedin和evernote</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/02/14/css-clear/">css clear属性</a>
-      </li>
-    
-  </ul>
-</section>
-<section>
-  <h1>Weibo</h1>
-  <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=10&isTitle=1&noborder=0&isWeibo=1&isFans=0&uid=1460219211&verifier=4d7daebc&dpc=1"></iframe>
-</section>
-
-<section>
-  <h1>GitHub Repos</h1>
-  <ul id="gh_repos">
-    <li class="loading">Status updating&#8230;</li>
-  </ul>
-  
-  <a href="https://github.com/ikarishinjieva">@ikarishinjieva</a> on GitHub
-  
-  <script type="text/javascript">
-    $.domReady(function(){
-        if (!window.jXHR){
-            var jxhr = document.createElement('script');
-            jxhr.type = 'text/javascript';
-            jxhr.src = '/javascripts/libs/jXHR.js';
-            var s = document.getElementsByTagName('script')[0];
-            s.parentNode.insertBefore(jxhr, s);
-        }
-
-        github.showRepos({
-            user: 'ikarishinjieva',
-            count: 5,
-            skip_forks: true,
-            target: '#gh_repos'
-        });
-    });
-  </script>
-  <script src="/blog/javascripts/github.js" type="text/javascript"> </script>
-</section>
-
-
-  
-</aside>
-
-    </div>
-  </div>
-  <footer role="contentinfo"><p>
-  Copyright &copy; 2013 - Tac Huang (ikari_shinji@github) -
-  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
-</p>
-
-</footer>
-  
-
-<script type="text/javascript">
-      var disqus_shortname = 'tacsay';
-      
-        
-        var disqus_script = 'count.js';
-      
-    (function () {
-      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
-      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
-      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-    }());
-</script>
-
-
-
-
-
-
-
-
-
-
-
-</body>
-</html>
+</feed>

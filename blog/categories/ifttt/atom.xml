@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: ifttt | Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/blog/categories/ifttt/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2013-07-30T22:57:11+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[测试一下ifttt根据blog rss更新linkedin和evernote]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/02/19/ifttt/"/>
+    <updated>2013-02-19T23:16:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/02/19/ifttt</id>
+    <content type="html"><![CDATA[<p>测试一下ifttt根据blog rss更新linkedin和evernote</p>
+]]></content>
+  </entry>
+  
+</feed>

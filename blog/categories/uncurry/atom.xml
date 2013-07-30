@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: uncurry | Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/blog/categories/uncurry/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2013-07-30T22:57:11+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Q源码里uncurry函数分析]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/02/04/Q-uncurry-safe-meta-programming/"/>
+    <updated>2013-02-04T23:04:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/02/04/Q-uncurry-safe-meta-programming</id>
+    <content type="html"><![CDATA[<p><a href="http://documentup.com/kriskowal/q/">Q</a>里关于uncurry的代码
+<div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="c1">// Attempt to make generics safe in the face of downstream</span>
+</span><span class='line'><span class="c1">// modifications.</span>
+</span><span class='line'><span class="c1">// There is no situation where this is necessary.</span>
+</span><span class='line'><span class="c1">// If you need a security guarantee, these primordials need to be</span>
+</span><span class='line'><span class="c1">// deeply frozen anyway, and if you don’t need a security guarantee,</span>
+</span><span class='line'><span class="c1">// this is just plain paranoid.</span>
+</span><span class='line'><span class="c1">// However, this does have the nice side-effect of reducing the size</span>
+</span><span class='line'><span class="c1">// of the code by reducing x.call() to merely x(), eliminating many</span>
+</span><span class='line'><span class="c1">// hard-to-minify characters.</span>
+</span><span class='line'><span class="c1">// See Mark Miller’s explanation of what this does.</span>
+</span><span class='line'><span class="c1">// http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming</span>
+</span><span class='line'><span class="kd">var</span> <span class="nx">uncurryThis</span><span class="p">;</span>
+</span><span class='line'><span class="c1">// I have kept both variations because the first is theoretically</span>
+</span><span class='line'><span class="c1">// faster, if bind is available.</span>
+</span><span class='line'><span class="k">if</span> <span class="p">(</span><span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">bind</span><span class="p">)</span> <span class="p">{</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="nx">pre</span><span class="o">&gt;&lt;</span><span class="nx">code</span><span class="o">&gt;</span><span class="kd">var</span> <span class="nx">Function_bind</span> <span class="o">=</span> <span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">bind</span><span class="p">;</span>
+</span><span class='line'><span class="nx">uncurryThis</span> <span class="o">=</span> <span class="nx">Function_bind</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="nx">Function_bind</span><span class="p">.</span><span class="nx">call</span><span class="p">);</span>
+</span><span class='line'><span class="o">&lt;</span><span class="err">/code&gt;&lt;/pre&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="p">}</span> <span class="k">else</span> <span class="p">{</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="nx">pre</span><span class="o">&gt;&lt;</span><span class="nx">code</span><span class="o">&gt;</span><span class="nx">uncurryThis</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="nx">f</span><span class="p">.</span><span class="nx">call</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="nx">f</span><span class="p">,</span> <span class="nx">arguments</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">};</span>
+</span><span class='line'><span class="p">};</span>
+</span><span class='line'><span class="o">&lt;</span><span class="err">/code&gt;&lt;/pre&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span><span class='line'><span class="kd">var</span> <span class="nx">array_slice</span> <span class="o">=</span> <span class="nx">uncurryThis</span><span class="p">(</span><span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">);</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>Uncurry/反柯西化的定义可参见<a href="http://en.wikipedia.org/wiki/Uncurry">wiki</a>，不是吾等凡人可以理解的。</p>
+
+<p>从结果看，假设想调用[].slice，如果用uncurryThis(Array.prototype.slice)([])这种形式，可以防止其后[].slice被重写或者[].slice.call被重写。保证当前代码被保护起来，不受之后代码函数重写的影响。</p>
+
+<p>对于Q里用到的这种形式，前提条件是Function.prototype.bind和Function.prototype.bind.call在之前不被重写。简单推导array_slice</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>array_slice推导  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">array_slice</span> <span class="o">=</span> <span class="nx">uncurryThis</span><span class="p">(</span><span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">)</span>
+</span><span class='line'><span class="o">=</span> <span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">bind</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">bind</span><span class="p">.</span><span class="nx">call</span><span class="p">)(</span><span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">)</span>
+</span><span class='line'><span class="o">=</span> <span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">bind</span><span class="p">.</span><span class="nx">call</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">)</span> <span class="c1">//Function.prototype.bind.call.bind is safe</span>
+</span><span class='line'><span class="o">=</span> <span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">.</span><span class="nx">call</span> <span class="c1">//Array.prototype.slice.call is safe</span>
+</span><span class='line'><span class="c1">//Array.prototype.slice is also safe</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>不过，Q的注释里写的很清楚，uncurry在这里不是必要的... 写写而已...</p>
+
+<p>一些参考：</p>
+
+<p><a href="http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming">这篇文章</a> 详细介绍了safe meta programming，对uncurry做了定义和代码演示。</p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: TProfiler | Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/blog/categories/tprofiler/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2013-07-30T22:57:11+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[TProfiler的基本原理]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/01/27/TProfiler-basic/"/>
+    <updated>2013-01-27T23:59:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/01/27/TProfiler-basic</id>
+    <content type="html"><![CDATA[<p>粗粗看了看taobao <a href="https://github.com/taobao/TProfiler">TProfiler</a>的源码，原理有点意思，java代码的质量属于实习生级，也缺乏测试。</p>
+
+<p>一些参考：</p>
+
+<p><a href="http://www.ibm.com/developerworks/cn/java/j-lo-jse61/index.html">Java SE 6 新特性: Instrumentation 新功能 by IBM</a> &lt;介绍了Java 5&amp;6 instrument(更换类实现，类似于AOP)的用法，以及classpath的动态增补(这个很有用)></p>
+
+<p><a href="http://download.forge.objectweb.org/asm/asm4-guide.pdf">objectweb.asm user guide</a> &lt;TProfiler用 objectweb.asm解析和编译class byte code></p>
+]]></content>
+  </entry>
+  
+</feed>

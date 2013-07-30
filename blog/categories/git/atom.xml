@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: git | Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/blog/categories/git/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2013-07-30T22:57:11+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Git入门]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/02/21/git-study/"/>
+    <updated>2013-02-21T21:10:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/02/21/git-study</id>
+    <content type="html"><![CDATA[<p>花了两天完成<a href="http://pcottle.github.com/learnGitBranching">这个教程</a>。作为git的入门非常好。</p>
+]]></content>
+  </entry>
+  
+</feed>

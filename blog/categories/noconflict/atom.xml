@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: noConflict | Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/blog/categories/noconflict/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2013-07-30T22:57:11+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[读了‘谈谈 jQuery 中的防冲突（noConflict）机制’]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/17/jquery-noconflict/"/>
+    <updated>2013-03-17T23:49:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/17/jquery-noconflict</id>
+    <content type="html"><![CDATA[<p>文章在此：<a href="http://ued.taobao.com/blog/2013/03/jquery-noconflict/">http://ued.taobao.com/blog/2013/03/jquery-noconflict/</a></p>
+
+<p>倒是也没什么大不了的，略感叹jquery的api设计的周到。</p>
+]]></content>
+  </entry>
+  
+</feed>

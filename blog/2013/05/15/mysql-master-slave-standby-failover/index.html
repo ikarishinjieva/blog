@@ -1,0 +1,483 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>实验：Mysql master-slave-standby将source从master切换到standby - Tac say</title>
+  <meta name="author" content="Tac Huang (ikari_shinji@github)">
+
+  
+  <meta name="description" content="尝试了&lt;Mysql High Availability&gt;第四章热备份一节的实验,记录步骤. 先统一原语,master/slave/standby表示三台机器名,source/target代表replication关系的两端（不适用master/slave用以和机器名区分）.&#8221 &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2013/05/15/mysql-master-slave-standby-failover/">
+  <link href="/blog/favicon.png" rel="icon">
+  <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/blog/javascripts/modernizr-2.0.js"></script>
+  <script src="/blog/javascripts/ender.js"></script>
+  <script src="/blog/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Tac say" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/blog/">Tac say</a></h1>
+  
+    <h2>只想做个程序演奏家</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<ul class="main-navigation">
+  <li><a href="/blog/">Blog</a></li>
+  <li><a href="/blog/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">实验：Mysql Master-slave-standby将source从master切换到standby</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-15T22:40:00+08:00" pubdate data-updated="true">May 15<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+<div class="entry-content"><p>尝试了&lt;Mysql High Availability&gt;第四章热备份一节的实验,记录步骤.</p>
+
+<p>先统一原语,master/slave/standby表示三台机器名,source/target代表replication关系的两端（不适用master/slave用以和机器名区分）.&#8221;master(3)&#8221;表示master机器的db里有三条数据1,2,3.</p>
+
+<p>实验开始.</p>
+
+<ol>
+<li>初始状态是存在master->slave, master->standby的replication</li>
+<li>standby在切换成source时,需要有bin-log和replication user. 在此重新设置master->standby的replication, 让standby满足要求.</li>
+</ol>
+
+
+<p>忽略replication user的部分.</p>
+
+<p>bin-log的部分在my.cnf里要设置log-bin和log-slave-updates(默认情况下,master->standby的replication不会写standby的bin-log,需开始standby的log-slave-updates才会写).</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>server-id               = 3
+</span><span class='line'>log_bin                 = /var/log/mysql/mysql-bin.log
+</span><span class='line'>...
+</span><span class='line'>relay-log-index         = /var/log/mysql/slave-relay-bin.index
+</span><span class='line'>relay-log               = /var/log/mysql/slave-relay-bin
+</span><span class='line'>log-slave-updates</span></code></pre></td></tr></table></div></figure>
+
+
+<ol>
+<li>测试一下standby binlog设置成功。可以在master插入一条数据，在standby查看</li>
+</ol>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>standby> show binlog events;
+</span><span class='line'>+------------------+------+-------------+-----------+-------------+------------------------------------------------------------------------+
+</span><span class='line'>| Log_name         | Pos  | Event_type  | Server_id | End_log_pos | Info                                                                   |
+</span><span class='line'>+------------------+------+-------------+-----------+-------------+------------------------------------------------------------------------+
+</span><span class='line'>| mysql-bin.000001 |    4 | Format_desc |         3 |         107 | Server ver: 5.5.31-0ubuntu0.12.04.1-log, Binlog ver: 4                 |
+</span><span class='line'>| mysql-bin.000001 |  107 | Query       |         1 |         166 | BEGIN                                                                  |
+</span><span class='line'>| mysql-bin.000001 |  166 | Query       |         1 |         257 | use `tac`; insert into test values(8889)                               |
+</span><span class='line'>| mysql-bin.000001 |  257 | Xid         |         1 |         284 | COMMIT /* xid=111 */    
+</span><span class='line'>...</span></code></pre></td></tr></table></div></figure>
+
+
+<ol>
+<li>将replication调整至状态master(3),standby(2),slave(1). 人工造成各db的状态不一致</li>
+</ol>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>master> insert into test values(1);
+</span><span class='line'>slave> stop slave;
+</span><span class='line'>master> insert into test values(2);
+</span><span class='line'>standby> stop slave;
+</span><span class='line'>master> insert into test values(3);</span></code></pre></td></tr></table></div></figure>
+
+
+<ol>
+<li><p>想象此时master挂掉,开始将source从master切换成standby</p></li>
+<li><p>在建立standby->slave的replication之前，需要将standby和slave数据同步(此时slave落后于standby)。</p></li>
+</ol>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>-- 先查看standby从master拿了多少数据
+</span><span class='line'>standby> show slave status \G
+</span><span class='line'>*************************** 1. row ***************************
+</span><span class='line'>...
+</span><span class='line'>        Master_Log_File: master-bin.000023
+</span><span class='line'>...
+</span><span class='line'>        Exec_Master_Log_Pos: 1391
+</span><span class='line'>        
+</span><span class='line'>-- 让slave从master上同步到跟standby同样的位置
+</span><span class='line'>slave> start slave until master_log_file = 'master-bin.000023', master_log_pos = 1391;</span></code></pre></td></tr></table></div></figure>
+
+
+<p>有意思的是此处用了master(其实我们假设master已经坏了&#8230;)。</p>
+
+<ol>
+<li>此时可以讲slave的source从master切换到standby. 一个问题就是standby->slave的开始位置可能是和master->slave不同</li>
+</ol>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>-- 查看standby binlog的当前位置
+</span><span class='line'>mysql> show master status \G
+</span><span class='line'>*************************** 1. row ***************************
+</span><span class='line'>    File: mysql-bin.000001 
+</span><span class='line'>    Position: 796
+</span><span class='line'>    Binlog_Do_DB:
+</span><span class='line'>  Binlog_Ignore_DB:
+</span><span class='line'>-- 注意与master上的文件名和位置都不同
+</span><span class='line'>
+</span><span class='line'>-- 切换slave的source
+</span><span class='line'>slave> change master to 
+</span><span class='line'>            master_host = '192.168.50.4', 
+</span><span class='line'>            master_port = 3306, 
+</span><span class='line'>            master_user = 'repl', 
+</span><span class='line'>            master_password = 'repl', 
+</span><span class='line'>            master_log_file = 'mysql-bin.000001', 
+</span><span class='line'>            master_log_pos = 796;</span></code></pre></td></tr></table></div></figure>
+
+
+<ol>
+<li>测试一下standby->slave replication.</li>
+</ol>
+
+
+<p>总的思路就是讲master(3),standby(2),slave(1)同步成master(3),standby(2),slave(2),然后将master->slave切换成standby->slave.</p>
+
+<p>遗留了两个问题,其一是slave和standby同步时使用了&#8221;坏掉&#8221;的master;其二是master超前了standby和slave, 也就是standby->slave丢失了master的超前数据。留待慢慢学习。</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Tac Huang (ikari_shinji@github)</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-15T22:40:00+08:00" pubdate data-updated="true">May 15<span>th</span>, 2013</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/blog/categories/mysql/'>mysql</a>, <a class='category' href='/blog/blog/categories/replication/'>replication</a>, <a class='category' href='/blog/blog/categories/standby/'>standby</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/blog/2013/05/12/mysql-binlog-study/" title="Previous Post: 关于Mysql binlog的一点学习">&laquo; 关于Mysql binlog的一点学习</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/blog/2013/05/18/java-offheap-memory/" title="Next Post: Java off-heap的一些参考">Java off-heap的一些参考 &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2013/07/30/bbcp-performance/">bbcp的性能测试，基本取代scp</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/28/interesting-js/">有意思的javascript笔误</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/18/java-offheap-memory/">Java off-heap的一些参考</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/15/mysql-master-slave-standby-failover/">实验：Mysql master-slave-standby将source从master切换到standby</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/12/mysql-binlog-study/">关于Mysql binlog的一点学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/">lisp一个大写的坑</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/31/java-method-passing/">我写了半辈子程序 & java的重载方法选择基于编译期参数类型</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/19/some-readings-about-localStorage/">读了“There is no simple solution for local storage”</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/18/lisp-quote-backquote/">略学习Lisp的quote和backquote</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/17/jquery-noconflict/">读了‘谈谈 jQuery 中的防冲突（noConflict）机制’</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/14/read-write-lock-read-reentrant/">读写锁-读可重入</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/13/reentrant-lock/">可重入Lock</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/13/notify-and-notify-all/">Thread Notify 和 NotifyAll</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/11/thread-wait-sleep/">Thread wait 和 sleep</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/10/false-sharing-0/">False Sharing 阅读</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/05/chrome-workspace/">Chrome Workspace和File Mapping的使用方法</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/02/28/lisp-book/">在读lisp入门</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/02/21/git-study/">Git入门</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/02/19/ifttt/">测试一下ifttt根据blog rss更新linkedin和evernote</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/02/14/css-clear/">css clear属性</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Weibo</h1>
+  <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=10&isTitle=1&noborder=0&isWeibo=1&isFans=0&uid=1460219211&verifier=4d7daebc&dpc=1"></iframe>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/ikarishinjieva">@ikarishinjieva</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'ikarishinjieva',
+            count: 5,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/blog/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2013 - Tac Huang (ikari_shinji@github) -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'tacsay';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2013/05/15/mysql-master-slave-standby-failover/';
+        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2013/05/15/mysql-master-slave-standby-failover/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
