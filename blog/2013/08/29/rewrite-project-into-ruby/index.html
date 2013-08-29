@@ -1,0 +1,494 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>jruby重写java项目的一些总结 - Tac say</title>
+  <meta name="author" content="Tac Huang (ikari_shinji@github)">
+
+  
+  <meta name="description" content="久不更新了，6月换了工作 最近将一个小项目从java迁移到了jruby，在此总结一下 从结果开始 1.代码量上的比较 * 纯Java项目 Jruby项目 主代码行数 4073 2689 - 454 | 测试代码行数 1707 1485 - 319 | &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2013/08/29/rewrite-project-into-ruby/">
+  <link href="/blog/favicon.png" rel="icon">
+  <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/blog/javascripts/modernizr-2.0.js"></script>
+  <script src="/blog/javascripts/ender.js"></script>
+  <script src="/blog/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Tac say" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/blog/">Tac say</a></h1>
+  
+    <h2>只想做个程序演奏家</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<ul class="main-navigation">
+  <li><a href="/blog/">Blog</a></li>
+  <li><a href="/blog/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Jruby重写java项目的一些总结</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-08-29T21:22:00+08:00" pubdate data-updated="true">Aug 29<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+<div class="entry-content"><p>久不更新了，6月换了工作</p>
+
+<p>最近将一个小项目从java迁移到了jruby，在此总结一下</p>
+
+<h1>从结果开始</h1>
+
+<p>1.代码量上的比较</p>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th> *             </th>
+<th> 纯Java项目     </th>
+<th> Jruby项目    </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td> 主代码行数       </td>
+<td> 4073          </td>
+<td> 2689 - 454 |</td>
+</tr>
+<tr>
+<td></td>
+<td> 测试代码行数    </td>
+<td> 1707          </td>
+<td> 1485 - 319 |</td>
+</tr>
+</tbody>
+</table>
+
+
+<p>其中Jruby项目中有454行主代码和319行测试代码为新加功能</p>
+
+<p>结论是在迁移了所有功能后，主代码量减少了45%+，测试代码比例从41%增加到52%，测试case数也有所增加</p>
+
+<p>2.DSL</p>
+
+<p>在迁移过程中，加入了一些DSL，让代码变得更可读，类似于</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">unless</span> <span class="n">can_load</span> <span class="n">local_node</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">from_file</span>
+</span><span class='line'>  <span class="nb">load</span> <span class="n">local_node</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="ss">:sip_ip</span>
+</span><span class='line'>  <span class="n">cluster</span><span class="o">.</span><span class="n">join</span> <span class="n">local_node</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sip_ip</span>
+</span><span class='line'>  <span class="n">cluster</span><span class="o">.</span><span class="n">lock</span> <span class="s2">&quot;lock_config&quot;</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">load_remote_global_config</span>
+</span><span class='line'>      <span class="nb">load</span> <span class="n">local_node</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="n">with</span><span class="p">(</span><span class="vi">@remote_global_config</span><span class="p">)</span>
+</span><span class='line'>      <span class="n">dump</span> <span class="n">local_node</span><span class="o">.</span><span class="n">config</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">else</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>去除了所有符号，就变成稍微可读的一篇描述</p>
+
+<p>3.部署</p>
+
+<p>jruby可以被编译成class，打成jar，跑在一切有jvm和jruby jar的地方。与现有java项目的融合不成问题，此次也是只迁移了项目中的一部分</p>
+
+<h1>一些细节</h1>
+
+<p>1.代码量的减少</p>
+
+<p>抛弃脚本语言的优势论不谈，实践中，代码量的明显减少来自于以下几个方面：</p>
+
+<blockquote><p>1.1.调用命令行更方便，在纯java中调用命令行比较烦，即使封装半天也很不爽。代码量差别不是很大，主要是不爽</p>
+
+<p>1.2.闭包。java中传递闭包得靠实现匿名接口，冗长麻烦，影响函数的复用。（要不定义多个函数，要不到处new interface）</p>
+
+<p>1.3.mixin。奇怪的是我混入的往往不是特性，而是辅助函数&#8230; 尽管这种方法不正规，但对于小类来说非常实用。比较以下两段代码</p></blockquote>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">A</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">aaaa</span>
+</span><span class='line'>      <span class="no">XxxUtils</span><span class="o">.</span><span class="n">blabla</span> <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>      <span class="no">YyyHelper</span><span class="o">.</span><span class="n">blublu</span> <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">A</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">XxxUtils</span><span class="p">,</span> <span class="no">YyyHelper</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">aaaa</span>
+</span><span class='line'>      <span class="n">blabla</span> <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>      <span class="n">blublu</span> <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>如果你跟我一样厌恶到处都是Utils、Helper，又比较烦static import</p>
+
+<p>&#8220;mixin太多很容易命名冲突引起问题&#8221;，不得不承认这个担心是对的，我爽我的，谁爱操心谁操心吧。顺便提一句，名空间冲突解决最好的方法还数node.js的。</p>
+
+<blockquote><p>1.4.标准库。不得不承认，ruby标准库的人性化是少见的，链调用能节省很多无用的代码</p>
+
+<p>1.5.rspec mock。以前用java尽量避免用mock framework，都是实现继承注入，太费代码以至于自己都觉得烦（尽管有IDEA的自动代码折叠，也还是烦），到处都是注入点弄的代码也很乱。这是一个很难解决的矛盾，如果每一段代码都是上下文封闭的，那么处理输入输出需要大量代码，如果不是，那我们需要mock。尝试了rspec mock后（我相信任何mock framework都一样），觉得还不错，目前还没有失控的主要原因是每次mock都告诉自己不能超过两层。</p>
+
+<p>最后，&#8221;代码行数不是XXX标准&#8221;，是的，我只是减少了无用代码元素在项目中的分布</p></blockquote>
+
+<p>2.DSL/HSL(Human-specific language)</p>
+
+<p>关于DSL的尝试还很初级，主要目的是读起来通顺，拘泥于以下几种形式：</p>
+
+<blockquote><p>2.1.函数名alias。每次写代码的时候是不是纠结于用[].exist、[].exists，或者[].exists?。实践中都是先！流畅的！写函数梗概，不纠结调用的函数是不是存在，爱怎么用怎么用吧，不存在就alias一下。一切以写作顺畅为目的。</p>
+
+<p>2.2.mixin。如前面提到的，mixin提供了忽略类名的偏门，可以写出一句流畅的人话，比如cp file，而不是FileUtils.cp file（这是什么&#8230;）</p>
+
+<p>2.3.动词函数。比较array.collect和collect array，我喜欢后面那款。动词函数，让&#8221;宾.动&#8221;的OO非人话，转换成&#8221;动宾&#8221;的人话。当然除非你是古文爱好者</p>
+
+<p>2.4.&#8221;介词&#8221;空函数。就是些输出=输入的空函数，比如之前例中&#8221;unless can_load local_node.config.from_file&#8221;的can_load就是空函数，较之&#8221;unless local_node.config.load_from_file&#8221;更有人味</p>
+
+<p>2.5.最后，注意到以上几种形式都没有Domain-specific，而是Human-specific。关于DSL的尝试还没有深入到domain的阶段，进步从让程序说人话开始</p>
+
+<p>2.6.难以否认的部分：像所有的城市规划一样，整洁的背后都会藏着付出代价的区域，DSL的背后也会有支持代码，初次读支持代码会发现他们怪异、畸形、目的非常不明确，配合用例才能读懂。如何更好的管理这部分付出牺牲的代码值得讨论</p></blockquote>
+
+<p>3.部署和测试</p>
+
+<p>描述一下现在用的部署方案中比较费时的要点</p>
+
+<blockquote><p>3.1.程序运行是用java -cp &#8230;/jruby.jar org.jruby.Main -S blabla</p>
+
+<p>3.2.GEM_HOME 和 GEM_PATH 指向特定folder，用上面的命令安装gem即可将gem安装到指向的folder</p>
+
+<p>3.3.编译用jrubyc，打jar包的脚本需要自己写</p>
+
+<p>3.4.跑测试时不用编译，直接跑rb脚本。部署时才编译。可以节省测试时间。</p>
+
+<p>PS: 写个简单的watchr脚本，可以让主文件和相应的测试文件保存时，自动跑相应的测试，非常省事</p></blockquote>
+
+<p>4.一些缺陷</p>
+
+<p>不得不承认的缺陷还有很多</p>
+
+<blockquote><p>4.1.不是所有项目能平滑接入jruby，之前的确碰到过jruby和EclipseLink的冲突，与boot classpath相关，具体原因不祥。建议迁移前先搭原型进行测试</p>
+
+<p>4.2.（这条来自于实践经验）HSL(Human-specific language) 不是能全面实现的，只能在程序里的一部分实现，而且随着代码量的增加，支持代码的维护估计会显得吃力。（但是写起来的确很爽）</p>
+
+<p>4.3. 写单元测试吧</p></blockquote>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Tac Huang (ikari_shinji@github)</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-08-29T21:22:00+08:00" pubdate data-updated="true">Aug 29<span>th</span>, 2013</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/blog/categories/dsl/'>dsl</a>, <a class='category' href='/blog/blog/categories/java/'>java</a>, <a class='category' href='/blog/blog/categories/jruby/'>jruby</a>, <a class='category' href='/blog/blog/categories/migration/'>migration</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/blog/2013/05/28/interesting-js/" title="Previous Post: 有意思的javascript笔误">&laquo; 有意思的javascript笔误</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2013/08/29/rewrite-project-into-ruby/">jruby重写java项目的一些总结</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/28/interesting-js/">有意思的javascript笔误</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/18/java-offheap-memory/">Java off-heap的一些参考</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/15/mysql-master-slave-standby-failover/">实验：Mysql master-slave-standby将source从master切换到standby</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/12/mysql-binlog-study/">关于Mysql binlog的一点学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/">lisp一个大写的坑</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/31/java-method-passing/">我写了半辈子程序 & java的重载方法选择基于编译期参数类型</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/19/some-readings-about-localStorage/">读了“There is no simple solution for local storage”</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/18/lisp-quote-backquote/">略学习Lisp的quote和backquote</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/17/jquery-noconflict/">读了‘谈谈 jQuery 中的防冲突（noConflict）机制’</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/14/read-write-lock-read-reentrant/">读写锁-读可重入</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/13/reentrant-lock/">可重入Lock</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/13/notify-and-notify-all/">Thread Notify 和 NotifyAll</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/11/thread-wait-sleep/">Thread wait 和 sleep</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/10/false-sharing-0/">False Sharing 阅读</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/05/chrome-workspace/">Chrome Workspace和File Mapping的使用方法</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/02/28/lisp-book/">在读lisp入门</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/02/21/git-study/">Git入门</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/02/19/ifttt/">测试一下ifttt根据blog rss更新linkedin和evernote</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/02/14/css-clear/">css clear属性</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Weibo</h1>
+  <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=10&isTitle=1&noborder=0&isWeibo=1&isFans=0&uid=1460219211&verifier=4d7daebc&dpc=1"></iframe>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/ikarishinjieva">@ikarishinjieva</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'ikarishinjieva',
+            count: 5,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/blog/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2013 - Tac Huang (ikari_shinji@github) -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'tacsay';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2013/08/29/rewrite-project-into-ruby/';
+        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2013/08/29/rewrite-project-into-ruby/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

@@ -2,146 +2,148 @@
 <urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/01/26/hello-world/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/01/27/Q-nextTick/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/01/27/TProfiler-basic/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>
             http://ikarishinjieva.github.com/blog/blog/2013/01/28/javascript-multiline-html/
         </loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>
             http://ikarishinjieva.github.com/blog/blog/2013/01/29/generate-asm-java-from-classfile/
         </loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>
             http://ikarishinjieva.github.com/blog/blog/2013/02/03/javascript-quiz-from-nicolas-c-zakas/
         </loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/02/04/css-compressor-bug/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>
             http://ikarishinjieva.github.com/blog/blog/2013/02/04/octopress-chinese-character/
         </loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>
             http://ikarishinjieva.github.com/blog/blog/2013/02/04/Q-uncurry-safe-meta-programming/
         </loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/02/14/css-clear/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/02/19/ifttt/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/02/21/git-study/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/02/28/lisp-book/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/03/05/chrome-workspace/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/03/10/false-sharing-0/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/03/11/thread-wait-sleep/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/03/13/notify-and-notify-all/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/03/13/reentrant-lock/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>
             http://ikarishinjieva.github.com/blog/blog/2013/03/14/read-write-lock-read-reentrant/
         </loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/03/17/jquery-noconflict/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/03/18/lisp-quote-backquote/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>
             http://ikarishinjieva.github.com/blog/blog/2013/03/19/some-readings-about-localStorage/
         </loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/03/31/java-method-passing/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/04/16/lisp-symbol-upper-case/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/05/12/mysql-binlog-study/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>
             http://ikarishinjieva.github.com/blog/blog/2013/05/15/mysql-master-slave-standby-failover/
         </loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/05/18/java-offheap-memory/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/2013/05/28/interesting-js/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
     <url>
-        <loc>http://ikarishinjieva.github.com/blog/blog/2013/07/30/bbcp-performance/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <loc>
+            http://ikarishinjieva.github.com/blog/blog/2013/08/29/rewrite-project-into-ruby/
+        </loc>
+        <lastmod>2013-08-29T23:20:58+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/archives/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-08-29T23:20:58+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-08-29T23:20:58+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/robots.txt</loc>
-        <lastmod>2013-07-30T22:54:02+08:00</lastmod>
+        <lastmod>2013-07-30T23:08:57+08:00</lastmod>
     </url>
 </urlset>
