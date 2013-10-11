@@ -4,7 +4,7 @@
   <title><![CDATA[Category: replication | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/replication/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-08-30T09:32:31+08:00</updated>
+  <updated>2013-10-11T21:46:29+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,37 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[mysql 5.6.15 replication中碰到的死锁]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/"/>
+    <updated>2013-10-11T21:21:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock</id>
+    <content type="html"><![CDATA[<p>简述下今天在mysql 5.6.15上碰到的土亢</p>
+
+<h1>现象</h1>
+
+<p>mysql开启主从复制时，用meb（MySQL Enterprise Backup）做备份会卡住。同时在slave上show slave status也会卡住。</p>
+
+<p>查看slave上show processlist，可以看到sql thread的状态为 "Waiting for commit lock"</p>
+
+<h1>猜测</h1>
+
+<p>无论是"SHOW ENGINE INNODB STATUS"还是"SHOW OPEN TABLES"都没有提供有用的信息，还是一切靠猜</p>
+
+<p>夜观天象猜到mysql存在bug <a href="http://bugs.mysql.com/bug.php?id=70307">"Another deadlock on FLUSH TABLES WITH READ LOCK + SHOW SLAVE STATUS"</a></p>
+
+<p>其中描述了sql thread开始执行了transaction，但是没有commit的间隙，在slave上FLUSH TABLES WITH READ LOCK，会出现死锁</p>
+
+<p>于是猜测，如果meb恰好在slave上某个transaction commit之前做了FLUSH TABLES WITH READ LOCK，然后调用了与"SHOW SLAVE STATUS"类似的机制获取slave info，那么就会如bug所述卡住。然后mysql由于TABLE LOCk的存在，sql thread也就会卡住。</p>
+
+<p>BTW：搜一下mysql bug库，会有一些描述类似的bug，其中70307描述最靠谱，且有详细的<a href="http://bugs.mysql.com/file.php?id=20542">重现步骤</a>，我也成功在mysql 5.6.15上重现了bug。</p>
+
+<h1>结果</h1>
+
+<p>实验后证明猜对了...</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[实验：Mysql master-slave-standby将source从master切换到standby]]></title>

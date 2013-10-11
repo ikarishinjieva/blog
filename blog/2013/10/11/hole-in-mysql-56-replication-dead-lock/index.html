@@ -5,18 +5,11 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>css clear属性 - Tac say</title>
+  <title>mysql 5.6.15 replication中碰到的死锁 - Tac say</title>
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="开始学习css。
-css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfiddle.net/PzwkP 1
-2
-3
-4
-5
-&lt;img class=&#39;leftFloat&#39; /&gt;
-&lt;p&gt;test test line 1 &hellip;">
+  <meta name="description" content="简述下今天在mysql 5.6.15上碰到的土亢 现象 mysql开启主从复制时，用meb（MySQL Enterprise Backup）做备份会卡住。同时在slave上show slave status也会卡住。 查看slave上show processlist，可以看到sql &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -25,7 +18,7 @@ css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfi
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2013/02/14/css-clear/">
+  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/">
   <link href="/blog/favicon.png" rel="icon">
   <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <script src="/blog/javascripts/modernizr-2.0.js"></script>
@@ -67,7 +60,7 @@ css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfi
   
   <header>
     
-      <h1 class="entry-title">Css Clear属性</h1>
+      <h1 class="entry-title">Mysql 5.6.15 Replication中碰到的死锁</h1>
     
     
       <p class="meta">
@@ -83,7 +76,7 @@ css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfi
   
 
 
-<time datetime="2013-02-14T23:00:00+08:00" pubdate data-updated="true">Feb 14<span>th</span>, 2013</time>
+<time datetime="2013-10-11T21:21:00+08:00" pubdate data-updated="true">Oct 11<span>th</span>, 2013</time>
         
 		<script type="text/javascript" charset="utf-8">
 		(function(){
@@ -112,34 +105,29 @@ css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfi
   </header>
 
 
-<div class="entry-content"><p>开始学习css。
-<a href="http://www.amazon.com/CSS-Cookbook-Edition-Animal-Guide/dp/059615593X/">css cookbook</a> 2.21讨论了clear的用法。</p>
+<div class="entry-content"><p>简述下今天在mysql 5.6.15上碰到的土亢</p>
 
-<p>简单做了个实验。</p>
+<h1>现象</h1>
 
-<figure class='code'><figcaption><span>http://jsfiddle.net/PzwkP  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="o">&lt;</span><span class="nx">img</span> <span class="kr">class</span><span class="o">=</span><span class="s1">&#39;leftFloat&#39;</span> <span class="o">/&gt;</span>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="nx">test</span> <span class="nx">test</span> <span class="nx">line</span> <span class="mi">1</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">img</span> <span class="nx">style</span><span class="o">=</span><span class="s1">&#39;clear:left&#39;</span> <span class="kr">class</span><span class="o">=</span><span class="s1">&#39;rightFloat&#39;</span><span class="o">/&gt;</span>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span> <span class="nx">style</span><span class="o">=</span><span class="s1">&#39;clear:left&#39;</span><span class="o">&gt;</span><span class="nx">test</span> <span class="nx">test</span> <span class="nx">line</span> <span class="mi">2</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="nx">test</span> <span class="nx">test</span> <span class="nx">line</span> <span class="mi">3</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>mysql开启主从复制时，用meb（MySQL Enterprise Backup）做备份会卡住。同时在slave上show slave status也会卡住。</p>
 
+<p>查看slave上show processlist，可以看到sql thread的状态为 &#8220;Waiting for commit lock&#8221;</p>
 
-<p>总的感觉就是clear可以某方向(left/right/both)上的浮动元素算成固定元素，来决定当前元素的高度。</p>
+<h1>猜测</h1>
 
-<p>书中只是简单地一句话，实践起来float和固定元素需要分别clear。(可以将两个clear:left随便去掉一个，相应的元素就会上浮)。</p>
+<p>无论是&#8221;SHOW ENGINE INNODB STATUS&#8221;还是&#8221;SHOW OPEN TABLES&#8221;都没有提供有用的信息，还是一切靠猜</p>
 
-<p><css cookbook> 2.22也讨论了利用clear来撑开float元素所在容器的方法。参考里面也描述了同样的用法。</p>
+<p>夜观天象猜到mysql存在bug <a href="http://bugs.mysql.com/bug.php?id=70307">&#8220;Another deadlock on FLUSH TABLES WITH READ LOCK + SHOW SLAVE STATUS&#8221;</a></p>
 
-<p>一些参考：</p>
+<p>其中描述了sql thread开始执行了transaction，但是没有commit的间隙，在slave上FLUSH TABLES WITH READ LOCK，会出现死锁</p>
 
-<p><a href="http://www.w3school.com.cn/css/css_positioning_floating.asp">http://www.w3school.com.cn/css/css_positioning_floating.asp</a> 介绍了floating和clear，涵盖了<css cookbook>2.21 &amp; 2.22的内容</p>
+<p>于是猜测，如果meb恰好在slave上某个transaction commit之前做了FLUSH TABLES WITH READ LOCK，然后调用了与&#8221;SHOW SLAVE STATUS&#8221;类似的机制获取slave info，那么就会如bug所述卡住。然后mysql由于TABLE LOCk的存在，sql thread也就会卡住。</p>
+
+<p>BTW：搜一下mysql bug库，会有一些描述类似的bug，其中70307描述最靠谱，且有详细的<a href="http://bugs.mysql.com/file.php?id=20542">重现步骤</a>，我也成功在mysql 5.6.15上重现了bug。</p>
+
+<h1>结果</h1>
+
+<p>实验后证明猜对了&#8230;</p>
 </div>
 
 
@@ -162,12 +150,12 @@ css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfi
   
 
 
-<time datetime="2013-02-14T23:00:00+08:00" pubdate data-updated="true">Feb 14<span>th</span>, 2013</time>
+<time datetime="2013-10-11T21:21:00+08:00" pubdate data-updated="true">Oct 11<span>th</span>, 2013</time>
       
 
 <span class="categories">
   
-    <a class='category' href='/blog/blog/categories/clear/'>clear</a>, <a class='category' href='/blog/blog/categories/cookbook/'>cookbook</a>, <a class='category' href='/blog/blog/categories/css/'>css</a>, <a class='category' href='/blog/blog/categories/float/'>float</a>
+    <a class='category' href='/blog/blog/categories/deadlock/'>deadlock</a>, <a class='category' href='/blog/blog/categories/mysql/'>mysql</a>, <a class='category' href='/blog/blog/categories/replication/'>replication</a>
   
 </span>
 
@@ -183,10 +171,8 @@ css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfi
     
     <p class="meta">
       
-        <a class="basic-alignment left" href="/blog/blog/2013/02/04/Q-uncurry-safe-meta-programming/" title="Previous Post: Q源码里uncurry函数分析">&laquo; Q源码里uncurry函数分析</a>
+        <a class="basic-alignment left" href="/blog/blog/2013/08/29/rewrite-project-into-ruby/" title="Previous Post: jruby重写java项目的一些总结">&laquo; jruby重写java项目的一些总结</a>
       
-      
-        <a class="basic-alignment right" href="/blog/blog/2013/02/19/ifttt/" title="Next Post: 测试一下ifttt根据blog rss更新linkedin和evernote">测试一下ifttt根据blog rss更新linkedin和evernote &raquo;</a>
       
     </p>
   </footer>
@@ -342,8 +328,8 @@ css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfi
       
         
         // var disqus_developer = 1;
-        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2013/02/14/css-clear/';
-        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2013/02/14/css-clear/';
+        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/';
+        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/';
         var disqus_script = 'embed.js';
       
     (function () {

@@ -5,18 +5,11 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>css clear属性 - Tac say</title>
+  <title>Category: deadlock - Tac say</title>
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="开始学习css。
-css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfiddle.net/PzwkP 1
-2
-3
-4
-5
-&lt;img class=&#39;leftFloat&#39; /&gt;
-&lt;p&gt;test test line 1 &hellip;">
+  <meta name="description" content="Category: deadlock">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -25,7 +18,7 @@ css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfi
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2013/02/14/css-clear/">
+  <link rel="canonical" href="http://ikarishinjieva.github.com/blogblog/categories/deadlock/">
   <link href="/blog/favicon.png" rel="icon">
   <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <script src="/blog/javascripts/modernizr-2.0.js"></script>
@@ -63,140 +56,36 @@ css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfi
   <div id="main">
     <div id="content">
       <div>
-<article class="hentry" role="article">
+<article role="article">
   
   <header>
-    
-      <h1 class="entry-title">Css Clear属性</h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-02-14T23:00:00+08:00" pubdate data-updated="true">Feb 14<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
+    <h1 class="entry-title">Category: Deadlock</h1>
     
   </header>
-
-
-<div class="entry-content"><p>开始学习css。
-<a href="http://www.amazon.com/CSS-Cookbook-Edition-Animal-Guide/dp/059615593X/">css cookbook</a> 2.21讨论了clear的用法。</p>
-
-<p>简单做了个实验。</p>
-
-<figure class='code'><figcaption><span>http://jsfiddle.net/PzwkP  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="o">&lt;</span><span class="nx">img</span> <span class="kr">class</span><span class="o">=</span><span class="s1">&#39;leftFloat&#39;</span> <span class="o">/&gt;</span>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="nx">test</span> <span class="nx">test</span> <span class="nx">line</span> <span class="mi">1</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">img</span> <span class="nx">style</span><span class="o">=</span><span class="s1">&#39;clear:left&#39;</span> <span class="kr">class</span><span class="o">=</span><span class="s1">&#39;rightFloat&#39;</span><span class="o">/&gt;</span>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span> <span class="nx">style</span><span class="o">=</span><span class="s1">&#39;clear:left&#39;</span><span class="o">&gt;</span><span class="nx">test</span> <span class="nx">test</span> <span class="nx">line</span> <span class="mi">2</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="nx">test</span> <span class="nx">test</span> <span class="nx">line</span> <span class="mi">3</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>总的感觉就是clear可以某方向(left/right/both)上的浮动元素算成固定元素，来决定当前元素的高度。</p>
-
-<p>书中只是简单地一句话，实践起来float和固定元素需要分别clear。(可以将两个clear:left随便去掉一个，相应的元素就会上浮)。</p>
-
-<p><css cookbook> 2.22也讨论了利用clear来撑开float元素所在容器的方法。参考里面也描述了同样的用法。</p>
-
-<p>一些参考：</p>
-
-<p><a href="http://www.w3school.com.cn/css/css_positioning_floating.asp">http://www.w3school.com.cn/css/css_positioning_floating.asp</a> 介绍了floating和clear，涵盖了<css cookbook>2.21 &amp; 2.22的内容</p>
-</div>
-
-
-  <footer>
-    <p class="meta">
-      
   
-
-<span class="byline author vcard">Posted by <span class="fn">Tac Huang (ikari_shinji@github)</span></span>
-
-      
-
-
-
-
-
+  <div id="blog-archives" class="category">
 
 
 
   
+  <h2>2013</h2>
 
-
-<time datetime="2013-02-14T23:00:00+08:00" pubdate data-updated="true">Feb 14<span>th</span>, 2013</time>
-      
-
-<span class="categories">
+<article>
   
-    <a class='category' href='/blog/blog/categories/clear/'>clear</a>, <a class='category' href='/blog/blog/categories/cookbook/'>cookbook</a>, <a class='category' href='/blog/blog/categories/css/'>css</a>, <a class='category' href='/blog/blog/categories/float/'>float</a>
-  
-</span>
+<h1><a href="/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/">mysql 5.6.15 replication中碰到的死锁</a></h1>
+<time datetime="2013-10-11T21:21:00+08:00" pubdate><span class='month'>Oct</span> <span class='day'>11</span> <span class='year'>2013</span></time>
+
+<footer>
+  <span class="categories">posted in <a class='category' href='/blog/blog/categories/deadlock/'>deadlock</a>, <a class='category' href='/blog/blog/categories/mysql/'>mysql</a>, <a class='category' href='/blog/blog/categories/replication/'>replication</a></span>
+</footer>
 
 
-    </p>
-    
-      <div class="sharing">
-  
-  
-  
-</div>
-
-    
-    <p class="meta">
-      
-        <a class="basic-alignment left" href="/blog/blog/2013/02/04/Q-uncurry-safe-meta-programming/" title="Previous Post: Q源码里uncurry函数分析">&laquo; Q源码里uncurry函数分析</a>
-      
-      
-        <a class="basic-alignment right" href="/blog/blog/2013/02/19/ifttt/" title="Next Post: 测试一下ifttt根据blog rss更新linkedin和evernote">测试一下ifttt根据blog rss更新linkedin和evernote &raquo;</a>
-      
-    </p>
-  </footer>
 </article>
 
-  <section>
-    <h1>Comments</h1>
-    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
 </div>
-  </section>
+
+  
+</article>
 
 </div>
 
@@ -341,10 +230,7 @@ css cookbook 2.21讨论了clear的用法。 简单做了个实验。 http://jsfi
       var disqus_shortname = 'tacsay';
       
         
-        // var disqus_developer = 1;
-        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2013/02/14/css-clear/';
-        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2013/02/14/css-clear/';
-        var disqus_script = 'embed.js';
+        var disqus_script = 'count.js';
       
     (function () {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
