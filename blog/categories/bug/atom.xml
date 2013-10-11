@@ -4,7 +4,7 @@
   <title><![CDATA[Category: bug | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/bug/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-10-11T22:18:06+08:00</updated>
+  <updated>2013-10-11T22:20:14+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -22,8 +22,13 @@
 
 <h1>现象</h1>
 
-<p>用backtick调用命令，比如"<code>./some_script</code>"。
-调用命令之前/同时在terminal输入一些回车，有一定概率backtick的调用会卡住不返回。
+<p>用backtick调用命令，比如
+<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>用backtick调用命令  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&lt;</span><span class="n">code</span><span class="o">&gt;.</span><span class="n">/some_script</span><span class="o">&lt;</span><span class="sr">/code&gt;</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>在调用命令之前/同时在terminal输入一些回车，有一定概率backtick的调用会卡住不返回。
 此时再输入一个回车，调用会继续执行并返回。</p>
 
 <h1>解决</h1>

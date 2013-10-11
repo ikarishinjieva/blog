@@ -9,9 +9,9 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="最近在jruby 1.7.5 + jre 6上碰到的土亢 现象 用backtick调用命令，比如&#8221;./some_script&#8220;。
-调用命令之前/同时在terminal输入一些回车，有一定概率backtick的调用会卡住不返回。
-此时再输入一个回车，调用会继续执行并返回。 &hellip;">
+  <meta name="description" content="最近在jruby 1.7.5 + jre 6上碰到的土亢 现象 用backtick调用命令，比如 用backtick调用命令 1
+`./some_script` 在调用命令之前/同时在terminal输入一些回车，有一定概率backtick的调用会卡住不返回。
+此时再输入一个回车， &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -111,8 +111,15 @@
 
 <h1>现象</h1>
 
-<p>用backtick调用命令，比如&#8221;<code>./some_script</code>&#8220;。
-调用命令之前/同时在terminal输入一些回车，有一定概率backtick的调用会卡住不返回。
+<p>用backtick调用命令，比如</p>
+
+<figure class='code'><figcaption><span>用backtick调用命令  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="sb">`./some_script`</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>在调用命令之前/同时在terminal输入一些回车，有一定概率backtick的调用会卡住不返回。
 此时再输入一个回车，调用会继续执行并返回。</p>
 
 <h1>解决</h1>
