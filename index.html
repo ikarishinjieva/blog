@@ -9,7 +9,9 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="简述下今天在mysql 5.6.15上碰到的土亢 现象 mysql开启主从复制时，用meb（MySQL Enterprise Backup）做备份会卡住。同时在slave上show slave status也会卡住。 查看slave上show processlist，可以看到sql &hellip;">
+  <meta name="description" content="最近在jruby 1.7.5 + jre 6上碰到的土亢 现象 用backtick调用命令，比如&#8221;./some_script&#8220;。
+调用命令之前/同时在terminal输入一些回车，有一定概率backtick的调用会卡住不返回。
+此时再输入一个回车，调用会继续执行并返回。 &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -60,6 +62,85 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/10/11/jruby-175-jre-6-stdin-bug/" style='font-size:20px'>Jruby Backtick + Jre 6 会卡住</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-10-11T22:03:00+08:00" pubdate data-updated="true">Oct 11<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/10/11/jruby-175-jre-6-stdin-bug/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"jruby backtick + jre 6 会卡住", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>最近在jruby 1.7.5 + jre 6上碰到的土亢</p>
+
+<h1>现象</h1>
+
+<p>用backtick调用命令，比如&#8221;<code>./some_script</code>&#8220;。
+调用命令之前/同时在terminal输入一些回车，有一定概率backtick的调用会卡住不返回。
+此时再输入一个回车，调用会继续执行并返回。</p>
+
+<h1>解决</h1>
+
+<p>一切靠猜</p>
+
+<p>jruby有个bug：<a href="http://jira.codehaus.org/browse/JRUBY-4626">Gaps in STDIN pipe stream if backtick is used</a></p>
+
+<p>Charles Oliver Nutter在comment中写到&#8221;For JRuby 1.7pre1 on Java 7, this should be fixed; TTY should be handled correctly. For other Java versions, we can&#8217;t fix this.&#8221;，于是最方便的就是升级jre到7</p>
+
+<p>经验证升级jre可以从土亢中爬出来。
+如果难以升级jre，参看<a href="https://www.ruby-forum.com/topic/4413754">这里</a>，这个兄弟做了很全的测试。可以用IO.popen或者Open3.popen3替换backtick。</p>
+
+<h1>经验</h1>
+
+<p>jruby有坑，同时也提供了便捷的手段将现有的java项目改成比较爽的样子。这些坑是难以预料的，做好准备，然后一如既往踩过去。</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -139,7 +220,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -365,7 +446,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -460,7 +541,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -606,7 +687,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -814,7 +895,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1066,7 +1147,7 @@
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1170,7 +1251,7 @@
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1293,7 +1374,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1369,7 +1450,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -1470,7 +1551,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -1530,7 +1611,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -1844,7 +1925,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -2096,7 +2177,7 @@
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -2224,7 +2305,7 @@
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -2468,7 +2549,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -2541,7 +2622,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -2655,7 +2736,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -2715,7 +2796,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -2772,64 +2853,6 @@ http://localhost:7001/.../js/slickgrid C:\test
 
     </article>
   
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/02/19/ifttt/" style='font-size:20px'>测试一下ifttt根据blog Rss更新linkedin和evernote</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-02-19T23:16:00+08:00" pubdate data-updated="true">Feb 19<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/02/19/ifttt/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"测试一下ifttt根据blog rss更新linkedin和evernote", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>测试一下ifttt根据blog rss更新linkedin和evernote</p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/2/">&larr; Older</a>
@@ -2843,6 +2866,10 @@ http://localhost:7001/.../js/slickgrid C:\test
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/11/jruby-175-jre-6-stdin-bug/">jruby backtick + jre 6 会卡住</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/">mysql 5.6.15 replication中碰到的死锁</a>
@@ -2918,10 +2945,6 @@ http://localhost:7001/.../js/slickgrid C:\test
     
       <li class="post">
         <a href="/blog/blog/2013/02/21/git-study/">Git入门</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/02/19/ifttt/">测试一下ifttt根据blog rss更新linkedin和evernote</a>
       </li>
     
   </ul>
