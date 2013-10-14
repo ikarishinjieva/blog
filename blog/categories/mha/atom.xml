@@ -4,7 +4,7 @@
   <title><![CDATA[Category: MHA | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/mha/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-10-14T23:07:56+08:00</updated>
+  <updated>2013-10-14T23:13:23+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -34,39 +34,55 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 
 <p>(MasterFailover@do_master_failover)</p>
 
-<ol>
-<li>check_settings</li>
-<li>force_shutdown
-3.1.   check_set_latest_slaves
-3.2.   save_master_binlog
-3.3.   Determining New Master Phase
-3.3.1 find_latest_base_slave
-3.3.2 select_new_master
-3.3.3 recover_master
-3.3.4 $new_master->{activated} = 1;</li>
-<li>Slaves Recovery Phase
-4.1 Starting Parallel Slave Diff Log Generation Phase.
-4.2 Starting Parallel Slave Log Apply Phase.</li>
-<li>cleanup</li>
-</ol>
+<p> 1  check_settings</p>
 
+<p> 2  force_shutdown</p>
+
+<p> 3.1    check_set_latest_slaves</p>
+
+<p> 3.2    save_master_binlog</p>
+
+<p> 3.3    Determining New Master Phase</p>
+
+<pre><code>3.3.1 find_latest_base_slave
+
+3.3.2 select_new_master
+
+3.3.3 recover_master
+
+3.3.4 $new_master-&gt;{activated} = 1;
+</code></pre>
+
+<p> 4  Slaves Recovery Phase</p>
+
+<p>   4.1 Starting Parallel Slave Diff Log Generation Phase.</p>
+
+<p>   4.2 Starting Parallel Slave Log Apply Phase.</p>
+
+<p> 5  cleanup</p>
 
 <h1>Failover的一些步骤说明</h1>
 
-<ol>
-<li>force_shutdown
- 2.1. 对所有slave, stop io threads. (MasterFailover@force_shutdown)
- 2.2. 在Old master上回收动态ipshutdown, 并可选用power manager(ipmi)关机Old master. (MasterFailover@force_shutdown_internal)
-3.1. check_set_latest_slaves, 确定latest_slave和oldest_slaves. latest_slave指的是slave中relay log最超前的slave, 相反oldest_slave指的是relay log最落后的slave
-3.2. save_master_binlog, 保存Latest slave到Old master的binlog差异数据，如图中蓝色部分
-3.3.1. find_latest_base_slave, 这里的逻辑有点复杂：这里最理想的状况是能从所有的latest slave中能找到一个relay log可以用于补齐old slave的。如场景图中所示，Slave 0可以座位latest_base_slave。另一种情况是不能用于补齐old slave, 比如下图的状况. 这里的代码有详细处理ignore_fail的逻辑，可参看源码或者文后我附的源码笔记
-<img src="/images/2013-10-14-mha-failover-2.png">
-3.3.2. 选举new master. 选举的策略是尽量在candidate slave列表中，尽量在latest slave列表中，不可以在bad列表中. 注意，new master可以不是latest slave, 场景图中列举的是这种情况（尽管应该比较少见）
-3.3.3. recover_master. 生成old_master上执行到的relay_log到读到的relay_log的差异数据, 代码中称为diff_from_exec_to_read, 如图中绿色部分. 生成old_master到latest_base_slave的差异数据(MasterFailover@recover_relay_logs), 如图中黄色部分.
-重放: 在old_master上重放绿色部分, 然后重放黄色部分(MasterFailover@send_binlog &amp; MasterFailover@recover_slave), 最后重放蓝色部分（MasterFailover@apply_diff）</li>
-<li>对所有的slave，这里是以old_slave为例, 生成diff_from_exec_to_read（黑色部分）, 生成与latest_base_slave的差异数据（红色部分）. 然后重放黑色部分，红色部分和蓝色部分. (MasterFailover@recover_slaves)</li>
-</ol>
+<p>2  force_shutdown</p>
 
+<pre><code>2.1  对所有slave, stop io threads. (MasterFailover@force_shutdown)
+
+2.2  在Old master上回收动态ipshutdown, 并可选用power manager(ipmi)关机Old master. (MasterFailover@force_shutdown_internal)
+</code></pre>
+
+<p>3.1  check_set_latest_slaves, 确定latest_slave和oldest_slaves. latest_slave指的是slave中relay log最超前的slave, 相反oldest_slave指的是relay log最落后的slave</p>
+
+<p>3.2  save_master_binlog, 保存Latest slave到Old master的binlog差异数据，如图中蓝色部分</p>
+
+<p>3.3.1  find_latest_base_slave, 这里的逻辑有点复杂：这里最理想的状况是能从所有的latest slave中能找到一个relay log可以用于补齐old slave的。如场景图中所示，Slave 0可以座位latest_base_slave。另一种情况是不能用于补齐old slave, 比如下图的状况. 这里的代码有详细处理ignore_fail的逻辑，可参看源码或者文后我附的源码笔记
+<img src="/images/2013-10-14-mha-failover-2.png"></p>
+
+<p>3.3.2  选举new master. 选举的策略是尽量在candidate slave列表中，尽量在latest slave列表中，不可以在bad列表中. 注意，new master可以不是latest slave, 场景图中列举的是这种情况（尽管应该比较少见）</p>
+
+<p>3.3.3  recover_master. 生成old_master上执行到的relay_log到读到的relay_log的差异数据, 代码中称为diff_from_exec_to_read, 如图中绿色部分. 生成old_master到latest_base_slave的差异数据(MasterFailover@recover_relay_logs), 如图中黄色部分.
+重放: 在old_master上重放绿色部分, 然后重放黄色部分(MasterFailover@send_binlog &amp; MasterFailover@recover_slave), 最后重放蓝色部分（MasterFailover@apply_diff）</p>
+
+<p>4  对所有的slave，这里是以old_slave为例, 生成diff_from_exec_to_read（黑色部分）, 生成与latest_base_slave的差异数据（红色部分）. 然后重放黑色部分，红色部分和蓝色部分. (MasterFailover@recover_slaves)</p>
 
 <h1>一点说明</h1>
 
