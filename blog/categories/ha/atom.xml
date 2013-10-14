@@ -4,7 +4,7 @@
   <title><![CDATA[Category: HA | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/ha/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-10-14T23:06:37+08:00</updated>
+  <updated>2013-10-14T23:07:56+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -37,9 +37,9 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 <ol>
 <li>check_settings</li>
 <li>force_shutdown
-3.1.    check_set_latest_slaves
-3.2.    save_master_binlog
-3.3.    Determining New Master Phase
+3.1.   check_set_latest_slaves
+3.2.   save_master_binlog
+3.3.   Determining New Master Phase
 3.3.1 find_latest_base_slave
 3.3.2 select_new_master
 3.3.3 recover_master
