@@ -4,7 +4,7 @@
   <title><![CDATA[Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-10-15T10:01:49+08:00</updated>
+  <updated>2013-10-15T10:08:02+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -76,20 +76,26 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 
 <p>3.3.1  find_latest_base_slave, 这里最理想的状况是能从所有的latest slave中能找到一个relay log可以用于补齐oldest slave的 （如果oldest slave可以被补齐, 那其他的slave都可以被补齐）. 如场景图中所示，Slave 0可以作为latest_base_slave.</p>
 
-<p>另一种情况是不能用于补齐oldest slave, 比如下图的状况, 集群里最全最新的relay log也无法和oldest slave对接上. 这种情况的处理跟ignore_fail配置有关, 若所有努力都失败只好failover失败
-关于ignore_fail的处理逻辑，可参看源码或者文后我附的源码笔记
+<p>另一种情况是不能用于补齐oldest slave, 比如下图的状况, 集群里最全最新的relay log也无法和oldest slave对接上. 这种情况的处理跟ignore_fail配置有关, 若所有努力都失败只好failover失败</p>
+
+<p>关于ignore_fail的处理逻辑，可参看源码或者文后我附的源码笔记
 <img src="http://ikarishinjieva.github.com/blog/images/2013-10-14-mha-failover-2.png"></p>
 
-<p>3.3.2  select_new_master, 选举new master.
-选举的策略是尽量在candidate slave列表中，尽量在latest slave列表中，不可以在bad列表中. 注意，new master可以不是latest slave, 场景图中列举的是这种情况（尽管应该比较少见）</p>
+<p>3.3.2  select_new_master, 选举new master.</p>
 
-<p>3.3.3  recover_master. 将差异数据补齐到new master, 让new master成为集群里数据最全最新的节点.
-生成old_master上exec relay_log到read relay_log的差异数据（原因是sql thread落后于io thread）, 源码中中称为diff_from_exec_to_read, 如图中绿色部分.
-生成old_master到latest_base_slave的差异数据(MasterFailover@recover_relay_logs), 如图中黄色部分.
-重放: 在old_master上重放绿色部分, 然后重放黄色部分(MasterFailover@send_binlog &amp; MasterFailover@recover_slave), 最后重放蓝色部分（MasterFailover@apply_diff）</p>
+<p>选举的策略是尽量在candidate slave列表中，尽量在latest slave列表中，不可以在bad列表中. 注意，new master可以不是latest slave, 场景图中列举的是这种情况（尽管应该比较少见）</p>
 
-<p>4  对所有的slave, 这里是以old_slave为例, 与recover_master类似：生成diff_from_exec_to_read（黑色部分）, 生成与latest_base_slave的差异数据（红色部分）. 然后重放黑色部分，红色部分和蓝色部分. (MasterFailover@recover_slaves)
-最后让所有slave连到新的master上</p>
+<p>3.3.3  recover_master. 将差异数据补齐到new master, 让new master成为集群里数据最全最新的节点.</p>
+
+<p>生成old_master上exec relay_log到read relay_log的差异数据（原因是sql thread落后于io thread）, 源码中中称为diff_from_exec_to_read, 如图中绿色部分.</p>
+
+<p>生成old_master到latest_base_slave的差异数据(MasterFailover@recover_relay_logs), 如图中黄色部分.</p>
+
+<p>重放: 在old_master上重放绿色部分, 然后重放黄色部分(MasterFailover@send_binlog &amp; MasterFailover@recover_slave), 最后重放蓝色部分（MasterFailover@apply_diff）</p>
+
+<p>4  对所有的slave, 这里是以old_slave为例, 与recover_master类似：生成diff_from_exec_to_read（黑色部分）, 生成与latest_base_slave的差异数据（红色部分）. 然后重放黑色部分，红色部分和蓝色部分. (MasterFailover@recover_slaves)</p>
+
+<p>最后让所有slave连到新的master上</p>
 
 <h1>一点说明</h1>
 
