@@ -4,7 +4,7 @@
   <title><![CDATA[Category: source_code | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/source-code/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-10-16T23:49:30+08:00</updated>
+  <updated>2013-10-16T23:51:09+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -24,9 +24,13 @@
 
 <p>函数参数说明。log_ident为slave请求的binlog文件名，如"mysql-bin.000001"。pos为slave请求的binlog位置。slave_gtid_executed为gtid相关，在此忽略</p>
 
-<p>在此吐槽：
-1. 这个函数将近1k行，且缩进混乱，代码折叠困难。最后附的我的笔记中，有整理好的源码下载
-2. 这个函数有两大段近百行的重复代码（1179 &amp; 1553）</p>
+<p>在此吐槽：</p>
+
+<ol>
+<li>这个函数将近1k行，且缩进混乱，代码折叠困难。最后附的我的笔记中，有整理好的源码下载</li>
+<li>这个函数有两大段近百行的重复代码（1179 &amp; 1553）</li>
+</ol>
+
 
 <h1>源码的主体结构</h1>
 
@@ -157,10 +161,14 @@
 
 <h1>TODO</h1>
 
-<p>有一些东西还是没弄懂，得慢慢读懂其他机制才可以，比如
-1. max_alloed_packet是如何作用的
-2. send last skip group heartbeat的作用
-3. 不同类型的event的具体处理，需要和slave端结合在一起</p>
+<p>有一些东西还是没弄懂，得慢慢读懂其他机制才可以，比如</p>
+
+<ol>
+<li>max_alloed_packet是如何作用的</li>
+<li>send last skip group heartbeat的作用</li>
+<li>不同类型的event的具体处理，需要和slave端结合在一起</li>
+</ol>
+
 
 <h1>我的笔记</h1>
 
