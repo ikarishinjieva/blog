@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mysql | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/mysql/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-10-15T10:13:05+08:00</updated>
+  <updated>2013-10-16T23:49:30+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,161 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/"/>
+    <updated>2013-10-16T22:50:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/10/16/mysql-mysql_binlog_send-src</id>
+    <content type="html"><![CDATA[<p>读了两天rpl_master.cc:mysql_binlog_send的源码（Mysql 5.6.11），总结一下</p>
+
+<p>函数的入口是rpl_master.cc:com_binlog_dump，当slave向master向master请求数据时，在master上调用</p>
+
+<p>函数参数说明。log_ident为slave请求的binlog文件名，如"mysql-bin.000001"。pos为slave请求的binlog位置。slave_gtid_executed为gtid相关，在此忽略</p>
+
+<p>在此吐槽：
+1. 这个函数将近1k行，且缩进混乱，代码折叠困难。最后附的我的笔记中，有整理好的源码下载
+2. 这个函数有两大段近百行的重复代码（1179 &amp; 1553）</p>
+
+<h1>源码的主体结构</h1>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>源码的主体结构  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="n">mysql_binlog_send</span><span class="o">(</span><span class="err">…</span><span class="o">)</span>
+</span><span class='line'><span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span> <span class="mi">0814</span> <span class="err">…</span> <span class="n">bla</span> <span class="n">bla</span>
+</span><span class='line'> <span class="mi">1011</span> <span class="n">fake_rotate_event</span>
+</span><span class='line'> <span class="mi">1028</span> <span class="n">max_alloed_packet</span><span class="o">=</span> <span class="n">MAX_MAX_ALLOWED_PACKET</span>
+</span><span class='line'> <span class="mi">1038</span> <span class="k">if</span> <span class="o">(</span><span class="err">请求的</span><span class="n">POS</span><span class="err">不是从</span><span class="n">binlog</span><span class="err">开头开始</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">1039</span> <span class="o">{</span>
+</span><span class='line'>           <span class="err">从</span><span class="n">binlog</span><span class="err">开头中找到一个</span><span class="n">FD</span> <span class="n">event</span><span class="o">(</span><span class="n">FORMAT_DESCRIPTION_EVENT</span><span class="o">),</span> <span class="err">并发送给</span><span class="n">slave</span>
+</span><span class='line'> <span class="mi">1123</span> <span class="o">}</span>
+</span><span class='line'> <span class="mi">1124</span> <span class="k">else</span>
+</span><span class='line'> <span class="mi">1125</span> <span class="o">{</span>
+</span><span class='line'>           <span class="n">FD</span> <span class="n">event</span><span class="err">可以从正常的</span><span class="n">replication</span><span class="err">中传送给</span><span class="n">slave</span><span class="err">，此处不做操作</span>
+</span><span class='line'> <span class="mi">1127</span> <span class="o">}</span>
+</span><span class='line'> <span class="mi">1132</span> <span class="k">while</span> <span class="o">(</span><span class="n">net</span><span class="err">和</span><span class="n">the</span><span class="err">都在运转</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">1133</span> <span class="o">{</span>
+</span><span class='line'> <span class="mi">1143</span>      <span class="k">while</span> <span class="o">(</span><span class="err">从</span><span class="n">binlog</span><span class="err">中读取一个</span><span class="n">event</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">1144</span>      <span class="o">{</span>
+</span><span class='line'> <span class="mi">1178</span>           <span class="k">switch</span> <span class="o">(</span><span class="n">event_type</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">1179</span>           <span class="o">{</span>
+</span><span class='line'>                     <span class="err">分类型处理</span><span class="n">event</span>
+</span><span class='line'> <span class="mi">1281</span>           <span class="o">}</span>
+</span><span class='line'> <span class="mi">1283</span>           <span class="err">若</span><span class="n">event</span><span class="err">需跳转到下一个</span><span class="n">binlog</span><span class="o">(</span><span class="n">goto_next_binlog</span><span class="o">),</span> <span class="k">break</span>
+</span><span class='line'> <span class="mi">1291</span>           <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">before_send_event</span>
+</span><span class='line'> <span class="mi">1300</span>           <span class="err">记录</span><span class="n">skip_group</span>
+</span><span class='line'> <span class="mi">1306</span>           <span class="o">{</span>
+</span><span class='line'>                     <span class="n">send</span> <span class="n">last</span> <span class="n">skip</span> <span class="n">group</span> <span class="n">heartbeat</span><span class="o">?</span>
+</span><span class='line'> <span class="mi">1326</span>           <span class="o">}</span>
+</span><span class='line'> <span class="mi">1331</span>           <span class="err">向</span><span class="n">slave</span><span class="err">发送</span><span class="n">event</span>
+</span><span class='line'> <span class="mi">1348</span>           <span class="o">{</span>
+</span><span class='line'>                     <span class="err">处理</span><span class="n">LOAD_EVENT</span>
+</span><span class='line'> <span class="mi">1356</span>           <span class="o">}</span>
+</span><span class='line'> <span class="mi">1358</span>           <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">after_send_event</span>
+</span><span class='line'> <span class="mi">1369</span>      <span class="o">}</span>
+</span><span class='line'> <span class="mi">1391</span>      <span class="k">if</span> <span class="o">(!</span><span class="n">goto_next_binlog</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">1392</span>      <span class="o">{</span>
+</span><span class='line'>               <span class="err">发送完所有</span><span class="n">binlog</span><span class="err">，未发生</span><span class="n">binlog</span><span class="err">切换时</span>
+</span><span class='line'> <span class="mi">1437</span>          <span class="err">加锁尝试再读取一个</span><span class="n">event</span><span class="err">（此时其他进程不能更新</span><span class="n">binlog</span><span class="err">），目的是试探之前处理过程中</span><span class="n">master</span><span class="err">上是否有更多的</span><span class="n">binlog</span><span class="err">写入，若有，则跳转</span><span class="mi">1553</span><span class="err">处理</span><span class="n">read_packet</span>
+</span><span class='line'> <span class="mi">1451</span>          <span class="err">若没有更多的</span><span class="n">binlog</span>
+</span><span class='line'>               <span class="o">{</span>
+</span><span class='line'>                    <span class="err">等待更多的</span><span class="n">binlog</span><span class="err">写入，等待时发送心跳</span>
+</span><span class='line'> <span class="mi">1545</span>          <span class="o">}</span>
+</span><span class='line'> <span class="mi">1553</span>          <span class="err">处理</span><span class="n">read_packet</span>
+</span><span class='line'>               <span class="o">{</span>
+</span><span class='line'>                    <span class="err">分类型处理</span><span class="n">event</span>
+</span><span class='line'> <span class="mi">1682</span>          <span class="o">}</span>
+</span><span class='line'> <span class="mi">1683</span>      <span class="o">}</span>
+</span><span class='line'> <span class="mi">1685</span>      <span class="k">if</span> <span class="o">(</span><span class="n">goto_next_binlog</span><span class="o">)</span>
+</span><span class='line'>           <span class="o">{</span>
+</span><span class='line'>                <span class="err">切换到下一个</span><span class="n">binlog</span>
+</span><span class='line'>           <span class="o">}</span>
+</span><span class='line'> <span class="mi">1733</span> <span class="o">}</span>
+</span><span class='line'> <span class="mi">1735</span> <span class="err">之后是收尾处理</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<h1>重点步骤</h1>
+
+<ol>
+<li>关于Format Description event，如果传送从binlog开头开始，那么FD event会正常随着binlog传送；若传送不从binlog开头开始，则需要补发一个FD event，才开始传送</li>
+<li>如何判断binlog读取完。函数先不加锁读取binlog中的event，读完后，再加锁尝试读取一个event（加锁过程中，没有其他进程写进binlog），若有数据，则继续处理，若没有数据，则说明binlog读取完了，master会阻塞等待新的binlog写入。这样做主要为了：1. 不需要一直加锁读取binlog，保障性能；2. 无锁读取时会有其他进程写binlog，加锁可以保障这些新加的binlog得到妥善安置</li>
+<li>心跳。心跳尽在不传送binlog时（master穷尽了binlog，开始阻塞等待新的binlog写入时）才进行心跳</li>
+<li>Fake Rotate Event。Fake Rotate Event在开始传送和切换binlog时发送到slave。主要作用是通知slave binlog filename，原因在源码comment里写的很清楚。但是很疑惑的是为什么在FD event里并没有binlog filename，这个问题发到了<a href="http://stackoverflow.com/questions/19375951/in-mysql-replication-why-format-description-event-doesnt-include-binlogs-name">StackoverFlow</a>，未有答案。（诶，看看我的stackoverflow的记录就知道，我的问题都是死题）</li>
+</ol>
+
+
+<h1>TODO</h1>
+
+<p>有一些东西还是没弄懂，得慢慢读懂其他机制才可以，比如
+1. max_alloed_packet是如何作用的
+2. send last skip group heartbeat的作用
+3. 不同类型的event的具体处理，需要和slave端结合在一起</p>
+
+<h1>我的笔记</h1>
+
+<p>我的笔记<a href="https://app.yinxiang.com/shard/s11/sh/f23e9619-9c3d-47f5-a911-8945d0ee02a5/f4eb8539fb2f99e1481496c994b2c270">在此</a></p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[MHA failover时做了些啥]]></title>

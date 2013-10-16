@@ -1,0 +1,476 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽 - Tac say</title>
+  <meta name="author" content="Tac Huang (ikari_shinji@github)">
+
+  
+  <meta name="description" content="读了两天rpl_master.cc:mysql_binlog_send的源码（Mysql 5.6.11），总结一下 函数的入口是rpl_master.cc:com_binlog_dump，当slave向master向master请求数据时，在master上调用 函数参数说明。 &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/">
+  <link href="/blog/favicon.png" rel="icon">
+  <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/blog/javascripts/modernizr-2.0.js"></script>
+  <script src="/blog/javascripts/ender.js"></script>
+  <script src="/blog/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/blog/atom.xml" rel="alternate" title="Tac say" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/blog/">Tac say</a></h1>
+  
+    <h2>只想做个程序演奏家</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/blog/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<ul class="main-navigation">
+  <li><a href="/blog/">Blog</a></li>
+  <li><a href="/blog/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-10-16T22:50:00+08:00" pubdate data-updated="true">Oct 16<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+<div class="entry-content"><p>读了两天rpl_master.cc:mysql_binlog_send的源码（Mysql 5.6.11），总结一下</p>
+
+<p>函数的入口是rpl_master.cc:com_binlog_dump，当slave向master向master请求数据时，在master上调用</p>
+
+<p>函数参数说明。log_ident为slave请求的binlog文件名，如&#8221;mysql-bin.000001&#8221;。pos为slave请求的binlog位置。slave_gtid_executed为gtid相关，在此忽略</p>
+
+<p>在此吐槽：
+1. 这个函数将近1k行，且缩进混乱，代码折叠困难。最后附的我的笔记中，有整理好的源码下载
+2. 这个函数有两大段近百行的重复代码（1179 &amp; 1553）</p>
+
+<h1>源码的主体结构</h1>
+
+<figure class='code'><figcaption><span>源码的主体结构  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="n">mysql_binlog_send</span><span class="o">(</span><span class="err">…</span><span class="o">)</span>
+</span><span class='line'><span class="o">{</span>
+</span><span class='line'>     <span class="mi">0814</span> <span class="err">…</span> <span class="n">bla</span> <span class="n">bla</span>
+</span><span class='line'>     <span class="mi">1011</span> <span class="n">fake_rotate_event</span>
+</span><span class='line'>     <span class="mi">1028</span> <span class="n">max_alloed_packet</span><span class="o">=</span> <span class="n">MAX_MAX_ALLOWED_PACKET</span>
+</span><span class='line'>     <span class="mi">1038</span> <span class="k">if</span> <span class="o">(</span><span class="err">请求的</span><span class="n">POS</span><span class="err">不是从</span><span class="n">binlog</span><span class="err">开头开始</span><span class="o">)</span>
+</span><span class='line'>     <span class="mi">1039</span> <span class="o">{</span>
+</span><span class='line'>               <span class="err">从</span><span class="n">binlog</span><span class="err">开头中找到一个</span><span class="n">FD</span> <span class="n">event</span><span class="o">(</span><span class="n">FORMAT_DESCRIPTION_EVENT</span><span class="o">),</span> <span class="err">并发送给</span><span class="n">slave</span>
+</span><span class='line'>     <span class="mi">1123</span> <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1124</span> <span class="k">else</span>
+</span><span class='line'>     <span class="mi">1125</span> <span class="o">{</span>
+</span><span class='line'>               <span class="n">FD</span> <span class="n">event</span><span class="err">可以从正常的</span><span class="n">replication</span><span class="err">中传送给</span><span class="n">slave</span><span class="err">，此处不做操作</span>
+</span><span class='line'>     <span class="mi">1127</span> <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1132</span> <span class="k">while</span> <span class="o">(</span><span class="n">net</span><span class="err">和</span><span class="n">the</span><span class="err">都在运转</span><span class="o">)</span>
+</span><span class='line'>     <span class="mi">1133</span> <span class="o">{</span>
+</span><span class='line'>     <span class="mi">1143</span>      <span class="k">while</span> <span class="o">(</span><span class="err">从</span><span class="n">binlog</span><span class="err">中读取一个</span><span class="n">event</span><span class="o">)</span>
+</span><span class='line'>     <span class="mi">1144</span>      <span class="o">{</span>
+</span><span class='line'>     <span class="mi">1178</span>           <span class="k">switch</span> <span class="o">(</span><span class="n">event_type</span><span class="o">)</span>
+</span><span class='line'>     <span class="mi">1179</span>           <span class="o">{</span>
+</span><span class='line'>                         <span class="err">分类型处理</span><span class="n">event</span>
+</span><span class='line'>     <span class="mi">1281</span>           <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1283</span>           <span class="err">若</span><span class="n">event</span><span class="err">需跳转到下一个</span><span class="n">binlog</span><span class="o">(</span><span class="n">goto_next_binlog</span><span class="o">),</span> <span class="k">break</span>
+</span><span class='line'>     <span class="mi">1291</span>           <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">before_send_event</span>
+</span><span class='line'>     <span class="mi">1300</span>           <span class="err">记录</span><span class="n">skip_group</span>
+</span><span class='line'>     <span class="mi">1306</span>           <span class="o">{</span>
+</span><span class='line'>                         <span class="n">send</span> <span class="n">last</span> <span class="n">skip</span> <span class="n">group</span> <span class="n">heartbeat</span><span class="o">?</span>
+</span><span class='line'>     <span class="mi">1326</span>           <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1331</span>           <span class="err">向</span><span class="n">slave</span><span class="err">发送</span><span class="n">event</span>
+</span><span class='line'>     <span class="mi">1348</span>           <span class="o">{</span>
+</span><span class='line'>                         <span class="err">处理</span><span class="n">LOAD_EVENT</span>
+</span><span class='line'>     <span class="mi">1356</span>           <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1358</span>           <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">after_send_event</span>
+</span><span class='line'>     <span class="mi">1369</span>      <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1391</span>      <span class="k">if</span> <span class="o">(!</span><span class="n">goto_next_binlog</span><span class="o">)</span>
+</span><span class='line'>     <span class="mi">1392</span>      <span class="o">{</span>
+</span><span class='line'>                   <span class="err">发送完所有</span><span class="n">binlog</span><span class="err">，未发生</span><span class="n">binlog</span><span class="err">切换时</span>
+</span><span class='line'>     <span class="mi">1437</span>          <span class="err">加锁尝试再读取一个</span><span class="n">event</span><span class="err">（此时其他进程不能更新</span><span class="n">binlog</span><span class="err">），目的是试探之前处理过程中</span><span class="n">master</span><span class="err">上是否有更多的</span><span class="n">binlog</span><span class="err">写入，若有，则跳转</span><span class="mi">1553</span><span class="err">处理</span><span class="n">read_packet</span>
+</span><span class='line'>     <span class="mi">1451</span>          <span class="err">若没有更多的</span><span class="n">binlog</span>
+</span><span class='line'>                   <span class="o">{</span>
+</span><span class='line'>                        <span class="err">等待更多的</span><span class="n">binlog</span><span class="err">写入，等待时发送心跳</span>
+</span><span class='line'>     <span class="mi">1545</span>          <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1553</span>          <span class="err">处理</span><span class="n">read_packet</span>
+</span><span class='line'>                   <span class="o">{</span>
+</span><span class='line'>                        <span class="err">分类型处理</span><span class="n">event</span>
+</span><span class='line'>     <span class="mi">1682</span>          <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1683</span>      <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1685</span>      <span class="k">if</span> <span class="o">(</span><span class="n">goto_next_binlog</span><span class="o">)</span>
+</span><span class='line'>               <span class="o">{</span>
+</span><span class='line'>                    <span class="err">切换到下一个</span><span class="n">binlog</span>
+</span><span class='line'>               <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1733</span> <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1735</span> <span class="err">之后是收尾处理</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>重点步骤</h1>
+
+<ol>
+<li>关于Format Description event，如果传送从binlog开头开始，那么FD event会正常随着binlog传送；若传送不从binlog开头开始，则需要补发一个FD event，才开始传送</li>
+<li>如何判断binlog读取完。函数先不加锁读取binlog中的event，读完后，再加锁尝试读取一个event（加锁过程中，没有其他进程写进binlog），若有数据，则继续处理，若没有数据，则说明binlog读取完了，master会阻塞等待新的binlog写入。这样做主要为了：1. 不需要一直加锁读取binlog，保障性能；2. 无锁读取时会有其他进程写binlog，加锁可以保障这些新加的binlog得到妥善安置</li>
+<li>心跳。心跳尽在不传送binlog时（master穷尽了binlog，开始阻塞等待新的binlog写入时）才进行心跳</li>
+<li>Fake Rotate Event。Fake Rotate Event在开始传送和切换binlog时发送到slave。主要作用是通知slave binlog filename，原因在源码comment里写的很清楚。但是很疑惑的是为什么在FD event里并没有binlog filename，这个问题发到了<a href="http://stackoverflow.com/questions/19375951/in-mysql-replication-why-format-description-event-doesnt-include-binlogs-name">StackoverFlow</a>，未有答案。（诶，看看我的stackoverflow的记录就知道，我的问题都是死题）</li>
+</ol>
+
+
+<h1>TODO</h1>
+
+<p>有一些东西还是没弄懂，得慢慢读懂其他机制才可以，比如
+1. max_alloed_packet是如何作用的
+2. send last skip group heartbeat的作用
+3. 不同类型的event的具体处理，需要和slave端结合在一起</p>
+
+<h1>我的笔记</h1>
+
+<p>我的笔记<a href="https://app.yinxiang.com/shard/s11/sh/f23e9619-9c3d-47f5-a911-8945d0ee02a5/f4eb8539fb2f99e1481496c994b2c270">在此</a></p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Tac Huang (ikari_shinji@github)</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-10-16T22:50:00+08:00" pubdate data-updated="true">Oct 16<span>th</span>, 2013</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/blog/categories/mysql/'>mysql</a>, <a class='category' href='/blog/blog/categories/replication/'>replication</a>, <a class='category' href='/blog/blog/categories/source-code/'>source_code</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/blog/2013/10/14/mha-failover/" title="Previous Post: MHA failover时做了些啥">&laquo; MHA failover时做了些啥</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/">Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/14/mha-failover/">MHA failover时做了些啥</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/11/jruby-175-jre-6-stdin-bug/">jruby backtick + jre 6 会卡住</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/">mysql 5.6.15 replication中碰到的死锁</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/08/29/rewrite-project-into-ruby/">jruby重写java项目的一些总结</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/28/interesting-js/">有意思的javascript笔误</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/18/java-offheap-memory/">Java off-heap的一些参考</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/15/mysql-master-slave-standby-failover/">实验：Mysql master-slave-standby将source从master切换到standby</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/12/mysql-binlog-study/">关于Mysql binlog的一点学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/">lisp一个大写的坑</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/31/java-method-passing/">我写了半辈子程序 & java的重载方法选择基于编译期参数类型</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/19/some-readings-about-localStorage/">读了“There is no simple solution for local storage”</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/18/lisp-quote-backquote/">略学习Lisp的quote和backquote</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/17/jquery-noconflict/">读了‘谈谈 jQuery 中的防冲突（noConflict）机制’</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/14/read-write-lock-read-reentrant/">读写锁-读可重入</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/13/reentrant-lock/">可重入Lock</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/13/notify-and-notify-all/">Thread Notify 和 NotifyAll</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/11/thread-wait-sleep/">Thread wait 和 sleep</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/10/false-sharing-0/">False Sharing 阅读</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/05/chrome-workspace/">Chrome Workspace和File Mapping的使用方法</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Weibo</h1>
+  <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=10&isTitle=1&noborder=0&isWeibo=1&isFans=0&uid=1460219211&verifier=4d7daebc&dpc=1"></iframe>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/ikarishinjieva">@ikarishinjieva</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'ikarishinjieva',
+            count: 5,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/blog/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2013 - Tac Huang (ikari_shinji@github) -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'tacsay';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/';
+        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fa62a96d9f5c956ea3ddb6cca8ad83aa3' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
