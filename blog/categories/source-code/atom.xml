@@ -4,7 +4,7 @@
   <title><![CDATA[Category: source_code | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/source-code/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-10-16T23:51:09+08:00</updated>
+  <updated>2013-10-20T21:07:42+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,148 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Mysql rpl_slave.cc:handle_slave_io 源码的一些个人分析]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/10/20/mysql-handle_slave_io-src/"/>
+    <updated>2013-10-20T20:17:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/10/20/mysql-handle_slave_io-src</id>
+    <content type="html"><![CDATA[<p>读了rpl_slave.cc:handle_slave_io的源码（Mysql 5.6.11），总结一下</p>
+
+<h2>函数概述</h2>
+
+<p>handle_slave_io是slave io_thread的主函数，函数逻辑入口为rpl_slave.cc:start_slave_threads</p>
+
+<h2>主体结构</h2>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>源码的主体结构  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">handle_slave_io</span><span class="o">(</span><span class="n">master_info</span><span class="o">)</span> <span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span> <span class="mi">3955</span> <span class="n">bla</span> <span class="n">bla</span><span class="err">…</span>
+</span><span class='line'> <span class="mi">4016</span> <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">binlog_relay_io</span><span class="o">.</span><span class="na">thread_start</span>
+</span><span class='line'> <span class="mi">4032</span> <span class="err">与</span><span class="n">master</span><span class="err">建立连接</span>
+</span><span class='line'><span class="o">(</span><span class="mi">4047</span> <span class="err">设置</span><span class="n">max_packet_size</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">4073</span> <span class="n">get_master_version_and_clock</span><span class="o">,</span>
+</span><span class='line'>      <span class="err">在</span><span class="n">master</span><span class="err">上：</span>
+</span><span class='line'>      <span class="err">通过</span><span class="n">SELECT</span> <span class="n">UNIX_TIMESTAMP</span><span class="o">()</span><span class="err">获取</span><span class="n">server</span> <span class="n">timestamp</span>
+</span><span class='line'>      <span class="err">通过</span><span class="n">SHOW</span> <span class="n">VARIABLES</span> <span class="n">LIKE</span> <span class="err">&#39;</span><span class="n">SERVER_ID</span><span class="err">&#39;获取</span><span class="n">server</span> <span class="n">id</span>
+</span><span class='line'>      <span class="n">SET</span> <span class="nd">@master_heartbeat_period</span><span class="o">=</span> <span class="o">?</span>
+</span><span class='line'>      <span class="n">SET</span> <span class="nd">@master_binlog_checksum</span><span class="o">=</span> <span class="err">@</span><span class="nd">@global.binlog_checksum</span>
+</span><span class='line'>      <span class="n">SELECT</span> <span class="nd">@master_binlog_checksum</span><span class="err">获取</span><span class="n">master</span> <span class="n">binlog</span> <span class="n">checksum</span>
+</span><span class='line'>      <span class="n">SELECT</span> <span class="err">@</span><span class="nd">@GLOBAL.GTID_MODE</span>
+</span><span class='line'> <span class="mi">4075</span> <span class="n">get_master_uuid</span>
+</span><span class='line'>      <span class="err">在</span><span class="n">master</span><span class="err">上“</span><span class="n">SHOW</span> <span class="n">VARIABLES</span> <span class="n">LIKE</span> <span class="err">&#39;</span><span class="n">SERVER_UUID</span><span class="err">&#39;”</span>
+</span><span class='line'> <span class="mi">4077</span> <span class="n">io_thread_init_commands</span>
+</span><span class='line'>      <span class="err">在</span><span class="n">master</span><span class="err">上“</span><span class="n">SET</span> <span class="nd">@slave_uuid</span><span class="o">=</span> <span class="err">&#39;</span><span class="o">%</span><span class="n">s</span><span class="err">&#39;”</span>
+</span><span class='line'> <span class="mi">4106</span> <span class="n">register_slave_on_master</span>
+</span><span class='line'>      <span class="err">向</span><span class="n">master</span><span class="err">发送</span><span class="n">COM_REGISTER_SLAVE</span>
+</span><span class='line'> <span class="mi">4133</span> <span class="k">while</span> <span class="o">(!</span><span class="n">io_slave_killed</span><span class="o">(</span><span class="n">thd</span><span class="o">,</span><span class="n">mi</span><span class="o">))</span>
+</span><span class='line'> <span class="mi">4134</span> <span class="o">{</span>
+</span><span class='line'> <span class="mi">4136</span>      <span class="n">request_dump</span>
+</span><span class='line'>           <span class="err">向</span><span class="n">master</span><span class="err">发送</span><span class="n">COM_BINLOG_DUMP_GTID</span><span class="o">/</span><span class="n">COM_BINLOG_DUMP</span>
+</span><span class='line'> <span class="mi">4159</span>      <span class="k">while</span> <span class="o">(!</span><span class="n">io_slave_killed</span><span class="o">(</span><span class="n">thd</span><span class="o">,</span><span class="n">mi</span><span class="o">))</span>
+</span><span class='line'> <span class="mi">4160</span>      <span class="o">{</span>
+</span><span class='line'> <span class="mi">4169</span>           <span class="n">read_event</span><span class="err">，此为阻塞方法，会阻塞等待有新数据包传入</span>
+</span><span class='line'> <span class="mi">4184</span>          <span class="o">{</span>
+</span><span class='line'>                     <span class="err">一些包错误的处理，包括</span><span class="n">packet</span> <span class="n">too</span> <span class="n">large</span> <span class="o">/</span> <span class="n">out</span> <span class="n">of</span> <span class="n">resource</span><span class="err">等</span>
+</span><span class='line'> <span class="mi">4213</span>          <span class="o">}</span>
+</span><span class='line'> <span class="mi">4219</span>          <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">binlog_relay_io</span><span class="o">.</span><span class="na">after_read_event</span>
+</span><span class='line'> <span class="mi">4232</span>          <span class="n">queue_event</span><span class="err">，将</span><span class="n">event</span><span class="err">放入</span><span class="n">relay</span> <span class="n">log</span><span class="err">写</span><span class="n">buf</span>
+</span><span class='line'> <span class="mi">4240</span>          <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">binlog_relay_io</span><span class="o">.</span><span class="na">after_queue_event</span>
+</span><span class='line'> <span class="mi">4250</span>          <span class="n">flush_master_info</span><span class="err">，将</span><span class="n">master_info</span><span class="err">和</span><span class="n">relay</span> <span class="n">log</span><span class="err">刷到</span><span class="n">disk</span><span class="err">上</span>
+</span><span class='line'>               <span class="err">此处，先刷</span><span class="n">relay</span> <span class="n">log</span><span class="err">，后刷</span><span class="n">master_info</span><span class="err">。这样意外的故障可以通过重连恢复机制来恢复。</span>
+</span><span class='line'>               <span class="err">若先刷</span><span class="n">master_info</span><span class="err">，后刷</span><span class="n">relay</span> <span class="n">log</span><span class="err">，意外故障时</span><span class="n">master_info</span><span class="err">已经更新，比如</span><span class="o">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">100</span><span class="o">,</span> <span class="mi">100</span><span class="o">-</span><span class="mi">200</span><span class="o">)</span><span class="err">，而数据丢失，仅有</span><span class="o">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">100</span><span class="o">)</span><span class="err">，恢复的</span><span class="n">replication</span><span class="err">会从</span><span class="mi">200</span><span class="err">开始。整个</span><span class="n">relay</span> <span class="n">log</span><span class="err">会成为</span><span class="o">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">100</span><span class="o">,</span> <span class="mi">200</span><span class="o">-)</span><span class="err">，中间数据会丢失。</span>
+</span><span class='line'>
+</span><span class='line'> <span class="mi">4286</span>          <span class="err">若</span><span class="n">relay</span> <span class="n">log</span><span class="err">达到容量限制，则</span><span class="n">wait_for_relay_log_space</span>
+</span><span class='line'> <span class="mi">4292</span>      <span class="o">}</span>
+</span><span class='line'> <span class="mi">4293</span> <span class="o">}</span>
+</span><span class='line'> <span class="mi">4296</span> <span class="err">之后都是收尾操作</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<h2>一些重点</h2>
+
+<ol>
+<li>此处不分析锁什么的，因为看不懂</li>
+<li>4047 设置max_packet_size的目的不明</li>
+<li>4073 开始slave会向master直接发送一些sql，然后解析返回。而不是包装在某个包的某个字段里，用一些预定义的变量来传递结果。<br/>这种设计一下就觉得山寨起来。<br/>后经同事 @神仙 指点，mysql这样做貌似是为了兼容性，免得数据包格式被改来改去。<br/>（看到mysql里大量的兼容代码都拿来处理包结构的问题，最极品的可能是莫过于LOG_EVENT_MINIMAL_HEADER_LEN了）<br/>在对流量影响不大的情况下，直接用sql反复查询的确是个好的解决手法</li>
+<li>4250 将master_info和relay log刷到disk上。<br/>先刷relay log，后刷master_info。这样意外的故障可以通过relay log恢复机制来恢复。<br/>若先刷master_info，后刷relay log，意外故障时master_info已经更新，比如(0-100, 100-200)，而数据(100-200)丢失，仅有(0-100)，恢复的replication会从200开始。整个relay log会成为(0-100, 200-)，中间数据会丢失。</li>
+</ol>
+
+
+<h2>start slave时slave向master发送的事件</h2>
+
+<ul>
+<li><p>SELECT UNIX_TIMESTAMP() (rpl_slave.cc:get_master_version_and_clock)</p></li>
+<li> SHOW VARIABLES LIKE 'SERVER_ID' (rpl_slave.cc:get_master_version_and_clock)</li>
+<li> SET @master_heartbeat_period=? (rpl_slave.cc:get_master_version_and_clock)</li>
+<li> SET @master_binlog_checksum= @@global.binlog_checksum (rpl_slave.cc:get_master_version_and_clock)</li>
+<li> SELECT @master_binlog_checksum (rpl_slave.cc:get_master_version_and_clock)</li>
+<li> SELECT @@GLOBAL.GTID_MODE (rpl_slave.cc:get_master_version_and_clock)</li>
+<li><p> SHOW VARIABLES LIKE 'SERVER_UUID' （rpl_slave.cc:get_master_uuid）</p></li>
+<li><p> SET @slave_uuid= '%s'（rpl_slave.cc:io_thread_init_commands)</p></li>
+<li> COM_REGISTER_SLAVE(rpl_slave.cc:register_slave_on_master)</li>
+<li> COM_BINLOG_DUMP(rpl_slave.cc:request_dump)</li>
+</ul>
+
+
+<h2>master与slave的时间差</h2>
+
+<p>可以看到slave获得master的时间方法就是直接下sql，完全忽略网络延迟等等等等，属于不精准的时间</p>
+
+<p><a href="http://guduwhuzhe.iteye.com/blog/1901707">这篇文章</a>从源码级别分析了Seconds_Behind_Master的来源，也给出了备库延迟跳跃的原因。总的来说就是Seconds_Behind_Master不可信。</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽]]></title>
