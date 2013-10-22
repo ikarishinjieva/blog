@@ -9,7 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="前几天微博上一直在转Chrome browser引进了workspace的功能，可以在developer tools里直接进行源码编辑。 但是迄今为止搜索到的文档都没有详细描述使用步骤和限制，36kr上的这篇guide也没有关于mapping的描述，更没有一些坑描述。 &hellip;">
+  <meta name="description" content="应该说这篇和这篇文章是最近读的最有意思的一篇文章，关于多线程访问时，内存预读到寄存器的内容产生的数据竞争(false sharing)对性能的影响(我已经不知道我在说什么了，文章里解释的很清楚)。 重做了第二篇里的试验，发现六个padding不够，需要七个padding(p7)才能有两倍的性能差异 &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -61,6 +61,79 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/03/10/false-sharing-0/" style='font-size:20px'>False Sharing 阅读</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-10T23:40:00+08:00" pubdate data-updated="true">Mar 10<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/03/10/false-sharing-0/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"False Sharing 阅读", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>应该说<a href="http://ifeve.com/disruptor-cacheline-padding/">这篇</a>和<a href="http://ifeve.com/false-sharing/">这篇文章</a>是最近读的最有意思的一篇文章，关于多线程访问时，内存预读到寄存器的内容产生的数据竞争(false sharing)对性能的影响(我已经不知道我在说什么了，文章里解释的很清楚)。</p>
+
+<p>重做了第二篇里的试验，发现六个padding不够，需要七个padding(p7)才能有两倍的性能差异。(没有文献里说的那么离谱，测试环境的差异吧)</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kt">long</span> <span class="n">p1</span><span class="o">,</span> <span class="n">p2</span><span class="o">,</span> <span class="n">p3</span><span class="o">,</span> <span class="n">p4</span><span class="o">,</span> <span class="n">p5</span><span class="o">,</span> <span class="n">p6</span><span class="o">;</span> <span class="c1">// comment out</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><del>TODO：了解第七个padding的来源</del></p>
+
+<p>看了第二篇文章的<a href="http://ifeve.com/false-shareing-java-7-cn/">更新篇</a>, 用这个稳定的代码跑测试，就不会有之前p7的问题。（可能是之前p1-p6被优化掉了？不解。）</p>
+
+<p>在公司八核的机器上也测过，性能提升也就在2-4倍左右。没有那么夸张。</p>
+
+<p>原理基本清楚，对不同平台间的差异完全没想法。不做深入了解。</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -174,7 +247,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -234,7 +307,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -292,7 +365,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -350,7 +423,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -435,7 +508,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -572,7 +645,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -632,7 +705,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -744,7 +817,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -817,7 +890,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -882,7 +955,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -977,7 +1050,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -1041,7 +1114,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1138,7 +1211,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1214,6 +1287,10 @@ Hello world @20130126
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/">Mysql 5.6.12 master上flush logs在slave上产生两个relay-log</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/blog/2013/10/20/mysql-handle_slave_io-src/">Mysql rpl_slave.cc:handle_slave_io 源码的一些个人分析</a>
       </li>
     
@@ -1287,10 +1364,6 @@ Hello world @20130126
     
       <li class="post">
         <a href="/blog/blog/2013/03/11/thread-wait-sleep/">Thread wait 和 sleep</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/10/false-sharing-0/">False Sharing 阅读</a>
       </li>
     
   </ul>

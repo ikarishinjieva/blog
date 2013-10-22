@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mysql | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/mysql/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-10-20T21:07:42+08:00</updated>
+  <updated>2013-10-22T22:35:29+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,133 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Mysql 5.6.12 master上flush logs在slave上产生两个relay-log]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/"/>
+    <updated>2013-10-22T21:42:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file</id>
+    <content type="html"><![CDATA[<h2>现象</h2>
+
+<p>一个碰巧观察到的有趣的现象：mysql 5.6.12 在master上flush logs，在slave上会观察到两个新的relay-log file</p>
+
+<p>举例：</p>
+
+<p>slave-relay-bin.000092</p>
+
+<pre><code> FD event
+ Rotate to mysql-bin.000056
+ Rotate to slave-relay-bin.000093
+</code></pre>
+
+<p>slave-relay-bin.000093</p>
+
+<pre><code> FD event slave
+ Rotate to mysql-bin.000056
+ FD event master
+ bla bla…
+</code></pre>
+
+<p>可以看到000092这个relay log相当多余。这个现象并不会影响replication的正确性，只是让有强迫症的人有点狂躁</p>
+
+<h2>探索</h2>
+
+<p>在master上net_serv.cc:my_net_write打断点，可以观察到master的确发出了以下三个事件</p>
+
+<ul>
+<li>ROTATE_EVENT</li>
+</ul>
+
+
+<p>backtrace</p>
+
+<pre><code>#0  my_net_write (net=0x1ea2858, packet=0x7fffa4002b70 "", len=48)
+    at /home/vagrant/mysql-5.6.12/sql/net_serv.cc:284
+#1  0x0000000000a48b05 in mysql_binlog_send (thd=0x1ea2600, log_ident=0x7fffa4004c60 "mysql-bin.000052", pos=167,
+    slave_gtid_executed=0x0) at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:1336
+#2  0x0000000000a46ad2 in com_binlog_dump (thd=0x1ea2600, packet=0x1ea5d21 "", packet_length=26)
+    at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:746
+#3  0x00000000007d1ab9 in dispatch_command (command=COM_BINLOG_DUMP, thd=0x1ea2600, packet=0x1ea5d21 "",
+    packet_length=26) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1534
+#4  0x00000000007d017b in do_command (thd=0x1ea2600) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1036
+#5  0x0000000000797a08 in do_handle_one_connection (thd_arg=0x1ea2600)
+    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:977
+#6  0x00000000007974e4 in handle_one_connection (arg=0x1ea2600)
+    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:893
+#7  0x0000000000aea87a in pfs_spawn_thread (arg=0x1e7aa80)
+    at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
+#8  0x00007ffff7bc7851 in start_thread () from /lib64/libpthread.so.0
+#9  0x00007ffff6b3290d in clone () from /lib64/libc.so.6
+</code></pre>
+
+<ul>
+<li>第二个ROTATE_EVENT</li>
+</ul>
+
+
+<p>backtrace</p>
+
+<pre><code>#0  my_net_write (net=0x1ea2858, packet=0x7fffa4002ab0 "", len=48)
+    at /home/vagrant/mysql-5.6.12/sql/net_serv.cc:284
+#1  0x0000000000a45f04 in fake_rotate_event (net=0x1ea2858, packet=0x1ea2be8,
+    log_file_name=0x7fffc94ff270 "./mysql-bin.000056", position=4, errmsg=0x7fffc94ffdb0,
+    checksum_alg_arg=1 '\001') at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:395
+#2  0x0000000000a4a33d in mysql_binlog_send (thd=0x1ea2600, log_ident=0x7fffa4004c60 "mysql-bin.000052", pos=167,
+    slave_gtid_executed=0x0) at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:1728
+#3  0x0000000000a46ad2 in com_binlog_dump (thd=0x1ea2600, packet=0x1ea5d21 "", packet_length=26)
+    at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:746
+#4  0x00000000007d1ab9 in dispatch_command (command=COM_BINLOG_DUMP, thd=0x1ea2600, packet=0x1ea5d21 "",
+    packet_length=26) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1534
+#5  0x00000000007d017b in do_command (thd=0x1ea2600) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1036
+#6  0x0000000000797a08 in do_handle_one_connection (thd_arg=0x1ea2600)
+    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:977
+#7  0x00000000007974e4 in handle_one_connection (arg=0x1ea2600)
+    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:893
+#8  0x0000000000aea87a in pfs_spawn_thread (arg=0x1e7aa80)
+    at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
+#9  0x00007ffff7bc7851 in start_thread () from /lib64/libpthread.so.0
+#10 0x00007ffff6b3290d in clone () from /lib64/libc.so.6
+</code></pre>
+
+<ul>
+<li>FORMAT_DESCRIPTION_EVENT</li>
+</ul>
+
+
+<p>可以看到第一个ROTATE_EVENT是由flush logs发出的，第二个ROTATE_EVENT是fake_rotate_event</p>
+
+<h2>关于fake_rotate_event</h2>
+
+<p>以前也<a href="http://ikarishinjieva.github.io/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/">吐槽</a>过fake_rotate_event</p>
+
+<p>master在binlog切换时（不一定是手工flush，也可能是重启，或者容量达到限制）一定要多发一个rotate event，原因如源码rpl_master.cc:mysql_binlog_send中的注释</p>
+
+<pre><code>  /*
+    Call fake_rotate_event() in case the previous log (the one which
+    we have just finished reading) did not contain a Rotate event.
+    There are at least two cases when this can happen:
+
+    - The previous binary log was the last one before the master was
+      shutdown and restarted.
+
+    - The previous binary log was GTID-free (did not contain a
+      Previous_gtids_log_event) and the slave is connecting using
+      the GTID protocol.
+
+    This way we tell the slave about the new log's name and
+    position.  If the binlog is 5.0 or later, the next event we
+    are going to read and send is Format_description_log_event.
+  */
+  if ((file=open_binlog_file(&amp;log, log_file_name, &amp;errmsg)) &lt; 0 ||
+      fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE,
+                        &amp;errmsg, current_checksum_alg))
+</code></pre>
+
+<p>主要是解决之前没有rotate event发送的场景</p>
+
+<p>虽然非常想吐槽，但是我也想不出更好的办法</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Mysql rpl_slave.cc:handle_slave_io 源码的一些个人分析]]></title>
@@ -440,184 +567,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 <h1>结果</h1>
 
 <p>实验后证明猜对了...</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[实验：Mysql master-slave-standby将source从master切换到standby]]></title>
-    <link href="http://ikarishinjieva.github.com/blog/blog/2013/05/15/mysql-master-slave-standby-failover/"/>
-    <updated>2013-05-15T22:40:00+08:00</updated>
-    <id>http://ikarishinjieva.github.com/blog/blog/2013/05/15/mysql-master-slave-standby-failover</id>
-    <content type="html"><![CDATA[<p>尝试了&lt;Mysql High Availability&gt;第四章热备份一节的实验,记录步骤.</p>
-
-<p>先统一原语,master/slave/standby表示三台机器名,source/target代表replication关系的两端（不适用master/slave用以和机器名区分）."master(3)"表示master机器的db里有三条数据1,2,3.</p>
-
-<p>实验开始.</p>
-
-<ol>
-<li>初始状态是存在master->slave, master->standby的replication</li>
-<li>standby在切换成source时,需要有bin-log和replication user. 在此重新设置master->standby的replication, 让standby满足要求.</li>
-</ol>
-
-
-<p>忽略replication user的部分.</p>
-
-<p>bin-log的部分在my.cnf里要设置log-bin和log-slave-updates(默认情况下,master->standby的replication不会写standby的bin-log,需开始standby的log-slave-updates才会写).</p>
-
-<p><div class='bogus-wrapper'><notextile><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>server-id               = 3
-</span><span class='line'>log_bin                 = /var/log/mysql/mysql-bin.log
-</span><span class='line'>...
-</span><span class='line'>relay-log-index         = /var/log/mysql/slave-relay-bin.index
-</span><span class='line'>relay-log               = /var/log/mysql/slave-relay-bin
-</span><span class='line'>log-slave-updates</span></code></pre></td></tr></table></div></figure></notextile></div></p>
-
-<ol>
-<li>测试一下standby binlog设置成功。可以在master插入一条数据，在standby查看</li>
-</ol>
-
-
-<p><div class='bogus-wrapper'><notextile><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>standby> show binlog events;
-</span><span class='line'>+------------------+------+-------------+-----------+-------------+------------------------------------------------------------------------+
-</span><span class='line'>| Log_name         | Pos  | Event_type  | Server_id | End_log_pos | Info                                                                   |
-</span><span class='line'>+------------------+------+-------------+-----------+-------------+------------------------------------------------------------------------+
-</span><span class='line'>| mysql-bin.000001 |    4 | Format_desc |         3 |         107 | Server ver: 5.5.31-0ubuntu0.12.04.1-log, Binlog ver: 4                 |
-</span><span class='line'>| mysql-bin.000001 |  107 | Query       |         1 |         166 | BEGIN                                                                  |
-</span><span class='line'>| mysql-bin.000001 |  166 | Query       |         1 |         257 | use &lt;code>tac&lt;/code>; insert into test values(8889)                               |
-</span><span class='line'>| mysql-bin.000001 |  257 | Xid         |         1 |         284 | COMMIT /&lt;em> xid=111 &lt;/em>/  &lt;br/>
-</span><span class='line'>...</span></code></pre></td></tr></table></div></figure></notextile></div></p>
-
-<ol>
-<li>将replication调整至状态master(3),standby(2),slave(1). 人工造成各db的状态不一致</li>
-</ol>
-
-
-<p><div class='bogus-wrapper'><notextile><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>master> insert into test values(1);
-</span><span class='line'>slave> stop slave;
-</span><span class='line'>master> insert into test values(2);
-</span><span class='line'>standby> stop slave;
-</span><span class='line'>master> insert into test values(3);</span></code></pre></td></tr></table></div></figure></notextile></div></p>
-
-<ol>
-<li><p>想象此时master挂掉,开始将source从master切换成standby</p></li>
-<li><p>在建立standby->slave的replication之前，需要将standby和slave数据同步(此时slave落后于standby)。</p></li>
-</ol>
-
-
-<p><div class='bogus-wrapper'><notextile><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>-- 先查看standby从master拿了多少数据
-</span><span class='line'>standby> show slave status \G
-</span><span class='line'>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;em> 1. row &lt;/em>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>
-</span><span class='line'>...&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;pre>&lt;code>    Master_Log_File: master-bin.000023
-</span><span class='line'>&lt;/code>&lt;/pre>
-</span><span class='line'>
-</span><span class='line'>&lt;p>...&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;pre>&lt;code>    Exec_Master_Log_Pos: 1391
-</span><span class='line'>&lt;/code>&lt;/pre>
-</span><span class='line'>
-</span><span class='line'>&lt;p>-- 让slave从master上同步到跟standby同样的位置
-</span><span class='line'>slave> start slave until master_log_file = 'master-bin.000023', master_log_pos = 1391;</span></code></pre></td></tr></table></div></figure></notextile></div></p>
-
-<p>有意思的是此处用了master(其实我们假设master已经坏了...)。</p>
-
-<ol>
-<li>此时可以讲slave的source从master切换到standby. 一个问题就是standby->slave的开始位置可能是和master->slave不同</li>
-</ol>
-
-
-<p><div class='bogus-wrapper'><notextile><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>-- 查看standby binlog的当前位置
-</span><span class='line'>mysql> show master status \G
-</span><span class='line'>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;em> 1. row &lt;/em>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;pre>&lt;code>File: mysql-bin.000001 
-</span><span class='line'>Position: 796
-</span><span class='line'>Binlog_Do_DB:
-</span><span class='line'>Binlog_Ignore_DB:
-</span><span class='line'>&lt;/code>&lt;/pre>
-</span><span class='line'>
-</span><span class='line'>&lt;p>-- 注意与master上的文件名和位置都不同&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;p>-- 切换slave的source
-</span><span class='line'>slave> change master to&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;pre>&lt;code>          master_host = '192.168.50.4', 
-</span><span class='line'>          master_port = 3306, 
-</span><span class='line'>          master_user = 'repl', 
-</span><span class='line'>          master_password = 'repl', 
-</span><span class='line'>          master_log_file = 'mysql-bin.000001', 
-</span><span class='line'>          master_log_pos = 796;
-</span><span class='line'>&lt;/code>&lt;/pre>
-</span><span class='line'>
-</span><span class='line'>&lt;p></span></code></pre></td></tr></table></div></figure></notextile></div></p>
-
-<ol>
-<li>测试一下standby->slave replication.</li>
-</ol>
-
-
-<p>总的思路就是讲master(3),standby(2),slave(1)同步成master(3),standby(2),slave(2),然后将master->slave切换成standby->slave.</p>
-
-<p>遗留了两个问题,其一是slave和standby同步时使用了"坏掉"的master;其二是master超前了standby和slave, 也就是standby->slave丢失了master的超前数据。留待慢慢学习。</p>
 ]]></content>
   </entry>
   
