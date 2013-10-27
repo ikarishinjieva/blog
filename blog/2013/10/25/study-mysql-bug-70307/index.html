@@ -1,0 +1,440 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>对Mysql bug #70307 的学习 - Tac say</title>
+  <meta name="author" content="Tac Huang (ikari_shinji@github)">
+
+  
+  <meta name="description" content="之前描述Mysql 5.6.15 Replication中碰到的死锁的情况，这次尝试debug下原因。 debug的过程 用参数&#8211;gdb启动mysql，按照步骤重现bug（让slave &#8220;show slave status&#8221;时卡住）。然后用gdb &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2013/10/25/study-mysql-bug-70307/">
+  <link href="/blog/favicon.png" rel="icon">
+  <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/blog/javascripts/modernizr-2.0.js"></script>
+  <script src="/blog/javascripts/ender.js"></script>
+  <script src="/blog/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/blog/atom.xml" rel="alternate" title="Tac say" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/blog/">Tac say</a></h1>
+  
+    <h2>只想做个程序演奏家</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/blog/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<ul class="main-navigation">
+  <li><a href="/blog/">Blog</a></li>
+  <li><a href="/blog/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">对Mysql Bug #70307 的学习</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-10-25T22:00:00+08:00" pubdate data-updated="true">Oct 25<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+<div class="entry-content"><p>之前描述<a href="http://ikarishinjieva.github.io/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/">Mysql 5.6.15 Replication中碰到的死锁</a>的情况，这次尝试debug下原因。</p>
+
+<h2>debug的过程</h2>
+
+<p>用参数&#8211;gdb启动mysql，按照<a href="http://bugs.mysql.com/file.php?id=20542">步骤</a>重现bug（让slave &#8220;show slave status&#8221;时卡住）。然后用gdb attach到slave mysql实例上。</p>
+
+<pre><code>(gdb) thread apply all bt
+</code></pre>
+
+<p>输出所有线程的backtrace，找到show slave status卡住的线程和位置</p>
+
+<pre><code>Thread 2 (Thread 0x7f583c166700 (LWP 2440)):
+#0  0x00007f583f484054 in __lll_lock_wait () from /lib64/libpthread.so.0
+#1  0x00007f583f47f3be in _L_lock_995 () from /lib64/libpthread.so.0
+#2  0x00007f583f47f326 in pthread_mutex_lock () from /lib64/libpthread.so.0
+#3  0x0000000000aa3cde in safe_mutex_lock (mp=0x3516ae8, try_lock=0 '\000', file=0xfb8e58 "/home/vagrant/mysql-5.6.12/sql/rpl_slave.cc", line=2611) at /home/vagrant/mysql-5.6.12/mysys/thr_mutex.c:152
+#4  0x0000000000a4b993 in inline_mysql_mutex_lock (that=0x3516ae8, src_file=0xfb8e58 "/home/vagrant/mysql-5.6.12/sql/rpl_slave.cc", src_line=2611) at /home/vagrant/mysql-5.6.12/include/mysql/psi/mysql_thread.h:686
+#5  0x0000000000a53cb3 in show_slave_status (thd=0x352e3d0, mi=0x34b4f20) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:2611
+#6  0x00000000007d45f4 in mysql_execute_command (thd=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:2766
+#7  0x00000000007ddc46 in mysql_parse (thd=0x352e3d0, rawbuf=0x7f57ec005010 "show slave status", length=17, parser_state=0x7f583c165660) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:6187
+#8  0x00000000007d1019 in dispatch_command (command=COM_QUERY, thd=0x352e3d0, packet=0x3534e51 "", packet_length=17) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1334
+#9  0x00000000007d017b in do_command (thd=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1036
+#10 0x0000000000797a08 in do_handle_one_connection (thd_arg=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:977
+#11 0x00000000007974e4 in handle_one_connection (arg=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:893
+#12 0x0000000000aea87a in pfs_spawn_thread (arg=0x351b510) at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
+#13 0x00007f583f47d851 in start_thread () from /lib64/libpthread.so.0
+#14 0x00007f583e3e890d in clone () from /lib64/libc.so.6
+</code></pre>
+
+<p>可以看到show slave status卡在</p>
+
+<pre><code>#5  0x0000000000a53cb3 in show_slave_status (thd=0x352e3d0, mi=0x34b4f20) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:2611
+</code></pre>
+
+<p>查找源码可以看到show slave status卡在获取锁mi->rli->data_lock上<br/>(科普下缩写: mi=master info, rli=relay log info</p>
+
+<p>在gdb中运行命令</p>
+
+<pre><code>(gdb) thread 2
+(gdb) f 5
+(gdb) print mi-&gt;rli-&gt;data_lock
+</code></pre>
+
+<p>切换到thread 2堆栈第5层的上下文，打印出mi->rli->data_lock变量，输出如下</p>
+
+<pre><code>$1 = {m_mutex = {global = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 2, __spins = 0,
+    __list = {__prev = 0x0, __next = 0x0}},
+  __size = '\000' &lt;repeats 16 times&gt;, "\002", '\000' &lt;repeats 22 times&gt;, __align = 0}, mutex = {__data = {
+    __lock = 2, __count = 0, __owner = 2435, __nusers = 1, __kind = 3, __spins = 0, __list = {__prev = 0x0,
+      __next = 0x0}},
+  __size = "\002\000\000\000\000\000\000\000\203\t\000\000\001\000\000\000\003", '\000' &lt;repeats 22 times&gt;,
+  __align = 2}, file = 0xfa4520 "/home/vagrant/mysql-5.6.12/sql/log_event.cc", line = 7259, count = 1,
+thread = 140016942216960}, m_psi = 0x0}
+</code></pre>
+
+<p>看到锁的owner是线程(LWP 2435)，为Thread 3</p>
+
+<p>Thread 3的backtrace如下</p>
+
+<pre><code>Thread 3 (Thread 0x7f583c1a7700 (LWP 2435)):
+#0  0x00007f583f4817bb in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x0000000000aa429d in safe_cond_timedwait (cond=0x7f57f4000ba8, mp=0x7f57f4000b38, abstime=0x7f583c1a60f0, file=0xedc960 "/home/vagrant/mysql-5.6.12/include/mysql/psi/mysql_thread.h", line=1199) at /home/vagrant/mysql-5.6.12/mysys/thr_mutex.c:278
+#2  0x00000000007121f4 in inline_mysql_cond_timedwait (that=0x7f57f4000ba8, mutex=0x7f57f4000b38, abstime=0x7f583c1a60f0, src_file=0xedcb98 "/home/vagrant/mysql-5.6.12/sql/mdl.cc", src_line=1306) at /home/vagrant/mysql-5.6.12/include/mysql/psi/mysql_thread.h:1199
+#3  0x0000000000713111 in MDL_wait::timed_wait (this=0x7f57f4000b38, owner=0x7f57f4000a50, abs_timeout=0x7f583c1a60f0, set_status_on_timeout=true, wait_state_name=0x14d0488) at /home/vagrant/mysql-5.6.12/sql/mdl.cc:1306
+#4  0x0000000000714811 in MDL_context::acquire_lock (this=0x7f57f4000b38, mdl_request=0x7f583c1a6180, lock_wait_timeout=31536000) at /home/vagrant/mysql-5.6.12/sql/mdl.cc:2241
+#5  0x000000000063656a in ha_commit_trans (thd=0x7f57f4000a50, all=true) at /home/vagrant/mysql-5.6.12/sql/handler.cc:1396 (COMMIT LOCK)
+#6  0x00000000008a010b in trans_commit (thd=0x7f57f4000a50) at /home/vagrant/mysql-5.6.12/sql/transaction.cc:228
+#7  0x0000000000a081bb in Xid_log_event::do_commit (this=0x7f57f4004730, thd=0x7f57f4000a50) at /home/vagrant/mysql-5.6.12/sql/log_event.cc:7174
+#8  0x0000000000a0886e in Xid_log_event::do_apply_event (this=0x7f57f4004730, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/log_event.cc:7310 (rli-&gt;data_lock)
+#9  0x00000000009fd956 in Log_event::apply_event (this=0x7f57f4004730, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/log_event.cc:3049
+#10 0x0000000000a55e31 in apply_event_and_update_pos (ptr_ev=0x7f583c1a68a0, thd=0x7f57f4000a50, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:3374
+#11 0x0000000000a56e45 in exec_relay_log_event (thd=0x7f57f4000a50, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:3742
+#12 0x0000000000a5c334 in handle_slave_sql (arg=0x34b4f20) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:5552
+#13 0x0000000000aea87a in pfs_spawn_thread (arg=0x350a800) at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
+#14 0x00007f583f47d851 in start_thread () from /lib64/libpthread.so.0
+#15 0x00007f583e3e890d in clone () from /lib64/libc.so.6
+</code></pre>
+
+<p>可以看到Thread 3卡在commit lock上，同时查源码看到Thread 3同时占有了rli->data_lock (log_event.cc:7259)</p>
+
+<h2>锁的状态</h2>
+
+<p>按照bug的描述，</p>
+
+<ol>
+<li>flush tables with read lock; 会持有commit lock</li>
+<li>IO thread (Thread 3)会持有rli->data_lock，并等待commit lock</li>
+<li>show slave status; 会等待rli->data_lock</li>
+</ol>
+
+
+<p>结果导致show slave status卡住不可用</p>
+
+<h2>臆测一下解决方法</h2>
+
+<p>鉴于功底不深，只能臆测一下</p>
+
+<ol>
+<li>IO thread持有锁rli->data_lock的原因是要更新relay log的状态，然后进行commit(Xid_log_event::do_apply_event (log_event.cc:7248))。在commit的时候不会更新rli的数据。</li>
+<li>show slave status不会更新rli的数据，需要锁rli->data_lock的原因是要一致性数据。</li>
+</ol>
+
+
+<p>因此可能的解决方案是IO thread持有读写锁，进行commit时转为持有读锁。show slave status只使用读锁。</p>
+
+<p>只是臆测下解决方法，待<a href="http://bugs.mysql.com/bug.php?id=70307">bug #70307</a>修掉时再学习。</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Tac Huang (ikari_shinji@github)</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-10-25T22:00:00+08:00" pubdate data-updated="true">Oct 25<span>th</span>, 2013</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/blog/categories/bug/'>bug</a>, <a class='category' href='/blog/blog/categories/mysql/'>mysql</a>, <a class='category' href='/blog/blog/categories/replication/'>replication</a>, <a class='category' href='/blog/blog/categories/source-code/'>source_code</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/" title="Previous Post: Mysql 5.6.12 master上flush logs在slave上产生两个relay-log">&laquo; Mysql 5.6.12 master上flush logs在slave上产生两个relay-log</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/25/study-mysql-bug-70307/">对Mysql bug #70307 的学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/">Mysql 5.6.12 master上flush logs在slave上产生两个relay-log</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/20/mysql-handle_slave_io-src/">Mysql rpl_slave.cc:handle_slave_io 源码的一些个人分析</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/">Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/14/mha-failover/">MHA failover时做了些啥</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/11/jruby-175-jre-6-stdin-bug/">jruby backtick + jre 6 会卡住</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/">mysql 5.6.15 replication中碰到的死锁</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/08/29/rewrite-project-into-ruby/">jruby重写java项目的一些总结</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/28/interesting-js/">有意思的javascript笔误</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/18/java-offheap-memory/">Java off-heap的一些参考</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/15/mysql-master-slave-standby-failover/">实验：Mysql master-slave-standby将source从master切换到standby</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/12/mysql-binlog-study/">关于Mysql binlog的一点学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/">lisp一个大写的坑</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/31/java-method-passing/">我写了半辈子程序 & java的重载方法选择基于编译期参数类型</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/19/some-readings-about-localStorage/">读了“There is no simple solution for local storage”</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/18/lisp-quote-backquote/">略学习Lisp的quote和backquote</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/17/jquery-noconflict/">读了‘谈谈 jQuery 中的防冲突（noConflict）机制’</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/14/read-write-lock-read-reentrant/">读写锁-读可重入</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/13/reentrant-lock/">可重入Lock</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/13/notify-and-notify-all/">Thread Notify 和 NotifyAll</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Weibo</h1>
+  <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=10&isTitle=1&noborder=0&isWeibo=1&isFans=0&uid=1460219211&verifier=4d7daebc&dpc=1"></iframe>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/ikarishinjieva">@ikarishinjieva</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'ikarishinjieva',
+            count: 5,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/blog/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2013 - Tac Huang (ikari_shinji@github) -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'tacsay';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2013/10/25/study-mysql-bug-70307/';
+        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2013/10/25/study-mysql-bug-70307/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fa62a96d9f5c956ea3ddb6cca8ad83aa3' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
