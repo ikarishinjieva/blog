@@ -7,9 +7,9 @@ categories:  mysql replication source_code
 ---
 读了两天rpl_master.cc:mysql_binlog_send的源码（Mysql 5.6.11），总结一下
 
-函数的入口是rpl_master.cc:com_binlog_dump，当slave向master向master请求数据时，在master上调用
+函数的入口是rpl_master.cc:com_binlog_dump，当slave向master请求数据时，在master上调用
 
-函数参数说明。log_ident为slave请求的binlog文件名，如"mysql-bin.000001"。pos为slave请求的binlog位置。slave_gtid_executed为gtid相关，在此忽略
+函数参数说明: <br/>log_ident为slave请求的binlog文件名，如"mysql-bin.000001"<br/>pos为slave请求的binlog位置<br/>slave_gtid_executed为gtid相关，在此忽略
 
 在此吐槽：
 
@@ -75,10 +75,10 @@ mysql_binlog_send(…)
 {% endcodeblock %}
 
 #重点步骤
-1. 关于Format Description event，如果传送从binlog开头开始，那么FD event会正常随着binlog传送；若传送不从binlog开头开始，则需要补发一个FD event，才开始传送
-2. 如何判断binlog读取完。函数先不加锁读取binlog中的event，读完后，再加锁尝试读取一个event（加锁过程中，没有其他进程写进binlog），若有数据，则继续处理，若没有数据，则说明binlog读取完了，master会阻塞等待新的binlog写入。这样做主要为了：1. 不需要一直加锁读取binlog，保障性能；2. 无锁读取时会有其他进程写binlog，加锁可以保障这些新加的binlog得到妥善安置
-3. 心跳。心跳尽在不传送binlog时（master穷尽了binlog，开始阻塞等待新的binlog写入时）才进行心跳
-4. Fake Rotate Event。Fake Rotate Event在开始传送和切换binlog时发送到slave。主要作用是通知slave binlog filename，原因在源码comment里写的很清楚。但是很疑惑的是为什么在FD event里并没有binlog filename，这个问题发到了[StackoverFlow](http://stackoverflow.com/questions/19375951/in-mysql-replication-why-format-description-event-doesnt-include-binlogs-name)，未有答案。（诶，看看我的stackoverflow的记录就知道，我的问题都是死题）
+1. 补发Format Description event。<br/>如果传送从binlog开头开始，那么FD event会正常随着binlog传送；<br/>若传送不从binlog开头开始，则需要补发一个FD event，才开始传送
+2. 如何判断binlog读取完<br/>函数先不加锁读取binlog中的event，读完后，再加锁尝试读取一个event（加锁过程中，没有其他进程写进binlog），若有数据，则继续处理，若没有数据，则说明binlog读取完了，master会阻塞等待新的binlog写入。<br/>这样做主要为了：<br/>1. 不需要一直加锁读取binlog，保障性能；<br/>2. 无锁读取时会有其他进程写binlog，加锁可以保障这些新加的binlog得到妥善安置
+3. 心跳<br/>仅在不传送binlog时（master穷尽了binlog，开始阻塞等待新的binlog写入时）才进行心跳
+4. Fake Rotate Event<br/>Fake Rotate Event在开始传送和切换binlog时发送到slave。主要作用是通知slave binlog filename，原因在源码comment里写的很清楚。但是很疑惑的是为什么在FD event里并没有binlog filename，这个问题发到了[StackoverFlow](http://stackoverflow.com/questions/19375951/in-mysql-replication-why-format-description-event-doesnt-include-binlogs-name)，未有答案。（诶，看看我的stackoverflow的记录就知道，我的问题都是死题）
 
 #TODO
 有一些东西还是没弄懂，得慢慢读懂其他机制才可以，比如
