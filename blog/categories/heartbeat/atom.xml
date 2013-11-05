@@ -4,7 +4,7 @@
   <title><![CDATA[Category: heartbeat | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/heartbeat/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-11-05T22:37:12+08:00</updated>
+  <updated>2013-11-05T22:39:14+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -20,7 +20,7 @@
     <id>http://ikarishinjieva.github.com/blog/blog/2013/11/05/accrual-failure-detector</id>
     <content type="html"><![CDATA[<p>偶尔读到了这篇"<a href="http://blog.csdn.net/chen77716/article/details/6541968">φ累积失败检测算法</a>"，写的非常不错。藉此了解了这个用于heartbeat检测的算法，在此记录一下我自己理解的简单版本</p>
 
-<p>heartbeat时我们使用固定的时间限制t0，当heartbeat的返回时长超过t0时，就认为heartbeat失败。这个算法要解决的问题是：固定的t0是在事先测定的，不会随网络状况的变化而智能变化</p>
+<p>heartbeat时我们使用固定的时间限制t0，当heartbeat的返回时长超过t0时，就认为heartbeat失败。这个方法的弊端是：固定的t0是在事先测定的，不会随网络状况的变化而智能变化。φ累积失败检测算法就是要解决这个问题</p>
 
 <p>失败检验算法的基本思想就是：成功判定“heartbeat失败”的概率附和<a href="http://zh.wikipedia.org/wiki/%E6%AD%A3%E6%80%81%E5%88%86%E5%B8%83">正态分布曲线</a>，x轴是“当前时间-上次心跳成功的时间”（差距时间），y轴是判定“heartbeat失败”的成功率。</p>
 
