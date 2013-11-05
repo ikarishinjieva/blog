@@ -1,0 +1,373 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>对heartbeat φ累积失败检测算法的学习 - Tac say</title>
+  <meta name="author" content="Tac Huang (ikari_shinji@github)">
+
+  
+  <meta name="description" content="偶尔读到了这篇&#8221;φ累积失败检测算法&#8220;，写的非常不错。藉此了解了这个用于heartbeat检测的算法，在此记录一下我自己理解的简单版本 heartbeat时我们使用固定的时间限制t0，当heartbeat的返回时长超过t0时，就认为heartbeat失败。 &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2013/11/05/accrual-failure-detector/">
+  <link href="/blog/favicon.png" rel="icon">
+  <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/blog/javascripts/modernizr-2.0.js"></script>
+  <script src="/blog/javascripts/ender.js"></script>
+  <script src="/blog/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/blog/atom.xml" rel="alternate" title="Tac say" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/blog/">Tac say</a></h1>
+  
+    <h2>只想做个程序演奏家</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/blog/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<ul class="main-navigation">
+  <li><a href="/blog/">Blog</a></li>
+  <li><a href="/blog/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">对heartbeat φ累积失败检测算法的学习</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-11-05T21:50:00+08:00" pubdate data-updated="true">Nov 5<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+<div class="entry-content"><p>偶尔读到了这篇&#8221;<a href="http://blog.csdn.net/chen77716/article/details/6541968">φ累积失败检测算法</a>&#8220;，写的非常不错。藉此了解了这个用于heartbeat检测的算法，在此记录一下我自己理解的简单版本</p>
+
+<p>heartbeat时我们使用固定的时间限制t0，当heartbeat的返回时长超过t0时，就认为heartbeat失败。这个算法要解决的问题是：固定的t0是在事先测定的，不会随网络状况的变化而智能变化</p>
+
+<p>失败检验算法的基本思想就是：成功判定“heartbeat失败”的概率附和<a href="http://zh.wikipedia.org/wiki/%E6%AD%A3%E6%80%81%E5%88%86%E5%B8%83">正态分布曲线</a>，x轴是“当前时间-上次心跳成功的时间”（差距时间），y轴是判定“heartbeat失败”的成功率。</p>
+
+<br/>也就是说，假设我们已经有一条正态分布的曲线，当前时间是Tnow，上次心跳成功的时间是Tlast，那么从(Tlast-Tnow) ~ +∞这个区间内的积分（设为w）就代表判定“heartbeat失败”的<b>失败率</b>，就是说如果我们在Tnow这个时间判定“heartbeat失败”，那么有w（w<1）的概率我们做出了错误的判定（heartbeat本该是成功的，只是也许被延迟了= =）
+
+
+<p>臆测这个算法的基本步骤是：</p>
+
+<ol>
+<li>我们假设判定失败率的阈值是>=10%，也就是允许我们判定“heartbeat失败”时最大失败率为10%。</li>
+<li>取样本空间，比如前N次心跳的差距时间（心跳接收时间-上次心跳的接收时间）。计算这个样本空间的均值和方差，就可以计算出正态分布曲线</li>
+<li>在某时间Tnow，计算(Tlast-Tnow) ~ +∞这个区间内的积分（设为w），即为判定“heartbeat失败”的<b>失败率</b>，若大于阈值10%，则可以判定“heartbeat”失败</li>
+<li>重复取样，继续算法</li>
+</ol>
+
+
+<p>到此基本结束，以下是对原文&#8221;<a href="http://blog.csdn.net/chen77716/article/details/6541968">φ累积失败检测算法</a>&#8220;的一些个人补充</p>
+
+<ul>
+<li>原文有φ这个变量，主要是因为计算出来的判定失败率可能经常是非常小的小数，所以φ取其负对数，方便比较</li>
+<li>在此不再重复引用原文的公式</li>
+</ul>
+
+
+<p>最后，可参考论文<a href="https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;ved=0CDEQFjAA&amp;url=http%3A%2F%2Fddg.jaist.ac.jp%2Fpub%2FHDY%2B04.pdf&amp;ei=L_94Uo3OGomciQLCx4GQBg&amp;usg=AFQjCNGYrM_1R5LmY4wrDlKnykatr3VBRA&amp;sig2=G8d5gBsR8MpIwgfU9Xbt7A&amp;bvm=bv.55980276,d.cGE">
+The φ Accrual Failure Detector</a>：</p>
+
+<ul>
+<li>这篇论文非常详细（啰嗦）地描述了要解决的问题场景</li>
+<li>这篇论文给出了一般性的累积失败检测法要满足的特性</li>
+<li>这篇论文给出了用正态分布曲线来计算的步骤</li>
+<li>这篇论文给出了算法正确性的比较结果</li>
+</ul>
+
+
+<p>最后的最后，推荐<a href="http://blog.csdn.net/chen77716">这个大牛的blog</a>，里面也有对Paxos的分析，配合paxos的wiki，解析的很到位</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Tac Huang (ikari_shinji@github)</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-11-05T21:50:00+08:00" pubdate data-updated="true">Nov 5<span>th</span>, 2013</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/blog/categories/accrual-failure-detection/'>accrual_failure_detection</a>, <a class='category' href='/blog/blog/categories/cluster/'>cluster</a>, <a class='category' href='/blog/blog/categories/heartbeat/'>heartbeat</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/blog/2013/10/25/study-mysql-bug-70307/" title="Previous Post: 对Mysql bug #70307 的学习">&laquo; 对Mysql bug #70307 的学习</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2013/11/05/accrual-failure-detector/">对heartbeat φ累积失败检测算法的学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/25/study-mysql-bug-70307/">对Mysql bug #70307 的学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/">Mysql 5.6.12 master上flush logs在slave上产生两个relay-log</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/20/mysql-handle_slave_io-src/">Mysql rpl_slave.cc:handle_slave_io 源码的一些个人分析</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/">Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/14/mha-failover/">MHA failover时做了些啥</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/11/jruby-175-jre-6-stdin-bug/">jruby backtick + jre 6 会卡住</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/">mysql 5.6.15 replication中碰到的死锁</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/08/29/rewrite-project-into-ruby/">jruby重写java项目的一些总结</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/28/interesting-js/">有意思的javascript笔误</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/18/java-offheap-memory/">Java off-heap的一些参考</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/15/mysql-master-slave-standby-failover/">实验：Mysql master-slave-standby将source从master切换到standby</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/05/12/mysql-binlog-study/">关于Mysql binlog的一点学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/">lisp一个大写的坑</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/31/java-method-passing/">我写了半辈子程序 & java的重载方法选择基于编译期参数类型</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/19/some-readings-about-localStorage/">读了“There is no simple solution for local storage”</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/18/lisp-quote-backquote/">略学习Lisp的quote和backquote</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/17/jquery-noconflict/">读了‘谈谈 jQuery 中的防冲突（noConflict）机制’</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/14/read-write-lock-read-reentrant/">读写锁-读可重入</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/03/13/reentrant-lock/">可重入Lock</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Weibo</h1>
+  <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=10&isTitle=1&noborder=0&isWeibo=1&isFans=0&uid=1460219211&verifier=4d7daebc&dpc=1"></iframe>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/ikarishinjieva">@ikarishinjieva</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'ikarishinjieva',
+            count: 5,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/blog/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2013 - Tac Huang (ikari_shinji@github) -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'tacsay';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2013/11/05/accrual-failure-detector/';
+        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2013/11/05/accrual-failure-detector/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fa62a96d9f5c956ea3ddb6cca8ad83aa3' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

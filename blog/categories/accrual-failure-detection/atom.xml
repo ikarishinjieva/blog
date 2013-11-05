@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: accrual_failure_detection | Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/blog/categories/accrual-failure-detection/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2013-11-05T22:37:12+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[对heartbeat φ累积失败检测算法的学习]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/11/05/accrual-failure-detector/"/>
+    <updated>2013-11-05T21:50:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/11/05/accrual-failure-detector</id>
+    <content type="html"><![CDATA[<p>偶尔读到了这篇"<a href="http://blog.csdn.net/chen77716/article/details/6541968">φ累积失败检测算法</a>"，写的非常不错。藉此了解了这个用于heartbeat检测的算法，在此记录一下我自己理解的简单版本</p>
+
+<p>heartbeat时我们使用固定的时间限制t0，当heartbeat的返回时长超过t0时，就认为heartbeat失败。这个算法要解决的问题是：固定的t0是在事先测定的，不会随网络状况的变化而智能变化</p>
+
+<p>失败检验算法的基本思想就是：成功判定“heartbeat失败”的概率附和<a href="http://zh.wikipedia.org/wiki/%E6%AD%A3%E6%80%81%E5%88%86%E5%B8%83">正态分布曲线</a>，x轴是“当前时间-上次心跳成功的时间”（差距时间），y轴是判定“heartbeat失败”的成功率。</p>
+
+<br/>也就是说，假设我们已经有一条正态分布的曲线，当前时间是Tnow，上次心跳成功的时间是Tlast，那么从(Tlast-Tnow) ~ +∞这个区间内的积分（设为w）就代表判定“heartbeat失败”的<b>失败率</b>，就是说如果我们在Tnow这个时间判定“heartbeat失败”，那么有w（w<1）的概率我们做出了错误的判定（heartbeat本该是成功的，只是也许被延迟了= =）
+
+
+<p>臆测这个算法的基本步骤是：</p>
+
+<ol>
+<li>我们假设判定失败率的阈值是>=10%，也就是允许我们判定“heartbeat失败”时最大失败率为10%。</li>
+<li>取样本空间，比如前N次心跳的差距时间（心跳接收时间-上次心跳的接收时间）。计算这个样本空间的均值和方差，就可以计算出正态分布曲线</li>
+<li>在某时间Tnow，计算(Tlast-Tnow) ~ +∞这个区间内的积分（设为w），即为判定“heartbeat失败”的<b>失败率</b>，若大于阈值10%，则可以判定“heartbeat”失败</li>
+<li>重复取样，继续算法</li>
+</ol>
+
+
+<p>到此基本结束，以下是对原文"<a href="http://blog.csdn.net/chen77716/article/details/6541968">φ累积失败检测算法</a>"的一些个人补充</p>
+
+<ul>
+<li>原文有φ这个变量，主要是因为计算出来的判定失败率可能经常是非常小的小数，所以φ取其负对数，方便比较</li>
+<li>在此不再重复引用原文的公式</li>
+</ul>
+
+
+<p>最后，可参考论文<a href="https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;ved=0CDEQFjAA&amp;url=http%3A%2F%2Fddg.jaist.ac.jp%2Fpub%2FHDY%2B04.pdf&amp;ei=L_94Uo3OGomciQLCx4GQBg&amp;usg=AFQjCNGYrM_1R5LmY4wrDlKnykatr3VBRA&amp;sig2=G8d5gBsR8MpIwgfU9Xbt7A&amp;bvm=bv.55980276,d.cGE">
+The φ Accrual Failure Detector</a>：</p>
+
+<ul>
+<li>这篇论文非常详细（啰嗦）地描述了要解决的问题场景</li>
+<li>这篇论文给出了一般性的累积失败检测法要满足的特性</li>
+<li>这篇论文给出了用正态分布曲线来计算的步骤</li>
+<li>这篇论文给出了算法正确性的比较结果</li>
+</ul>
+
+
+<p>最后的最后，推荐<a href="http://blog.csdn.net/chen77716">这个大牛的blog</a>，里面也有对Paxos的分析，配合paxos的wiki，解析的很到位</p>
+]]></content>
+  </entry>
+  
+</feed>

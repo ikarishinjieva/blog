@@ -9,7 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="之前描述Mysql 5.6.15 Replication中碰到的死锁的情况，这次尝试debug下原因。 debug的过程 用参数&#8211;gdb启动mysql，按照步骤重现bug（让slave &#8220;show slave status&#8221;时卡住）。然后用gdb &hellip;">
+  <meta name="description" content="偶尔读到了这篇&#8221;φ累积失败检测算法&#8220;，写的非常不错。藉此了解了这个用于heartbeat检测的算法，在此记录一下我自己理解的简单版本 heartbeat时我们使用固定的时间限制t0，当heartbeat的返回时长超过t0时，就认为heartbeat失败。 &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -61,6 +61,102 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/11/05/accrual-failure-detector/" style='font-size:20px'>对heartbeat φ累积失败检测算法的学习</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-11-05T21:50:00+08:00" pubdate data-updated="true">Nov 5<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/11/05/accrual-failure-detector/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"对heartbeat φ累积失败检测算法的学习", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>偶尔读到了这篇&#8221;<a href="http://blog.csdn.net/chen77716/article/details/6541968">φ累积失败检测算法</a>&#8220;，写的非常不错。藉此了解了这个用于heartbeat检测的算法，在此记录一下我自己理解的简单版本</p>
+
+<p>heartbeat时我们使用固定的时间限制t0，当heartbeat的返回时长超过t0时，就认为heartbeat失败。这个算法要解决的问题是：固定的t0是在事先测定的，不会随网络状况的变化而智能变化</p>
+
+<p>失败检验算法的基本思想就是：成功判定“heartbeat失败”的概率附和<a href="http://zh.wikipedia.org/wiki/%E6%AD%A3%E6%80%81%E5%88%86%E5%B8%83">正态分布曲线</a>，x轴是“当前时间-上次心跳成功的时间”（差距时间），y轴是判定“heartbeat失败”的成功率。</p>
+
+<br/>也就是说，假设我们已经有一条正态分布的曲线，当前时间是Tnow，上次心跳成功的时间是Tlast，那么从(Tlast-Tnow) ~ +∞这个区间内的积分（设为w）就代表判定“heartbeat失败”的<b>失败率</b>，就是说如果我们在Tnow这个时间判定“heartbeat失败”，那么有w（w<1）的概率我们做出了错误的判定（heartbeat本该是成功的，只是也许被延迟了= =）
+
+
+<p>臆测这个算法的基本步骤是：</p>
+
+<ol>
+<li>我们假设判定失败率的阈值是>=10%，也就是允许我们判定“heartbeat失败”时最大失败率为10%。</li>
+<li>取样本空间，比如前N次心跳的差距时间（心跳接收时间-上次心跳的接收时间）。计算这个样本空间的均值和方差，就可以计算出正态分布曲线</li>
+<li>在某时间Tnow，计算(Tlast-Tnow) ~ +∞这个区间内的积分（设为w），即为判定“heartbeat失败”的<b>失败率</b>，若大于阈值10%，则可以判定“heartbeat”失败</li>
+<li>重复取样，继续算法</li>
+</ol>
+
+
+<p>到此基本结束，以下是对原文&#8221;<a href="http://blog.csdn.net/chen77716/article/details/6541968">φ累积失败检测算法</a>&#8220;的一些个人补充</p>
+
+<ul>
+<li>原文有φ这个变量，主要是因为计算出来的判定失败率可能经常是非常小的小数，所以φ取其负对数，方便比较</li>
+<li>在此不再重复引用原文的公式</li>
+</ul>
+
+
+<p>最后，可参考论文<a href="https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;ved=0CDEQFjAA&amp;url=http%3A%2F%2Fddg.jaist.ac.jp%2Fpub%2FHDY%2B04.pdf&amp;ei=L_94Uo3OGomciQLCx4GQBg&amp;usg=AFQjCNGYrM_1R5LmY4wrDlKnykatr3VBRA&amp;sig2=G8d5gBsR8MpIwgfU9Xbt7A&amp;bvm=bv.55980276,d.cGE">
+The φ Accrual Failure Detector</a>：</p>
+
+<ul>
+<li>这篇论文非常详细（啰嗦）地描述了要解决的问题场景</li>
+<li>这篇论文给出了一般性的累积失败检测法要满足的特性</li>
+<li>这篇论文给出了用正态分布曲线来计算的步骤</li>
+<li>这篇论文给出了算法正确性的比较结果</li>
+</ul>
+
+
+<p>最后的最后，推荐<a href="http://blog.csdn.net/chen77716">这个大牛的blog</a>，里面也有对Paxos的分析，配合paxos的wiki，解析的很到位</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -223,7 +319,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -399,7 +495,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -581,7 +677,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -788,7 +884,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -931,7 +1027,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1017,7 +1113,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1097,7 +1193,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1323,7 +1419,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1418,7 +1514,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -1564,7 +1660,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -1772,7 +1868,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -2024,7 +2120,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -2128,7 +2224,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -2251,7 +2347,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -2327,7 +2423,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -2428,7 +2524,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -2488,7 +2584,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -2802,7 +2898,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -3053,134 +3149,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 
     </article>
   
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/13/notify-and-notify-all/" style='font-size:20px'>Thread Notify 和 NotifyAll</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-13T21:47:00+08:00" pubdate data-updated="true">Mar 13<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/13/notify-and-notify-all/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"Thread Notify 和 NotifyAll", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>参考：<a href="http://blog.csdn.net/iceman1952/article/details/2159812">http://blog.csdn.net/iceman1952/article/details/2159812</a></p>
-
-<figure class='code'><figcaption><span>notify  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Notify</span> <span class="o">{</span>
-</span><span class='line'>    <span class="kd">private</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">T</span> <span class="kd">extends</span> <span class="n">Thread</span> <span class="o">{</span>
-</span><span class='line'>        <span class="kd">public</span> <span class="nf">T</span><span class="o">(</span><span class="n">String</span> <span class="n">s</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>            <span class="kd">super</span><span class="o">(</span><span class="n">s</span><span class="o">);</span>
-</span><span class='line'>        <span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'>        <span class="nd">@Override</span>
-</span><span class='line'>        <span class="kd">public</span> <span class="kt">void</span> <span class="nf">run</span><span class="o">()</span> <span class="o">{</span>
-</span><span class='line'>            <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="s">&quot;%s run.&quot;</span><span class="o">,</span> <span class="k">this</span><span class="o">.</span><span class="na">getName</span><span class="o">()));</span>
-</span><span class='line'>            <span class="kd">synchronized</span> <span class="o">(</span><span class="n">Notify</span><span class="o">.</span><span class="na">class</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>                <span class="k">try</span> <span class="o">{</span>
-</span><span class='line'>                    <span class="n">Notify</span><span class="o">.</span><span class="na">class</span><span class="o">.</span><span class="na">wait</span><span class="o">();</span>
-</span><span class='line'>                <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">InterruptedException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>                    <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
-</span><span class='line'>                <span class="o">}</span>
-</span><span class='line'>            <span class="o">}</span>
-</span><span class='line'>            <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="s">&quot;%s done.&quot;</span><span class="o">,</span> <span class="k">this</span><span class="o">.</span><span class="na">getName</span><span class="o">()));</span>
-</span><span class='line'>        <span class="o">}</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">InterruptedException</span> <span class="o">{</span>
-</span><span class='line'>        <span class="k">new</span> <span class="nf">T</span><span class="o">(</span><span class="s">&quot;thread 1&quot;</span><span class="o">).</span><span class="na">start</span><span class="o">();</span>
-</span><span class='line'>        <span class="k">new</span> <span class="nf">T</span><span class="o">(</span><span class="s">&quot;thread 2&quot;</span><span class="o">).</span><span class="na">start</span><span class="o">();</span>
-</span><span class='line'>        <span class="n">Thread</span><span class="o">.</span><span class="na">sleep</span><span class="o">(</span><span class="mi">1000</span><span class="o">);</span>
-</span><span class='line'>        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;notify&quot;</span><span class="o">);</span>
-</span><span class='line'>        <span class="kd">synchronized</span> <span class="o">(</span><span class="n">Notify</span><span class="o">.</span><span class="na">class</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>            <span class="n">Notify</span><span class="o">.</span><span class="na">class</span><span class="o">.</span><span class="na">notify</span><span class="o">();</span>
-</span><span class='line'>            <span class="c1">//Notify.class.notifyAll(); //alternative</span>
-</span><span class='line'>        <span class="o">}</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'><span class="o">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Notify版本主线程是不会退出的，因为释放了一个wait，另一个就会等到天荒地老。</p>
-
-<p>NotifyAll主线程会退出。</p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/2/">&larr; Older</a>
@@ -3194,6 +3162,10 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2013/11/05/accrual-failure-detector/">对heartbeat φ累积失败检测算法的学习</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2013/10/25/study-mysql-bug-70307/">对Mysql bug #70307 的学习</a>
@@ -3269,10 +3241,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     
       <li class="post">
         <a href="/blog/blog/2013/03/13/reentrant-lock/">可重入Lock</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/13/notify-and-notify-all/">Thread Notify 和 NotifyAll</a>
       </li>
     
   </ul>
