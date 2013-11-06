@@ -4,7 +4,7 @@
   <title><![CDATA[Category: accrual_failure_detection | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/accrual-failure-detection/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-11-05T22:42:49+08:00</updated>
+  <updated>2013-11-06T09:51:24+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -22,9 +22,9 @@
 
 <p>heartbeat时我们使用固定的时间限制t0，当heartbeat的返回时长超过t0时，就认为heartbeat失败。这个方法的弊端是：固定的t0是在事先测定的，不会随网络状况的变化而智能变化。φ累积失败检测算法就是要解决这个问题</p>
 
-<p>失败检验算法的基本思想就是：成功判定“heartbeat失败”的概率符合<a href="http://zh.wikipedia.org/wiki/%E6%AD%A3%E6%80%81%E5%88%86%E5%B8%83">正态分布曲线</a>，x轴是“当前时间-上次心跳成功的时间”（差距时间），y轴是判定“heartbeat失败”的成功率。</p>
+<p>失败检验算法的基本思想就是：成功判定“heartbeat失败”的概率符合<a href="http://zh.wikipedia.org/wiki/%E6%AD%A3%E6%80%81%E5%88%86%E5%B8%83">正态分布曲线</a>，x轴是本次心跳距上次心跳的差距时间，y轴是差距为x的心跳的概率。</p>
 
-<br/>也就是说，假设我们已经有一条正态分布的曲线，当前时间是Tnow，上次心跳成功的时间是Tlast，那么从(Tlast-Tnow) ~ +∞这个区间内的积分（设为w，w<1）就代表判定“heartbeat失败”的<b>失败率</b>，就是说如果我们在Tnow这个时间点判定“heartbeat失败”，那么有w的概率我们做出了错误的判定（heartbeat本该是成功的，只是也许被延迟了= =）
+<br/>也就是说，假设我们已经有一条正态分布的曲线，当前时间是Tnow，上次心跳成功的时间是Tlast，那么从(Tlast-Tnow) ~ +∞这个区间内的积分（设为w，w<1）就代表某心跳间隔从Tlast维持到大于Tnow的时间的概率，即在Tnow时判定“heartbeat失败”的<b>失败率</b>，就是说如果我们在Tnow这个时间点判定“heartbeat失败”，那么有w的概率我们做出了错误的判定（heartbeat本该是成功的，也许只是被延迟了= =）
 
 
 <p>臆测这个算法的基本步骤是：</p>
