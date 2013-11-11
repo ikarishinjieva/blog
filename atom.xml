@@ -4,7 +4,7 @@
   <title><![CDATA[Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-11-07T21:55:56+08:00</updated>
+  <updated>2013-11-11T21:29:11+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,84 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[对Memory Reordering Caught in the Act的学习 续 - 关于go的部分]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/11/11/study-memory-reorder-cont/"/>
+    <updated>2013-11-11T20:44:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/11/11/study-memory-reorder-cont</id>
+    <content type="html"><![CDATA[<p>这篇主要解决<a href="http://ikarishinjieva.github.io/blog/blog/2013/11/07/study-memory-reorder/">上一篇</a>遗留下来的问题，问题的简要描述请参看<a href="http://stackoverflow.com/questions/19901615/why-go-doesnt-show-memory-reordering">我发在SO上的帖子</a></p>
+
+<p>主要的问题是用c++可以重现memory reordering，但go的程序没有重现</p>
+
+<p>主要的结论是写go的时候我忘记设置GOMAXPROC，在目前这个go版本(1.2 rc2)下，不设置GOMAXPROC goroutine不会并发的，自然也没法设置memory reordering</p>
+
+<p>此篇主要内容到此结束，以下是这两天的一些探索过程和技巧，觉得还是挺有意思的</p>
+
+<hr />
+
+<h4>go tool生成的汇编码和真实的汇编码是有很大差距的</h4>
+
+<p>这个结论并不奇怪，但是差异的程度还是会影响诸如lock-free的代码的使用前提</p>
+
+<p>对以下代码做对比</p>
+
+<pre><code>x = 1
+r1 = y
+</code></pre>
+
+<p>使用<code>go tool 6g -S xxx.go</code>反编译后的代码</p>
+
+<pre><code>0246 (a.go:25) MOVQ    $1,x+0(SB)   //X=1
+0247 (a.go:26) MOVQ    y+0(SB),BX
+0248 (a.go:26) MOVQ    BX,r1+0(SB)  //r1=Y
+</code></pre>
+
+<p>而真实运行在cpu上的代码（<code>ndisasm -b 32 xxx</code>)为</p>
+
+<pre><code>000013EB  C70425787F170001  mov dword [0x177f78],0x1     //X=1
+         -000000
+000013F6  48                dec eax
+000013F7  8B1C25807F1700    mov ebx,[0x177f80]
+000013FE  48                dec eax
+000013FF  891C25687F1700    mov [0x177f68],ebx          //r1=Y
+00001406  48                dec eax
+</code></pre>
+
+<p>可以看到在访问共享内存的前后多出了<code>dec eax</code>作为margin，这个原因不明，也没有找到相应的资料</p>
+
+<p>但总的来说<code>ndisasm</code>产生的汇编代码更方便于对go行为的理解</p>
+
+<hr />
+
+<h4>一个小技巧快速定位汇编码</h4>
+
+<p>我对intel指令集和go的编译器知之甚少，读起汇编码来颇为费劲。</p>
+
+<p>快速定位源码对应的汇编码的位置，比较方便的就是修改一个数值，比如x=1改为x=2，前后生成的汇编码diff一下，就可以大概确定位置了</p>
+
+<hr />
+
+<h4>替换c++生成文件的指令</h4>
+
+<p>在探索过程中，我想做个对比实验来证明是否上面所说的<code>dec eax</code>引起了c++和go在memory reordering上的差异，于是就想将<code>dec eax</code>也加到c++的生成文件中，这样就可以对比效果</p>
+
+<p>碰到的问题是如果我直接将<code>asm volatile("dec %eax")</code>直接加到c++源码中，生成的汇编代码不是<code>48</code>，而是<code>FExxxx</code>。翻看<a href="http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-2a-manual.pdf">Intel® 64 and IA-32 Architectures
+Software Developer’s Manual</a>，可知<code>dec</code>有多种形式</p>
+
+<p>但是我不想研究为什么编译器会选择<code>FExxxx</code>而不是<code>48</code>，而是想尽快将c++生成的汇编代码形式做成和go一样。于是就有了下面的步骤：</p>
+
+<ol>
+<li><code>48</code>有两个字节，我也选取两个字节的op写在c++源码中，比如<code>asm volatile("cli")</code></li>
+<li>c++编译生成，然后用16进制编辑器将<code>cli</code>生成的两个字节换成<code>48</code>即可</li>
+</ol>
+
+
+<p>之所以选择替换是因为怕有checksum或者内存位置的偏移，我也不知道有还是没有&#8230;</p>
+
+<p>对比实验证明<code>dec eax</code>不是引起差异的原因</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[对Memory Reordering Caught in the Act的学习]]></title>
@@ -1750,271 +1828,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     <content type="html"><![CDATA[<p>文章在此：<a href="http://ued.taobao.com/blog/2013/03/jquery-noconflict/">http://ued.taobao.com/blog/2013/03/jquery-noconflict/</a></p>
 
 <p>倒是也没什么大不了的，略感叹jquery的api设计的周到。</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[读写锁-读可重入]]></title>
-    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/14/read-write-lock-read-reentrant/"/>
-    <updated>2013-03-14T21:37:00+08:00</updated>
-    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/14/read-write-lock-read-reentrant</id>
-    <content type="html"><![CDATA[<p>发现<a href="http://tutorials.jenkov.com/java-concurrency/read-write-locks.html">这篇文献</a>描写读写锁和可重入性非常具体。</p>
-
-<p>尝试实现文章中的读可重入的读写锁：</p>
-
-<p>考虑如何测试一个读可重入的读写锁, 由于读写锁的性质(可以同时存在多个读锁), 如果只是在线程A连续申请两个读锁, 就无法证明是锁的重入性发挥了作用。</p>
-
-<p>测试思路是先在线程A申请读锁, 然后在线程B申请写锁, 若在线程C申请读锁, 此读锁应阻塞。而如果在线程A申请另一个读锁(前一个未释放), 线程A不应被阻塞。</p>
-
-<figure class='code'><figcaption><span>测试代码(我的确用了Main来测试&#8230;)  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">InterruptedException</span> <span class="o">{</span>
-</span><span class='line'>  <span class="kd">final</span> <span class="n">ReadWriteLockReadReentrant</span> <span class="n">lock</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ReadWriteLockReadReentrant</span><span class="o">();</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">new</span> <span class="nf">Thread</span><span class="o">()</span> <span class="o">{</span>
-</span><span class='line'>      <span class="nd">@Override</span>
-</span><span class='line'>      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">run</span><span class="o">()</span> <span class="o">{</span>
-</span><span class='line'>          <span class="k">try</span> <span class="o">{</span>
-</span><span class='line'>              <span class="n">lock</span><span class="o">.</span><span class="na">lockRead</span><span class="o">();</span>
-</span><span class='line'>              <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;Reading&quot;</span><span class="o">);</span>
-</span><span class='line'>              <span class="n">sleep</span><span class="o">(</span><span class="mi">5000</span><span class="o">);</span>
-</span><span class='line'>              <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;Inner Reading&quot;</span><span class="o">);</span>
-</span><span class='line'>              <span class="n">lock</span><span class="o">.</span><span class="na">lockRead</span><span class="o">();</span>
-</span><span class='line'>          <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">InterruptedException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>
-</span><span class='line'>          <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
-</span><span class='line'>              <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;Inner Reading End&quot;</span><span class="o">);</span>
-</span><span class='line'>              <span class="n">lock</span><span class="o">.</span><span class="na">unlockRead</span><span class="o">();</span>
-</span><span class='line'>              <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;Reading End&quot;</span><span class="o">);</span>
-</span><span class='line'>              <span class="n">lock</span><span class="o">.</span><span class="na">unlockRead</span><span class="o">();</span>
-</span><span class='line'>          <span class="o">}</span>
-</span><span class='line'>      <span class="o">}</span>
-</span><span class='line'>  <span class="o">}.</span><span class="na">start</span><span class="o">();</span>
-</span><span class='line'>  <span class="n">Thread</span><span class="o">.</span><span class="na">sleep</span><span class="o">(</span><span class="mi">500</span><span class="o">);</span>
-</span><span class='line'>  
-</span><span class='line'>  <span class="k">new</span> <span class="nf">Thread</span><span class="o">()</span> <span class="o">{</span>
-</span><span class='line'>      <span class="nd">@Override</span>
-</span><span class='line'>      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">run</span><span class="o">()</span> <span class="o">{</span>
-</span><span class='line'>          <span class="k">try</span> <span class="o">{</span>
-</span><span class='line'>              <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;Request write lock&quot;</span><span class="o">);</span>
-</span><span class='line'>              <span class="n">lock</span><span class="o">.</span><span class="na">lockWrite</span><span class="o">();</span>
-</span><span class='line'>              <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;Writing&quot;</span><span class="o">);</span>
-</span><span class='line'>          <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">InterruptedException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>
-</span><span class='line'>          <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
-</span><span class='line'>              <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;Writing End&quot;</span><span class="o">);</span>
-</span><span class='line'>              <span class="n">lock</span><span class="o">.</span><span class="na">unlockWrite</span><span class="o">();</span>
-</span><span class='line'>          <span class="o">}</span>
-</span><span class='line'>      <span class="o">}</span>
-</span><span class='line'>  <span class="o">}.</span><span class="na">start</span><span class="o">();</span>
-</span><span class='line'><span class="o">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>结果应当是：Reading(线程A),Request write lock(线程B),Inner Reading(未阻塞),Inner Reading End,Reading End,Writing,Writing End</p>
-
-<figure class='code'><figcaption><span>读重入的读写锁(基本是抄上面文献的代码~)  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-<span class='line-number'>41</span>
-<span class='line-number'>42</span>
-<span class='line-number'>43</span>
-<span class='line-number'>44</span>
-<span class='line-number'>45</span>
-<span class='line-number'>46</span>
-<span class='line-number'>47</span>
-<span class='line-number'>48</span>
-<span class='line-number'>49</span>
-<span class='line-number'>50</span>
-<span class='line-number'>51</span>
-<span class='line-number'>52</span>
-<span class='line-number'>53</span>
-<span class='line-number'>54</span>
-<span class='line-number'>55</span>
-<span class='line-number'>56</span>
-<span class='line-number'>57</span>
-<span class='line-number'>58</span>
-<span class='line-number'>59</span>
-<span class='line-number'>60</span>
-<span class='line-number'>61</span>
-<span class='line-number'>62</span>
-<span class='line-number'>63</span>
-<span class='line-number'>64</span>
-<span class='line-number'>65</span>
-</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kn">import</span> <span class="nn">java.util.HashMap</span><span class="o">;</span>
-</span><span class='line'><span class="kn">import</span> <span class="nn">java.util.Map</span><span class="o">;</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">ReadWriteLockReadReentrant</span> <span class="o">{</span>
-</span><span class='line'>    <span class="kd">private</span> <span class="kt">boolean</span> <span class="n">hasWriter</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
-</span><span class='line'>    <span class="kd">private</span> <span class="kt">int</span> <span class="n">writeRequests</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
-</span><span class='line'>    <span class="kd">private</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">Thread</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="n">readers</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;</span><span class="n">Thread</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;();</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="kd">public</span> <span class="kd">synchronized</span> <span class="kt">void</span> <span class="nf">lockRead</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">InterruptedException</span> <span class="o">{</span>
-</span><span class='line'>        <span class="n">Thread</span> <span class="n">current</span> <span class="o">=</span> <span class="n">Thread</span><span class="o">.</span><span class="na">currentThread</span><span class="o">();</span>
-</span><span class='line'>        <span class="k">while</span> <span class="o">(!</span><span class="n">couldRead</span><span class="o">(</span><span class="n">current</span><span class="o">))</span> <span class="o">{</span>
-</span><span class='line'>            <span class="n">wait</span><span class="o">();</span>
-</span><span class='line'>        <span class="o">}</span>
-</span><span class='line'>        <span class="n">readers</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="n">current</span><span class="o">,</span> <span class="n">getReaders</span><span class="o">(</span><span class="n">current</span><span class="o">)</span> <span class="o">+</span> <span class="mi">1</span><span class="o">);</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="kd">private</span> <span class="kt">int</span> <span class="nf">getReaders</span><span class="o">(</span><span class="n">Thread</span> <span class="n">current</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>        <span class="k">if</span> <span class="o">(!</span><span class="n">readers</span><span class="o">.</span><span class="na">containsKey</span><span class="o">(</span><span class="n">current</span><span class="o">))</span> <span class="o">{</span>
-</span><span class='line'>            <span class="k">return</span> <span class="mi">0</span><span class="o">;</span>
-</span><span class='line'>        <span class="o">}</span>
-</span><span class='line'>        <span class="k">return</span> <span class="n">readers</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">current</span><span class="o">);</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="kd">private</span> <span class="kt">boolean</span> <span class="nf">couldRead</span><span class="o">(</span><span class="n">Thread</span> <span class="n">current</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">hasWriter</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>            <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
-</span><span class='line'>        <span class="o">}</span>
-</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">readers</span><span class="o">.</span><span class="na">containsKey</span><span class="o">(</span><span class="n">current</span><span class="o">))</span> <span class="o">{</span>
-</span><span class='line'>            <span class="k">return</span> <span class="kc">true</span><span class="o">;</span> <span class="c1">//important</span>
-</span><span class='line'>        <span class="o">}</span>
-</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">writeRequests</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>            <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
-</span><span class='line'>        <span class="o">}</span>
-</span><span class='line'>        <span class="k">return</span> <span class="kc">true</span><span class="o">;</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="kd">public</span> <span class="kd">synchronized</span> <span class="kt">void</span> <span class="nf">unlockRead</span><span class="o">()</span> <span class="o">{</span>
-</span><span class='line'>        <span class="n">Thread</span> <span class="n">current</span> <span class="o">=</span> <span class="n">Thread</span><span class="o">.</span><span class="na">currentThread</span><span class="o">();</span>
-</span><span class='line'>        <span class="n">setReaders</span><span class="o">(</span><span class="n">current</span><span class="o">,</span> <span class="n">getReaders</span><span class="o">(</span><span class="n">current</span><span class="o">)</span> <span class="o">-</span> <span class="mi">1</span><span class="o">);</span>
-</span><span class='line'>        <span class="n">notifyAll</span><span class="o">();</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="kd">private</span> <span class="kt">void</span> <span class="nf">setReaders</span><span class="o">(</span><span class="n">Thread</span> <span class="n">current</span><span class="o">,</span> <span class="n">Integer</span> <span class="n">now</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">now</span> <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>            <span class="n">readers</span><span class="o">.</span><span class="na">remove</span><span class="o">(</span><span class="n">current</span><span class="o">);</span>
-</span><span class='line'>        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
-</span><span class='line'>            <span class="n">readers</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="n">current</span><span class="o">,</span> <span class="n">now</span><span class="o">);</span>
-</span><span class='line'>        <span class="o">}</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="kd">public</span> <span class="kd">synchronized</span> <span class="kt">void</span> <span class="nf">lockWrite</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">InterruptedException</span> <span class="o">{</span>
-</span><span class='line'>        <span class="n">writeRequests</span><span class="o">++;</span>
-</span><span class='line'>        <span class="k">while</span> <span class="o">(</span><span class="n">readers</span><span class="o">.</span><span class="na">size</span><span class="o">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>            <span class="n">wait</span><span class="o">();</span>
-</span><span class='line'>        <span class="o">}</span>
-</span><span class='line'>        <span class="n">writeRequests</span><span class="o">--;</span>
-</span><span class='line'>        <span class="n">hasWriter</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'>    <span class="kd">public</span> <span class="kd">synchronized</span> <span class="kt">void</span> <span class="nf">unlockWrite</span><span class="o">()</span> <span class="o">{</span>
-</span><span class='line'>        <span class="n">hasWriter</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
-</span><span class='line'>        <span class="n">notifyAll</span><span class="o">();</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'><span class="o">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>需要注意的是标记&#8221;//important&#8221;的那行，如果这个判断和writeRequest的判断互换位置，线程B申请写锁被阻塞时，线程A无法申请到第二个读锁。一切就悲剧了。</p>
-
-<figure class='code'><figcaption><span>标记为&#8221;//important&#8221;的判断和writeRequest的判断互换位置  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">private</span> <span class="kt">boolean</span> <span class="nf">couldRead</span><span class="o">(</span><span class="n">Thread</span> <span class="n">current</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>  <span class="k">if</span> <span class="o">(</span><span class="n">hasWriter</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>      <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
-</span><span class='line'>  <span class="o">}</span>
-</span><span class='line'>  <span class="k">if</span> <span class="o">(</span><span class="n">writeRequests</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>      <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
-</span><span class='line'>  <span class="o">}</span>
-</span><span class='line'>  <span class="k">if</span> <span class="o">(</span><span class="n">readers</span><span class="o">.</span><span class="na">containsKey</span><span class="o">(</span><span class="n">current</span><span class="o">))</span> <span class="o">{</span>
-</span><span class='line'>      <span class="k">return</span> <span class="kc">true</span><span class="o">;</span> <span class="c1">//important</span>
-</span><span class='line'>  <span class="o">}</span>
-</span><span class='line'>  <span class="k">return</span> <span class="kc">true</span><span class="o">;</span>
-</span><span class='line'><span class="o">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
 ]]></content>
   </entry>
   
