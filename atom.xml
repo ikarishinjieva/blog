@@ -4,7 +4,7 @@
   <title><![CDATA[Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-11-11T21:29:11+08:00</updated>
+  <updated>2013-11-11T21:31:41+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -131,6 +131,8 @@ MOVQ    BX,r2+0(SB)
 </code></pre>
 
 <p>但是在MBP (Intel Core i7)上跑并没有出现CPU乱序的现象，希望有同学能帮我提供线索，谢谢</p>
+
+<p>(2013.11.11 更新：关于以上现象的原因参看<a href="http://ikarishinjieva.github.io/blog/blog/2013/11/11/study-memory-reorder-cont/">续 - 关于go的部分</a>)</p>
 
 <p>go 代码：</p>
 
