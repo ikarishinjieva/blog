@@ -9,7 +9,9 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="这篇主要解决上一篇遗留下来的问题，问题的简要描述请参看我发在SO上的帖子 主要的问题是用c++可以重现memory reordering，但go的程序没有重现 主要的结论是写go的时候我忘记设置GOMAXPROC，在目前这个go版本(1.2 rc2)下，不设置GOMAXPROC &hellip;">
+  <meta name="description" content="已经是第三遍重写项目主代码了，这几天用主代码和测试框架互相补充。总结下经验值，以期升级 关于测试框架，重写了几遍仍然保留下来的功重要能是： 插桩代码，后面的功能也都依赖插桩。不在主代码中插桩，测试基本靠拜神；
+条件池，根据条件池，代码才能沿着需要的分支进行；
+签到点（checkpoint）， &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -61,6 +63,89 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/12/09/test-framework-exp/" style='font-size:20px'>关于DEV测试的一些经验总结</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-12-09T20:05:00+08:00" pubdate data-updated="true">Dec 9<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/12/09/test-framework-exp/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"关于DEV测试的一些经验总结", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>已经是第三遍重写项目主代码了，这几天用主代码和测试框架互相补充。总结下经验值，以期升级</p>
+
+<hr />
+
+<p>关于测试框架，重写了几遍仍然保留下来的功重要能是：</p>
+
+<ol>
+<li><p>插桩代码，后面的功能也都依赖插桩。不在主代码中插桩，测试基本靠拜神；</p></li>
+<li><p>条件池，根据条件池，代码才能沿着需要的分支进行；</p></li>
+<li><p>签到点（checkpoint），代码要能根据测试要求停得下来，等待状态，之后跑得起来；</p></li>
+<li><p>外缘测试。比起直接测试变量，还是分析log比较容易维护</p></li>
+</ol>
+
+
+<p>测试的难点是：</p>
+
+<ol>
+<li><p>资源回收。要连续跑测试，资源回收是说说容易的事。tcp server关了，listener停了，关闭的那些connection会不会瞬时占用临时端口；如果某一个connection正在申请二步锁，测试停止时远端锁失败，近端锁如果不释放会不会影响之后的测试；如果系统会自动重启tcp server，tcp server是在测试关闭操作之前停还是之后停还是停两次。想想头就大了。</p></li>
+<li><p>想停都停不下来，万一断言失败，测试要能停下来。整个flow上都要处理停止中断，用“硬”中断很难掌握资源回收的状况；用“模拟”中断，所有等待/超时/重试的地方都要处理，逐级退栈。比起不测试的代码，主代码花在错误处理的代码量要大很多，但是值得。</p></li>
+<li><p>测试界限把握不易。测粗了没作用，测细了耗时间而且波动大。插桩的深度，模拟中断的层级，这些都要拿好轻重。否则代码已腐败。</p></li>
+</ol>
+
+
+<p>每次跑测试，比起旁边坐个QA的测试，更步步惊心。QA一天才跑十几个case，自动的话2-3分钟就跑十几个简化的case，出错的概率要大很多。</p>
+
+<p>最后反思一下，如果靠人肉测，&#8230;</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -187,7 +272,7 @@ Software Developer’s Manual</a>，可知<code>dec</code>有多种形式</p>
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -336,7 +421,7 @@ func main() {
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -432,7 +517,7 @@ The φ Accrual Failure Detector</a>：</p>
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -595,7 +680,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -771,7 +856,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -953,7 +1038,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1160,7 +1245,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1303,7 +1388,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1389,7 +1474,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -1469,7 +1554,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -1695,7 +1780,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -1790,7 +1875,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1936,7 +2021,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -2144,7 +2229,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -2396,7 +2481,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -2500,7 +2585,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -2623,7 +2708,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -2699,7 +2784,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -2799,66 +2884,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 
     </article>
   
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/03/17/jquery-noconflict/" style='font-size:20px'>读了‘谈谈 jQuery 中的防冲突（noConflict）机制’</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-03-17T23:49:00+08:00" pubdate data-updated="true">Mar 17<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/03/17/jquery-noconflict/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"读了‘谈谈 jQuery 中的防冲突（noConflict）机制’", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>文章在此：<a href="http://ued.taobao.com/blog/2013/03/jquery-noconflict/">http://ued.taobao.com/blog/2013/03/jquery-noconflict/</a></p>
-
-<p>倒是也没什么大不了的，略感叹jquery的api设计的周到。</p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/2/">&larr; Older</a>
@@ -2872,6 +2897,10 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/09/test-framework-exp/">关于DEV测试的一些经验总结</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2013/11/11/study-memory-reorder-cont/">对Memory Reordering Caught in the Act的学习 续 - 关于go的部分</a>
@@ -2947,10 +2976,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     
       <li class="post">
         <a href="/blog/blog/2013/03/18/lisp-quote-backquote/">略学习Lisp的quote和backquote</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/17/jquery-noconflict/">读了‘谈谈 jQuery 中的防冲突（noConflict）机制’</a>
       </li>
     
   </ul>
