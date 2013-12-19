@@ -9,8 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="文章在此：http://ued.taobao.com/blog/2013/03/jquery-noconflict/ 倒是也没什么大不了的，略感叹jquery的api设计的周到。
-">
+  <meta name="description" content="略学习了lisp里面奇怪的符号集，解释这些符号上，人类的语言基本是苍白的。 第一份参考来自lispworks的文档，对[`&#8217;@,]这几种符号做了定义。 第二份中文参考 被到处抄袭。对quote和backquote做了很好的中文说明，嵌套quote部分惨不忍睹。 第三份参考 &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -62,6 +61,107 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/03/18/lisp-quote-backquote/" style='font-size:20px'>略学习Lisp的quote和backquote</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-18T23:59:00+08:00" pubdate data-updated="true">Mar 18<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/03/18/lisp-quote-backquote/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"略学习Lisp的quote和backquote", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>略学习了lisp里面奇怪的符号集，解释这些符号上，人类的语言基本是苍白的。</p>
+
+<p><a href="http://www.lispworks.com/documentation/HyperSpec/Body/02_df.htm">第一份参考</a>来自lispworks的文档，对[`&#8217;@,]这几种符号做了定义。</p>
+
+<p><a href="http://wenku.it168.com/d_000648782.shtml">第二份中文参考</a> 被到处抄袭。对quote和backquote做了很好的中文说明，嵌套quote部分惨不忍睹。</p>
+
+<p><a href="http://stackoverflow.com/questions/7549550/using-two-backquotes-and-commas-common-lisp">第三份参考</a> 对嵌套quote做了很好地解释。</p>
+
+<figure class='code'><figcaption><span>贴一些自己的学习代码 </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>CL-USER> (list 1 2)
+</span><span class='line'>(1 2)
+</span><span class='line'>CL-USER> '(1 2)
+</span><span class='line'>(1 2) ;Quote act as list
+</span><span class='line'>CL-USER> `(1 2)
+</span><span class='line'>(1 2) ;Backquote act as list
+</span><span class='line'>
+</span><span class='line'>CL-USER> (let ((x 1)) '(,x))
+</span><span class='line'>; Evaluation aborted on #&lt;CCL::SIMPLE-READER-ERROR #xC78878E>. ;Quote can't work with comma
+</span><span class='line'>CL-USER> (let ((x 1)) `(,x))
+</span><span class='line'>(1) ;Backquote can work with comma
+</span><span class='line'>
+</span><span class='line'>CL-USER> (let ((x `(1 2))) `(,@x))
+</span><span class='line'>(1 2) ;BackQuote can work with comma-at-sign
+</span><span class='line'>
+</span><span class='line'>CL-USER> (let ((x `(1 2))) `(,x))
+</span><span class='line'>((1 2)) ;x will not be "expand" when use comma instead of comma-at-sign</span></code></pre></td></tr></table></div></figure>
+
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -121,7 +221,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -435,7 +535,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -687,7 +787,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -815,7 +915,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -1059,7 +1159,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1132,7 +1232,7 @@
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1246,7 +1346,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1306,7 +1406,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1364,7 +1464,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -1422,7 +1522,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -1507,7 +1607,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -1644,7 +1744,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1704,7 +1804,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1816,7 +1916,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1889,7 +1989,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1954,7 +2054,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -2049,7 +2149,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -2113,7 +2213,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -2209,69 +2309,9 @@ http://localhost:7001/.../js/slickgrid C:\test
 
     </article>
   
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/01/26/hello-world/" style='font-size:20px'>Hello World</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-01-26T23:00:00+08:00" pubdate data-updated="true">Jan 26<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/01/26/hello-world/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"Hello World", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>久不写技术博客。Google和Ms onsite面试都失败告终，反思下自己。觉得缺乏整理，这两年多的杂七杂八都记在Evernote和心里，很多想做的事情也都积压下来，还需静下心来做些整理。</p>
-
-<p><code>
-Hello world @20130126
-</code></p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
+    
+      <a class="prev" href="/blog/blog/page/3/">&larr; Older</a>
     
     <a href="/blog/blog/archives">Blog Archives</a>
     
@@ -2284,6 +2324,10 @@ Hello world @20130126
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/19/paxos-lease/">对于PaxosLease的个人理解 1</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2013/12/09/test-framework-exp/">关于DEV测试的一些经验总结</a>
@@ -2359,10 +2403,6 @@ Hello world @20130126
     
       <li class="post">
         <a href="/blog/blog/2013/03/19/some-readings-about-localStorage/">读了“There is no simple solution for local storage”</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/18/lisp-quote-backquote/">略学习Lisp的quote和backquote</a>
       </li>
     
   </ul>
