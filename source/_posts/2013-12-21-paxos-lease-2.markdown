@@ -26,26 +26,32 @@ categories:  paxos_lease cluster
 ---
 假设读者已经从参考文献[1]中熟悉了PaxosLease算法，在所有讨论之前，我们还是先简述一下整个PaxosLease算法，目的来统一一些术语。其中有一些空白，类似于**{1}**，后面的讨论中会将这些空白逐一填满：
 
-1. Proposer A 想要获得租约，生成一个新的ProposeId，组装成一个Prepare Request，并广播给所有Accepter
-2. Accepter B收到来自Proposer A的PrepareRequest，检查PrepareRequest中的ProposeId
-* 若低于Accepter B的HighestPromisedProposeId，则忽略这一PrepareRequest，**{5}**
-* 否则<br/>将HighestPromisedProposeId置为PrepareRequest中的ProposeId
-<br/>**{1}**
-<br/>且向Proposer A反馈Prepare Response，Response中带有Accepter B的AcceptedProposeId（可能为空）
-3. Proposer A收到Accepter B的Prepare Response。<br/>若多数派Accepter返回的PrepareRequest中的AcceptedProposeId都为空，**{2}**，则表示多数派Accepter都可以接受Proposer A的Propose，进入Propose 阶段：
-* Proposer A启动租约定时器β。定时器β超时时，重新启动Prepare阶段
-* Proposer A向多数派广播ProposeRequest
-4. **{6}**
-5. Accepter B收到来自Proposer A的ProposeRequest，（再次）检查ProposeRequest中的ProposeId
-* 若低于Accepter B的HighestPromisedProposeId，则忽略这一ProposeRequest
-* 否则：<br/>将HighestPromisedProposeId置为ProposeRequest中的ProposeId
-<br/>且将AcceptedProposeId置为ProposeRequest中的ProposeId
-<br/>且启动定时器γ。定时器γ超时时，将AcceptedProposeId置为0
-<br/>且向Proposer A反馈ProposeResponse
-6. Proposer A收到Accepter B的ProposeResponse。若Proposer A已收到多数派的ProposeReponse，则Proposer A
-* 可以认为自己持有租约，租约到期的时间为定时器β的超时时间，租约到期时需要清理
-    1. **{4}**
-* **{3}**
+**1** Proposer A 想要获得租约，生成一个新的ProposeId，组装成一个Prepare Request，并广播给所有Accepter
+
+**2** Accepter B收到来自Proposer A的PrepareRequest，检查PrepareRequest中的ProposeId<br/>
+若低于Accepter B的HighestPromisedProposeId，则忽略这一PrepareRequest，**{5}**<br/>
+否则
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;将HighestPromisedProposeId置为PrepareRequest中的ProposeId
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **{1}**
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;且向Proposer A反馈Prepare Response，Response中带有Accepter B的AcceptedProposeId（可能为空）
+
+**3** Proposer A收到Accepter B的Prepare Response。<br/>若多数派Accepter返回的PrepareRequest中的AcceptedProposeId都为空，**{2}**，则表示多数派Accepter都可以接受Proposer A的Propose，进入Propose 阶段：
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Proposer A启动租约定时器β。定时器β超时时，重新启动Prepare阶段
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Proposer A向多数派广播ProposeRequest
+
+**4** **{6}**
+
+**5** Accepter B收到来自Proposer A的ProposeRequest，（再次）检查ProposeRequest中的ProposeId
+<br/>若低于Accepter B的HighestPromisedProposeId，则忽略这一ProposeRequest
+<br/>否则：<br/>将HighestPromisedProposeId置为ProposeRequest中的ProposeId
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;且将AcceptedProposeId置为ProposeRequest中的ProposeId
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;且启动定时器γ。定时器γ超时时，将AcceptedProposeId置为0
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;且向Proposer A反馈ProposeResponse
+
+**6** Proposer A收到Accepter B的ProposeResponse。若Proposer A已收到多数派的ProposeReponse，则Proposer A:
+<br/>可以认为自己持有租约，租约到期的时间为定时器β的超时时间，租约到期时需要清理
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**{4}**
+<br/>**{3}**
 
 ---
 
