@@ -9,7 +9,19 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="久不写技术博客。Google和Ms onsite面试都失败告终，反思下自己。觉得缺乏整理，这两年多的杂七杂八都记在Evernote和心里，很多想做的事情也都积压下来，还需静下心来做些整理。 Hello world @20130126 ">
+  <meta name="description" content="Q 其中nextTick的一部分是用MessageChannel实现 1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13 var channel = new MessageChannel(); // linked list of tasks (single, with head node &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -61,6 +73,103 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/01/27/Q-nextTick/" style='font-size:20px'>Q关于nextTick的实现</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-01-27T23:00:00+08:00" pubdate data-updated="true">Jan 27<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/01/27/Q-nextTick/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"Q关于nextTick的实现", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p><a href="https://github.com/kriskowal/q">Q</a> 其中nextTick的一部分是用MessageChannel实现</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'>   <span class="kd">var</span> <span class="nx">channel</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MessageChannel</span><span class="p">();</span>
+</span><span class='line'>  <span class="c1">// linked list of tasks (single, with head node)</span>
+</span><span class='line'>  <span class="kd">var</span> <span class="nx">head</span> <span class="o">=</span> <span class="p">{},</span> <span class="nx">tail</span> <span class="o">=</span> <span class="nx">head</span><span class="p">;</span>
+</span><span class='line'>  <span class="nx">channel</span><span class="p">.</span><span class="nx">port1</span><span class="p">.</span><span class="nx">onmessage</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">head</span> <span class="o">=</span> <span class="nx">head</span><span class="p">.</span><span class="nx">next</span><span class="p">;</span>
+</span><span class='line'>      <span class="kd">var</span> <span class="nx">task</span> <span class="o">=</span> <span class="nx">head</span><span class="p">.</span><span class="nx">task</span><span class="p">;</span>
+</span><span class='line'>      <span class="k">delete</span> <span class="nx">head</span><span class="p">.</span><span class="nx">task</span><span class="p">;</span>
+</span><span class='line'>      <span class="nx">task</span><span class="p">();</span>
+</span><span class='line'>  <span class="p">};</span>
+</span><span class='line'>  <span class="nx">nextTick</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">task</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">tail</span> <span class="o">=</span> <span class="nx">tail</span><span class="p">.</span><span class="nx">next</span> <span class="o">=</span> <span class="p">{</span><span class="nx">task</span><span class="o">:</span> <span class="nx">task</span><span class="p">};</span>
+</span><span class='line'>      <span class="nx">channel</span><span class="p">.</span><span class="nx">port2</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>也有一种实现是用setTimeout(task, 0);</p>
+
+<p>测试下两者的性能区别：<a href="http://jsperf.com/messagechannel-vs-settimeout">http://jsperf.com/messagechannel-vs-settimeout</a>. MessageChannel还是有明显的性能优势</p>
+
+<p>一些额外的参考资料：</p>
+
+<p><a href="http://www.zhangxinxu.com/wordpress/?p=2229">HTML5 web通信（跨文档通信/通道通信）简介 by zhangxinxu</a> &lt;有对message和MessageChannel的例子></p>
+
+<p><a href="http://www.slideshare.net/miketaylr/html5-web-messaging-7970364">HTML5 Web Messaging</a> &lt;列举了传统messaging不支持的url pattern，说明了Web Messaging的必要性></p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -136,6 +245,10 @@ Hello world @20130126
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/blog/2013/12/19/paxos-lease-2/">对于PaxosLease的个人理解 2</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/blog/2013/12/19/paxos-lease/">对于PaxosLease的个人理解 1</a>
       </li>
     
@@ -209,10 +322,6 @@ Hello world @20130126
     
       <li class="post">
         <a href="/blog/blog/2013/03/31/java-method-passing/">我写了半辈子程序 & java的重载方法选择基于编译期参数类型</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/19/some-readings-about-localStorage/">读了“There is no simple solution for local storage”</a>
       </li>
     
   </ul>
