@@ -133,13 +133,11 @@
 
 <p>假设读者已经从参考文献[1]中熟悉了PaxosLease算法，在所有讨论之前，我们还是先简述一下整个PaxosLease算法，目的来统一一些术语。其中有一些空白，类似于<strong>{1}</strong>，后面的讨论中会将这些空白逐一填满：</p>
 
-<ol>
-<li>Proposer A 想要获得租约，生成一个新的ProposeId，组装成一个Prepare Request，并广播给所有Accepter</li>
-<li>Accepter B收到来自Proposer A的PrepareRequest，检查PrepareRequest中的ProposeId<br/>
-若低于Accepter B的HighestPromisedProposeId，则忽略这一PrepareRequest，<strong>{5}</strong><br/>
-否则</li>
-</ol>
+<p><strong>1</strong> Proposer A 想要获得租约，生成一个新的ProposeId，组装成一个Prepare Request，并广播给所有Accepter</p>
 
+<p><strong>2</strong> Accepter B收到来自Proposer A的PrepareRequest，检查PrepareRequest中的ProposeId<br/>
+若低于Accepter B的HighestPromisedProposeId，则忽略这一PrepareRequest，<strong>{5}</strong><br/>
+否则</p>
 
 <br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;将HighestPromisedProposeId置为PrepareRequest中的ProposeId
 
@@ -150,10 +148,7 @@
 <br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;且向Proposer A反馈Prepare Response，Response中带有Accepter B的AcceptedProposeId（可能为空）
 
 
-<ol>
-<li>Proposer A收到Accepter B的Prepare Response。<br/>若多数派Accepter返回的PrepareRequest中的AcceptedProposeId都为空，<strong>{2}</strong>，则表示多数派Accepter都可以接受Proposer A的Propose，进入Propose 阶段：</li>
-</ol>
-
+<p><strong>3</strong> Proposer A收到Accepter B的Prepare Response。<br/>若多数派Accepter返回的PrepareRequest中的AcceptedProposeId都为空，<strong>{2}</strong>，则表示多数派Accepter都可以接受Proposer A的Propose，进入Propose 阶段：</p>
 
 <br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Proposer A启动租约定时器β。定时器β超时时，重新启动Prepare阶段
 
@@ -161,11 +156,9 @@
 <br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Proposer A向多数派广播ProposeRequest
 
 
-<ol>
-<li><strong>{6}</strong></li>
-<li>Accepter B收到来自Proposer A的ProposeRequest，（再次）检查ProposeRequest中的ProposeId</li>
-</ol>
+<p><strong>4</strong> <strong>{6}</strong></p>
 
+<p><strong>5</strong> Accepter B收到来自Proposer A的ProposeRequest，（再次）检查ProposeRequest中的ProposeId</p>
 
 <br/>若低于Accepter B的HighestPromisedProposeId，则忽略这一ProposeRequest
 
@@ -182,10 +175,7 @@
 <br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;且向Proposer A反馈ProposeResponse
 
 
-<ol>
-<li>Proposer A收到Accepter B的ProposeResponse。若Proposer A已收到多数派的ProposeReponse，则Proposer A:</li>
-</ol>
-
+<p><strong>6</strong> Proposer A收到Accepter B的ProposeResponse。若Proposer A已收到多数派的ProposeReponse，则Proposer A:</p>
 
 <br/>可以认为自己持有租约，租约到期的时间为定时器β的超时时间，租约到期时需要清理
 
