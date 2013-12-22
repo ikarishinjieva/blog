@@ -4,7 +4,7 @@
   <title><![CDATA[Category: paxos_lease | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/paxos-lease/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-12-22T18:13:35+08:00</updated>
+  <updated>2013-12-22T18:46:53+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -56,7 +56,7 @@
 <br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **{1}**
 
 
-<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;且向Proposer A反馈Prepare Response，Response中带有Accepter B的AcceptedProposeId（可能为空）
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;且向Proposer A反馈Prepare Response，Response中带有Accepter B的AcceptedProposeId（可能为空）<br/>
 
 
 <p><strong>3</strong> Proposer A收到Accepter B的Prepare Response。<br/>若多数派Accepter返回的PrepareRequest中的AcceptedProposeId都为空，<strong>{2}</strong>，则表示多数派Accepter都可以接受Proposer A的Propose，进入Propose 阶段：</p>
@@ -64,7 +64,7 @@
 <br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Proposer A启动租约定时器β。定时器β超时时，重新启动Prepare阶段
 
 
-<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Proposer A向多数派广播ProposeRequest
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Proposer A向多数派广播ProposeRequest<br/>
 
 
 <p><strong>4</strong> <strong>{6}</strong></p>
@@ -83,7 +83,7 @@
 <br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;且启动定时器γ。定时器γ超时时，将AcceptedProposeId置为0
 
 
-<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;且向Proposer A反馈ProposeResponse
+<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;且向Proposer A反馈ProposeResponse<br/>
 
 
 <p><strong>6</strong> Proposer A收到Accepter B的ProposeResponse。若Proposer A已收到多数派的ProposeReponse，则Proposer A:</p>
@@ -94,7 +94,7 @@
 <br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**{4}**
 
 
-<br/>**{3}**
+<br/>**{3}**<br/>
 
 
 <hr />
