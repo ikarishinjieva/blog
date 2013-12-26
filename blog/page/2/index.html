@@ -9,8 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="作为一个非专职Client开发,偶然读了读关于localStorage的这篇有趣的文字,非常有意思,引文也很值得一读。 作者的思考方向很全面。摘取其中重要的部分： (性能) localStorage是会阻止渲染(同步),会写I/O
-(浏览器行为) localStorage会被浏览器预载入, &hellip;">
+  <meta name="description" content="一段时间没更新过blog,因为花了些时间在读lisp的入门,还将继续一段时间 先庆祝下自己25岁,可以正式对外宣称&#8221;我写了半辈子程序&#8221; 读lisp的入门时,有一个java的对比例子觉得很有意思(虽然事后想想也就那么回事)&#8230; 简单的说, &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -62,6 +61,129 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/03/31/java-method-passing/" style='font-size:20px'>我写了半辈子程序 & Java的重载方法选择基于编译期参数类型</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-31T23:22:00+08:00" pubdate data-updated="true">Mar 31<span>st</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/03/31/java-method-passing/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"我写了半辈子程序 & java的重载方法选择基于编译期参数类型", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>一段时间没更新过blog,因为花了些时间在读lisp的入门,还将继续一段时间</p>
+
+<p>先庆祝下自己25岁,可以正式对外宣称&#8221;我写了半辈子程序&#8221;</p>
+
+<p>读lisp的入门时,有一个java的对比例子觉得很有意思(虽然事后想想也就那么回事)&#8230;</p>
+
+<p>简单的说,一个call传递给object(根据运行时的类型找到需要处理这个call的类),并找到对应的方法(根据call参数的编译时类型,找到需要处理这个call的函数),并执行</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">A</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">foo</span><span class="o">(</span><span class="n">A</span> <span class="n">a</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;A/A&quot;</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">foo</span><span class="o">(</span><span class="n">B</span> <span class="n">b</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;A/B&quot;</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">B</span> <span class="kd">extends</span> <span class="n">A</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">foo</span><span class="o">(</span><span class="n">A</span> <span class="n">a</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;B/A&quot;</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">foo</span><span class="o">(</span><span class="n">B</span> <span class="n">b</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;B/B&quot;</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">C</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">params</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'><span class="c1">//        A obj = new A();</span>
+</span><span class='line'>        <span class="n">A</span> <span class="n">obj</span> <span class="o">=</span> <span class="k">new</span> <span class="n">B</span><span class="o">();</span>
+</span><span class='line'>        <span class="n">obj</span><span class="o">.</span><span class="na">foo</span><span class="o">(</span><span class="n">obj</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>运行结果是&#8221;B/A&#8221;,B这个类是根据运行类型找到的,foo(A)这个方法是根据编译类型找到的。</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -137,7 +259,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -238,7 +360,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -298,7 +420,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -612,7 +734,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -864,7 +986,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -992,7 +1114,7 @@
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1236,7 +1358,7 @@
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1309,7 +1431,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1423,7 +1545,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -1483,7 +1605,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -1541,7 +1663,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -1599,7 +1721,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1684,7 +1806,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1821,7 +1943,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1881,7 +2003,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1993,7 +2115,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -2066,7 +2188,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -2131,7 +2253,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -2225,70 +2347,6 @@ http://localhost:7001/.../js/slickgrid C:\test
 
     </article>
   
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/01/27/TProfiler-basic/" style='font-size:20px'>TProfiler的基本原理</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-01-27T23:59:00+08:00" pubdate data-updated="true">Jan 27<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/01/27/TProfiler-basic/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"TProfiler的基本原理", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>粗粗看了看taobao <a href="https://github.com/taobao/TProfiler">TProfiler</a>的源码，原理有点意思，java代码的质量属于实习生级，也缺乏测试。</p>
-
-<p>一些参考：</p>
-
-<p><a href="http://www.ibm.com/developerworks/cn/java/j-lo-jse61/index.html">Java SE 6 新特性: Instrumentation 新功能 by IBM</a> &lt;介绍了Java 5&amp;6 instrument(更换类实现，类似于AOP)的用法，以及classpath的动态增补(这个很有用)></p>
-
-<p><a href="http://download.forge.objectweb.org/asm/asm4-guide.pdf">objectweb.asm user guide</a> &lt;TProfiler用 objectweb.asm解析和编译class byte code></p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/3/">&larr; Older</a>
@@ -2304,6 +2362,10 @@ http://localhost:7001/.../js/slickgrid C:\test
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/26/go-iterate-variable/">栽在Go中for的变量</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2013/12/19/paxos-lease-2/">对于PaxosLease的个人理解 2</a>
@@ -2379,10 +2441,6 @@ http://localhost:7001/.../js/slickgrid C:\test
     
       <li class="post">
         <a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/">lisp一个大写的坑</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/03/31/java-method-passing/">我写了半辈子程序 & java的重载方法选择基于编译期参数类型</a>
       </li>
     
   </ul>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: go | Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/blog/categories/go/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2013-12-26T22:25:34+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[栽在Go中for的变量]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/12/26/go-iterate-variable/"/>
+    <updated>2013-12-26T22:13:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/12/26/go-iterate-variable</id>
+    <content type="html"><![CDATA[<p>我是万没料到自己栽在了go的for上，说多了都是眼泪</p>
+
+<p>``` go
+type testStruct struct {</p>
+
+<pre><code> no int
+</code></pre>
+
+<p>}</p>
+
+<p>func main() {</p>
+
+<pre><code> a := []testStruct{testStruct{1}, testStruct{2}, testStruct{3}}
+ var p *testStruct
+ for _, i := range a {
+      if i.no == 2 {
+           // o := i
+           // p = &amp;o
+           p = &amp;i
+      }
+ }
+ fmt.Println(p.no)
+</code></pre>
+
+<p>}
+```</p>
+
+<p>猜猜看输出是多少？<a href="http://play.golang.org/p/OzkxuYIboc">试试看吧</a></p>
+
+<p>理解起来很容易，<code>p</code>取得是<code>i</code>的地址，而<strong>range循环变量<code>i</code>在每个循环之间都是复用同一个地址</strong></p>
+
+<p>证明一下，<a href="http://play.golang.org/p/b3QFcoh35Q">试试看？</a></p>
+
+<p>```go
+a := []int{1, 2, 3, 4, 5}
+for _, item := range a {</p>
+
+<pre><code> fmt.Printf("%p\n", &amp;item)
+</code></pre>
+
+<p>}
+```</p>
+
+<p>虽然很容易理解，也很容易掉坑，尤其for上用<code>:=</code>，那感觉就像js里连续用<code>var</code>，除了第一下剩下的都不好使...</p>
+]]></content>
+  </entry>
+  
+</feed>

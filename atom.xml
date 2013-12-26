@@ -4,7 +4,7 @@
   <title><![CDATA[Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-12-22T18:46:53+08:00</updated>
+  <updated>2013-12-26T22:25:34+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,69 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[栽在Go中for的变量]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2013/12/26/go-iterate-variable/"/>
+    <updated>2013-12-26T22:13:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2013/12/26/go-iterate-variable</id>
+    <content type="html"><![CDATA[<p>我是万没料到自己栽在了go的for上，说多了都是眼泪</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='go'><span class='line'><span class="kd">type</span> <span class="nx">testStruct</span> <span class="kd">struct</span> <span class="p">{</span>
+</span><span class='line'>     <span class="nx">no</span> <span class="kt">int</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>     <span class="nx">a</span> <span class="o">:=</span> <span class="p">[]</span><span class="nx">testStruct</span><span class="p">{</span><span class="nx">testStruct</span><span class="p">{</span><span class="mi">1</span><span class="p">},</span> <span class="nx">testStruct</span><span class="p">{</span><span class="mi">2</span><span class="p">},</span> <span class="nx">testStruct</span><span class="p">{</span><span class="mi">3</span><span class="p">}}</span>
+</span><span class='line'>     <span class="kd">var</span> <span class="nx">p</span> <span class="o">*</span><span class="nx">testStruct</span>
+</span><span class='line'>     <span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">i</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">a</span> <span class="p">{</span>
+</span><span class='line'>          <span class="k">if</span> <span class="nx">i</span><span class="p">.</span><span class="nx">no</span> <span class="o">==</span> <span class="mi">2</span> <span class="p">{</span>
+</span><span class='line'>               <span class="c1">// o := i</span>
+</span><span class='line'>               <span class="c1">// p = &amp;o</span>
+</span><span class='line'>               <span class="nx">p</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">i</span>
+</span><span class='line'>          <span class="p">}</span>
+</span><span class='line'>     <span class="p">}</span>
+</span><span class='line'>     <span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">no</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>猜猜看输出是多少？<a href="http://play.golang.org/p/OzkxuYIboc">试试看吧</a></p>
+
+<p>理解起来很容易，<code>p</code>取得是<code>i</code>的地址，而<strong>range循环变量<code>i</code>在每个循环之间都是复用同一个地址</strong></p>
+
+<p>证明一下，<a href="http://play.golang.org/p/b3QFcoh35Q">试试看？</a></p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='go'><span class='line'><span class="nx">a</span> <span class="o">:=</span> <span class="p">[]</span><span class="kt">int</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">}</span>
+</span><span class='line'><span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">item</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">a</span> <span class="p">{</span>
+</span><span class='line'>     <span class="nx">fmt</span><span class="p">.</span><span class="nx">Printf</span><span class="p">(</span><span class="s">&quot;%p\n&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">item</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>虽然很容易理解，也很容易掉坑，尤其for上用<code>:=</code>，那感觉就像js里连续用<code>var</code>，除了第一下剩下的都不好使&#8230;</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[对于PaxosLease的个人理解 2]]></title>
@@ -2066,80 +2129,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 <p>参考：</p>
 
 <p><a href="http://www.cs.rochester.edu/~schubert/247-447/symbols-in-lisp.html">How to handle symbols in LISP</a></p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[我写了半辈子程序 & java的重载方法选择基于编译期参数类型]]></title>
-    <link href="http://ikarishinjieva.github.com/blog/blog/2013/03/31/java-method-passing/"/>
-    <updated>2013-03-31T23:22:00+08:00</updated>
-    <id>http://ikarishinjieva.github.com/blog/blog/2013/03/31/java-method-passing</id>
-    <content type="html"><![CDATA[<p>一段时间没更新过blog,因为花了些时间在读lisp的入门,还将继续一段时间</p>
-
-<p>先庆祝下自己25岁,可以正式对外宣称&#8221;我写了半辈子程序&#8221;</p>
-
-<p>读lisp的入门时,有一个java的对比例子觉得很有意思(虽然事后想想也就那么回事)&#8230;</p>
-
-<p>简单的说,一个call传递给object(根据运行时的类型找到需要处理这个call的类),并找到对应的方法(根据call参数的编译时类型,找到需要处理这个call的函数),并执行</p>
-
-<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">A</span> <span class="o">{</span>
-</span><span class='line'>    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">foo</span><span class="o">(</span><span class="n">A</span> <span class="n">a</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;A/A&quot;</span><span class="o">);</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">foo</span><span class="o">(</span><span class="n">B</span> <span class="n">b</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;A/B&quot;</span><span class="o">);</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'><span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">B</span> <span class="kd">extends</span> <span class="n">A</span> <span class="o">{</span>
-</span><span class='line'>    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">foo</span><span class="o">(</span><span class="n">A</span> <span class="n">a</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;B/A&quot;</span><span class="o">);</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">foo</span><span class="o">(</span><span class="n">B</span> <span class="n">b</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;B/B&quot;</span><span class="o">);</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'><span class="o">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">C</span> <span class="o">{</span>
-</span><span class='line'>    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">params</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'><span class="c1">//        A obj = new A();</span>
-</span><span class='line'>        <span class="n">A</span> <span class="n">obj</span> <span class="o">=</span> <span class="k">new</span> <span class="n">B</span><span class="o">();</span>
-</span><span class='line'>        <span class="n">obj</span><span class="o">.</span><span class="na">foo</span><span class="o">(</span><span class="n">obj</span><span class="o">);</span>
-</span><span class='line'>    <span class="o">}</span>
-</span><span class='line'><span class="o">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>运行结果是&#8221;B/A&#8221;,B这个类是根据运行类型找到的,foo(A)这个方法是根据编译类型找到的。</p>
 ]]></content>
   </entry>
   
