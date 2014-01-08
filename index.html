@@ -9,7 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="我是万没料到自己栽在了go的for上，说多了都是眼泪 1
+  <meta name="description" content="问题场景 首先有一台tcp server, 模拟一个黑洞 1
 2
 3
 4
@@ -18,15 +18,7 @@
 7
 8
 9
-10
-11
-12
-13
-14
-15
-16
-type testStruct struct { no int
-} func main() { a := []testStruct{testStruct{1}, &hellip;">
+require &#39;socket&#39; tcp_server = TCPServer.new(&quot;0.0.0.0&quot;, 6666) loop do socket = &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -78,6 +70,198 @@ type testStruct struct { no int
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2014/01/08/jruby-bug-tcp-timeout/" style='font-size:20px'>jruby中tcp阻塞时Timeout::timeout失效</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-01-08T23:04:00+08:00" pubdate data-updated="true">Jan 8<span>th</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2014/01/08/jruby-bug-tcp-timeout/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"jruby中tcp阻塞时Timeout::timeout失效", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><h3>问题场景</h3>
+
+<p>首先有一台tcp server, 模拟一个黑洞</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;socket&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">tcp_server</span> <span class="o">=</span> <span class="no">TCPServer</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="s2">&quot;0.0.0.0&quot;</span><span class="p">,</span> <span class="mi">6666</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="kp">loop</span> <span class="k">do</span>
+</span><span class='line'>     <span class="n">socket</span> <span class="o">=</span> <span class="n">tcp_server</span><span class="o">.</span><span class="n">accept</span>
+</span><span class='line'>     <span class="nb">puts</span> <span class="s1">&#39;got conn&#39;</span><span class="o">]</span>
+</span><span class='line'>     <span class="c1">#blackhole</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>然后发起一个connection, 从server接受消息(很显然会阻塞在recv上), 并用<code>Timeout::timeout</code>设置一个超时时间</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s2">&quot;socket&quot;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s2">&quot;timeout&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">sock</span> <span class="o">=</span> <span class="no">Socket</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">Socket</span><span class="p">:</span><span class="ss">:AF_INET</span><span class="p">,</span> <span class="ss">Socket</span><span class="p">:</span><span class="ss">:SOCK_STREAM</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</span><span class='line'><span class="n">addr</span> <span class="o">=</span> <span class="no">Socket</span><span class="o">.</span><span class="n">sockaddr_in</span><span class="p">(</span><span class="mi">6666</span><span class="p">,</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="n">sock</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="ss">Timeout</span><span class="p">:</span><span class="ss">:timeout</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>     <span class="n">sock</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>上面这个场景如果在ruby上跑,5秒后会超时,但如果使用jruby(1.7.6)就会一直处于阻塞</p>
+
+<h3>解决方案</h3>
+
+<p>使用非阻塞<code>recv</code>,可以在jruby上正常运行</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s2">&quot;socket&quot;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s2">&quot;timeout&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">sock</span> <span class="o">=</span> <span class="no">Socket</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">Socket</span><span class="p">:</span><span class="ss">:AF_INET</span><span class="p">,</span> <span class="ss">Socket</span><span class="p">:</span><span class="ss">:SOCK_STREAM</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</span><span class='line'><span class="n">addr</span> <span class="o">=</span> <span class="no">Socket</span><span class="o">.</span><span class="n">sockaddr_in</span><span class="p">(</span><span class="mi">6666</span><span class="p">,</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="n">sock</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="ss">Timeout</span><span class="p">:</span><span class="ss">:timeout</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">begin</span>
+</span><span class='line'>        <span class="n">sock</span><span class="o">.</span><span class="n">recv_nonblock</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">rescue</span> <span class="ss">IO</span><span class="p">:</span><span class="ss">:WaitReadable</span>
+</span><span class='line'>        <span class="no">IO</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">[</span><span class="n">sock</span><span class="o">]</span><span class="p">,</span><span class="kp">nil</span><span class="p">,</span><span class="kp">nil</span><span class="p">,</span><span class="mi">5</span><span class="p">)</span>
+</span><span class='line'>        <span class="k">retry</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>猜测</h3>
+
+<p>查看一下ruby <code>timeout.rb</code>的源码</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="k">begin</span>
+</span><span class='line'>    <span class="n">x</span> <span class="o">=</span> <span class="no">Thread</span><span class="o">.</span><span class="n">current</span>
+</span><span class='line'>    <span class="n">y</span> <span class="o">=</span> <span class="no">Thread</span><span class="o">.</span><span class="n">start</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">begin</span>
+</span><span class='line'>        <span class="nb">sleep</span> <span class="n">sec</span>
+</span><span class='line'>      <span class="k">rescue</span> <span class="o">=&gt;</span> <span class="n">e</span>
+</span><span class='line'>        <span class="n">x</span><span class="o">.</span><span class="n">raise</span> <span class="n">e</span>
+</span><span class='line'>      <span class="k">else</span>
+</span><span class='line'>        <span class="n">x</span><span class="o">.</span><span class="n">raise</span> <span class="n">exception</span><span class="p">,</span> <span class="s2">&quot;execution expired&quot;</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="k">return</span> <span class="k">yield</span><span class="p">(</span><span class="n">sec</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">ensure</span>
+</span><span class='line'>    <span class="k">if</span> <span class="n">y</span>
+</span><span class='line'>      <span class="n">y</span><span class="o">.</span><span class="n">kill</span>
+</span><span class='line'>      <span class="n">y</span><span class="o">.</span><span class="n">join</span> <span class="c1"># make sure y is dead.</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>大概看到timeout是起了一个计时线程,超时时向主线程发起exception</p>
+
+<p>猜测是因为jvm的线程模型导致exception不能向阻塞线程提交,但有待验证</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -189,7 +373,7 @@ type testStruct struct { no int
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -427,7 +611,7 @@ type testStruct struct { no int
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -653,7 +837,7 @@ type testStruct struct { no int
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -736,7 +920,7 @@ type testStruct struct { no int
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -863,7 +1047,7 @@ Software Developer’s Manual</a>，可知<code>dec</code>有多种形式</p>
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1012,7 +1196,7 @@ func main() {
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1108,7 +1292,7 @@ The φ Accrual Failure Detector</a>：</p>
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1271,7 +1455,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1447,7 +1631,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -1629,7 +1813,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -1836,7 +2020,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -1979,7 +2163,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -2065,7 +2249,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -2145,7 +2329,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -2371,7 +2555,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -2466,7 +2650,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -2612,7 +2796,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -2820,7 +3004,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -3071,110 +3255,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 
     </article>
   
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/" style='font-size:20px'>Lisp一个大写的坑</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-16T23:12:00+08:00" pubdate data-updated="true">Apr 16<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/04/16/lisp-symbol-upper-case/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"lisp一个大写的坑", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>最近一直掉在一个坑里，今天刚出坑</p>
-
-<p>想用宏定义不同的函数，类似于:</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>(defmacro macro (name)
-</span><span class='line'>     `(defmethod ,(intern (format nil "set-~a" name)) ()))</span></code></pre></td></tr></table></div></figure>
-
-
-<p>跑(macro test)，结果就是</p>
-
-<figure class='code'><figcaption><span>函数名是&#8221;|set-TEST|&#8221;，而不是需要的&#8221;set-test&#8221;</span></figcaption>
-<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>#&lt;STANDARD-METHOD |set-TEST| NIL></span></code></pre></td></tr></table></div></figure>
-
-
-<p>几天的困惑以后（尝试换过lisp的实现去测试），找到了<a href="http://www.cs.rochester.edu/~schubert/247-447/symbols-in-lisp.html">这篇文章</a>，发现是符号名大小写引起的问题</p>
-
-<figure class='code'><figcaption><span>简单测试一下</span></figcaption>
-<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>CL-USER> (eq (intern "test") 'test)
-</span><span class='line'>NIL
-</span><span class='line'>CL-USER> (intern "test")
-</span><span class='line'>|test|
-</span><span class='line'>:INTERNAL
-</span><span class='line'>CL-USER> (eq (intern "TEST") 'test)
-</span><span class='line'>T
-</span><span class='line'>CL-USER> (intern "TEST")
-</span><span class='line'>TEST
-</span><span class='line'>:INTERNAL</span></code></pre></td></tr></table></div></figure>
-
-
-<p>大小写通过intern生成的符号是不一样的，全大写才会生成正确的符号。</p>
-
-<p>参考：</p>
-
-<p><a href="http://www.cs.rochester.edu/~schubert/247-447/symbols-in-lisp.html">How to handle symbols in LISP</a></p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/2/">&larr; Older</a>
@@ -3188,6 +3268,10 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/01/08/jruby-bug-tcp-timeout/">jruby中tcp阻塞时Timeout::timeout失效</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2013/12/26/go-iterate-variable/">栽在Go中for的变量</a>
@@ -3265,10 +3349,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
         <a href="/blog/blog/2013/05/12/mysql-binlog-study/">关于Mysql binlog的一点学习</a>
       </li>
     
-      <li class="post">
-        <a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/">lisp一个大写的坑</a>
-      </li>
-    
   </ul>
 </section>
 <section>
@@ -3312,7 +3392,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2013 - Tac Huang (ikari_shinji@github) -
+  Copyright &copy; 2014 - Tac Huang (ikari_shinji@github) -
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
 </p>
 

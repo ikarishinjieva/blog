@@ -9,7 +9,9 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="一段时间没更新过blog,因为花了些时间在读lisp的入门,还将继续一段时间 先庆祝下自己25岁,可以正式对外宣称&#8221;我写了半辈子程序&#8221; 读lisp的入门时,有一个java的对比例子觉得很有意思(虽然事后想想也就那么回事)&#8230; 简单的说, &hellip;">
+  <meta name="description" content="最近一直掉在一个坑里，今天刚出坑 想用宏定义不同的函数，类似于: 1
+2
+(defmacro macro (name) `(defmethod ,(intern (format nil "set-~a" name)) ())) 跑(macro test)，结果就是 函数名是&#8221;|set- &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -61,6 +63,110 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/" style='font-size:20px'>Lisp一个大写的坑</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-16T23:12:00+08:00" pubdate data-updated="true">Apr 16<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/04/16/lisp-symbol-upper-case/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"lisp一个大写的坑", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>最近一直掉在一个坑里，今天刚出坑</p>
+
+<p>想用宏定义不同的函数，类似于:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>(defmacro macro (name)
+</span><span class='line'>     `(defmethod ,(intern (format nil "set-~a" name)) ()))</span></code></pre></td></tr></table></div></figure>
+
+
+<p>跑(macro test)，结果就是</p>
+
+<figure class='code'><figcaption><span>函数名是&#8221;|set-TEST|&#8221;，而不是需要的&#8221;set-test&#8221;</span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#&lt;STANDARD-METHOD |set-TEST| NIL></span></code></pre></td></tr></table></div></figure>
+
+
+<p>几天的困惑以后（尝试换过lisp的实现去测试），找到了<a href="http://www.cs.rochester.edu/~schubert/247-447/symbols-in-lisp.html">这篇文章</a>，发现是符号名大小写引起的问题</p>
+
+<figure class='code'><figcaption><span>简单测试一下</span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>CL-USER> (eq (intern "test") 'test)
+</span><span class='line'>NIL
+</span><span class='line'>CL-USER> (intern "test")
+</span><span class='line'>|test|
+</span><span class='line'>:INTERNAL
+</span><span class='line'>CL-USER> (eq (intern "TEST") 'test)
+</span><span class='line'>T
+</span><span class='line'>CL-USER> (intern "TEST")
+</span><span class='line'>TEST
+</span><span class='line'>:INTERNAL</span></code></pre></td></tr></table></div></figure>
+
+
+<p>大小写通过intern生成的符号是不一样的，全大写才会生成正确的符号。</p>
+
+<p>参考：</p>
+
+<p><a href="http://www.cs.rochester.edu/~schubert/247-447/symbols-in-lisp.html">How to handle symbols in LISP</a></p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -183,7 +289,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -259,7 +365,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -360,7 +466,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -420,7 +526,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -734,7 +840,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -986,7 +1092,7 @@
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1114,7 +1220,7 @@
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1358,7 +1464,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1431,7 +1537,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -1545,7 +1651,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -1605,7 +1711,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -1663,7 +1769,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1721,7 +1827,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1806,7 +1912,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1943,7 +2049,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -2003,7 +2109,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -2115,7 +2221,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -2188,7 +2294,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -2252,101 +2358,6 @@ http://localhost:7001/.../js/slickgrid C:\test
 
     </article>
   
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/01/28/javascript-multiline-html/" style='font-size:20px'>Javascript中写多行HTML</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-01-28T23:00:00+08:00" pubdate data-updated="true">Jan 28<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/01/28/javascript-multiline-html/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"Javascript中写多行HTML", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>需要写多行HTML string到javascript中，怎么排版代码都很难看，最后发现这个利用注释凶残的方法。(不过此方法对firefox无效，firefox中function#toString会吃掉注释)</p>
-
-<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">getMultiLine</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>  <span class="kd">var</span> <span class="nx">lines</span> <span class="o">=</span> <span class="k">new</span> <span class="nb">String</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
-</span><span class='line'>  <span class="nx">lines</span> <span class="o">=</span> <span class="nx">lines</span><span class="p">.</span><span class="nx">substring</span><span class="p">(</span><span class="nx">lines</span><span class="p">.</span><span class="nx">indexOf</span><span class="p">(</span><span class="s2">&quot;/*&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">3</span><span class="p">,</span> <span class="nx">lines</span><span class="p">.</span><span class="nx">lastIndexOf</span><span class="p">(</span><span class="s2">&quot;*/&quot;</span><span class="p">));</span>
-</span><span class='line'>  <span class="k">return</span> <span class="nx">lines</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">var</span> <span class="nx">ffff</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>  <span class="cm">/* </span>
-</span><span class='line'><span class="cm"> 张三去倒水</span>
-</span><span class='line'><span class="cm"> </span>
-</span><span class='line'><span class="cm">  天哪！ </span>
-</span><span class='line'><span class="cm">  */</span>
-</span><span class='line'> <span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="nb">document</span><span class="p">.</span><span class="nx">write</span><span class="p">(</span><span class="nx">ffff</span><span class="p">.</span><span class="nx">getMultiLine</span><span class="p">());</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>一些参考：</p>
-
-<p><a href="http://www.cnblogs.com/starlet/archive/2010/05/24/1742572.html">代码抄自这里</a></p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/3/">&larr; Older</a>
@@ -2362,6 +2373,10 @@ http://localhost:7001/.../js/slickgrid C:\test
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/01/08/jruby-bug-tcp-timeout/">jruby中tcp阻塞时Timeout::timeout失效</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2013/12/26/go-iterate-variable/">栽在Go中for的变量</a>
@@ -2439,10 +2454,6 @@ http://localhost:7001/.../js/slickgrid C:\test
         <a href="/blog/blog/2013/05/12/mysql-binlog-study/">关于Mysql binlog的一点学习</a>
       </li>
     
-      <li class="post">
-        <a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/">lisp一个大写的坑</a>
-      </li>
-    
   </ul>
 </section>
 <section>
@@ -2486,7 +2497,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2013 - Tac Huang (ikari_shinji@github) -
+  Copyright &copy; 2014 - Tac Huang (ikari_shinji@github) -
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
 </p>
 

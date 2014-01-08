@@ -9,7 +9,22 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="粗粗看了看taobao TProfiler的源码，原理有点意思，java代码的质量属于实习生级，也缺乏测试。 一些参考： Java SE 6 新特性: Instrumentation 新功能 by IBM &lt;介绍了Java 5&amp;6 instrument(更换类实现，类似于AOP) &hellip;">
+  <meta name="description" content="需要写多行HTML string到javascript中，怎么排版代码都很难看，最后发现这个利用注释凶残的方法。(不过此方法对firefox无效，firefox中function#toString会吃掉注释) 1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+Function &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -61,6 +76,101 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/01/28/javascript-multiline-html/" style='font-size:20px'>Javascript中写多行HTML</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-01-28T23:00:00+08:00" pubdate data-updated="true">Jan 28<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/01/28/javascript-multiline-html/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"Javascript中写多行HTML", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>需要写多行HTML string到javascript中，怎么排版代码都很难看，最后发现这个利用注释凶残的方法。(不过此方法对firefox无效，firefox中function#toString会吃掉注释)</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">getMultiLine</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kd">var</span> <span class="nx">lines</span> <span class="o">=</span> <span class="k">new</span> <span class="nb">String</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span class='line'>  <span class="nx">lines</span> <span class="o">=</span> <span class="nx">lines</span><span class="p">.</span><span class="nx">substring</span><span class="p">(</span><span class="nx">lines</span><span class="p">.</span><span class="nx">indexOf</span><span class="p">(</span><span class="s2">&quot;/*&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">3</span><span class="p">,</span> <span class="nx">lines</span><span class="p">.</span><span class="nx">lastIndexOf</span><span class="p">(</span><span class="s2">&quot;*/&quot;</span><span class="p">));</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">lines</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">var</span> <span class="nx">ffff</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="cm">/* </span>
+</span><span class='line'><span class="cm"> 张三去倒水</span>
+</span><span class='line'><span class="cm"> </span>
+</span><span class='line'><span class="cm">  天哪！ </span>
+</span><span class='line'><span class="cm">  */</span>
+</span><span class='line'> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nb">document</span><span class="p">.</span><span class="nx">write</span><span class="p">(</span><span class="nx">ffff</span><span class="p">.</span><span class="nx">getMultiLine</span><span class="p">());</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>一些参考：</p>
+
+<p><a href="http://www.cnblogs.com/starlet/archive/2010/05/24/1742572.html">代码抄自这里</a></p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -124,7 +234,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -221,7 +331,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -295,6 +405,10 @@ Hello world @20130126
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/01/08/jruby-bug-tcp-timeout/">jruby中tcp阻塞时Timeout::timeout失效</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2013/12/26/go-iterate-variable/">栽在Go中for的变量</a>
@@ -372,10 +486,6 @@ Hello world @20130126
         <a href="/blog/blog/2013/05/12/mysql-binlog-study/">关于Mysql binlog的一点学习</a>
       </li>
     
-      <li class="post">
-        <a href="/blog/blog/2013/04/16/lisp-symbol-upper-case/">lisp一个大写的坑</a>
-      </li>
-    
   </ul>
 </section>
 <section>
@@ -419,7 +529,7 @@ Hello world @20130126
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2013 - Tac Huang (ikari_shinji@github) -
+  Copyright &copy; 2014 - Tac Huang (ikari_shinji@github) -
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
 </p>
 

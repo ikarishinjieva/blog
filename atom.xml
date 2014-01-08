@@ -4,7 +4,7 @@
   <title><![CDATA[Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2013-12-26T22:25:34+08:00</updated>
+  <updated>2014-01-08T23:20:43+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,149 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[jruby中tcp阻塞时Timeout::timeout失效]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/01/08/jruby-bug-tcp-timeout/"/>
+    <updated>2014-01-08T23:04:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/01/08/jruby-bug-tcp-timeout</id>
+    <content type="html"><![CDATA[<h3>问题场景</h3>
+
+<p>首先有一台tcp server, 模拟一个黑洞</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;socket&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">tcp_server</span> <span class="o">=</span> <span class="no">TCPServer</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="s2">&quot;0.0.0.0&quot;</span><span class="p">,</span> <span class="mi">6666</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="kp">loop</span> <span class="k">do</span>
+</span><span class='line'>     <span class="n">socket</span> <span class="o">=</span> <span class="n">tcp_server</span><span class="o">.</span><span class="n">accept</span>
+</span><span class='line'>     <span class="nb">puts</span> <span class="s1">&#39;got conn&#39;</span><span class="o">]</span>
+</span><span class='line'>     <span class="c1">#blackhole</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>然后发起一个connection, 从server接受消息(很显然会阻塞在recv上), 并用<code>Timeout::timeout</code>设置一个超时时间</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s2">&quot;socket&quot;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s2">&quot;timeout&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">sock</span> <span class="o">=</span> <span class="no">Socket</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">Socket</span><span class="p">:</span><span class="ss">:AF_INET</span><span class="p">,</span> <span class="ss">Socket</span><span class="p">:</span><span class="ss">:SOCK_STREAM</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</span><span class='line'><span class="n">addr</span> <span class="o">=</span> <span class="no">Socket</span><span class="o">.</span><span class="n">sockaddr_in</span><span class="p">(</span><span class="mi">6666</span><span class="p">,</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="n">sock</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="ss">Timeout</span><span class="p">:</span><span class="ss">:timeout</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>     <span class="n">sock</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>上面这个场景如果在ruby上跑,5秒后会超时,但如果使用jruby(1.7.6)就会一直处于阻塞</p>
+
+<h3>解决方案</h3>
+
+<p>使用非阻塞<code>recv</code>,可以在jruby上正常运行</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s2">&quot;socket&quot;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s2">&quot;timeout&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">sock</span> <span class="o">=</span> <span class="no">Socket</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">Socket</span><span class="p">:</span><span class="ss">:AF_INET</span><span class="p">,</span> <span class="ss">Socket</span><span class="p">:</span><span class="ss">:SOCK_STREAM</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</span><span class='line'><span class="n">addr</span> <span class="o">=</span> <span class="no">Socket</span><span class="o">.</span><span class="n">sockaddr_in</span><span class="p">(</span><span class="mi">6666</span><span class="p">,</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="n">sock</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="ss">Timeout</span><span class="p">:</span><span class="ss">:timeout</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">begin</span>
+</span><span class='line'>        <span class="n">sock</span><span class="o">.</span><span class="n">recv_nonblock</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">rescue</span> <span class="ss">IO</span><span class="p">:</span><span class="ss">:WaitReadable</span>
+</span><span class='line'>        <span class="no">IO</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">[</span><span class="n">sock</span><span class="o">]</span><span class="p">,</span><span class="kp">nil</span><span class="p">,</span><span class="kp">nil</span><span class="p">,</span><span class="mi">5</span><span class="p">)</span>
+</span><span class='line'>        <span class="k">retry</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>猜测</h3>
+
+<p>查看一下ruby <code>timeout.rb</code>的源码</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="k">begin</span>
+</span><span class='line'>    <span class="n">x</span> <span class="o">=</span> <span class="no">Thread</span><span class="o">.</span><span class="n">current</span>
+</span><span class='line'>    <span class="n">y</span> <span class="o">=</span> <span class="no">Thread</span><span class="o">.</span><span class="n">start</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">begin</span>
+</span><span class='line'>        <span class="nb">sleep</span> <span class="n">sec</span>
+</span><span class='line'>      <span class="k">rescue</span> <span class="o">=&gt;</span> <span class="n">e</span>
+</span><span class='line'>        <span class="n">x</span><span class="o">.</span><span class="n">raise</span> <span class="n">e</span>
+</span><span class='line'>      <span class="k">else</span>
+</span><span class='line'>        <span class="n">x</span><span class="o">.</span><span class="n">raise</span> <span class="n">exception</span><span class="p">,</span> <span class="s2">&quot;execution expired&quot;</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="k">return</span> <span class="k">yield</span><span class="p">(</span><span class="n">sec</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">ensure</span>
+</span><span class='line'>    <span class="k">if</span> <span class="n">y</span>
+</span><span class='line'>      <span class="n">y</span><span class="o">.</span><span class="n">kill</span>
+</span><span class='line'>      <span class="n">y</span><span class="o">.</span><span class="n">join</span> <span class="c1"># make sure y is dead.</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>大概看到timeout是起了一个计时线程,超时时向主线程发起exception</p>
+
+<p>猜测是因为jvm的线程模型导致exception不能向阻塞线程提交,但有待验证</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[栽在Go中for的变量]]></title>
@@ -2074,61 +2217,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 
 
 <p>简单一点学习如上。</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[lisp一个大写的坑]]></title>
-    <link href="http://ikarishinjieva.github.com/blog/blog/2013/04/16/lisp-symbol-upper-case/"/>
-    <updated>2013-04-16T23:12:00+08:00</updated>
-    <id>http://ikarishinjieva.github.com/blog/blog/2013/04/16/lisp-symbol-upper-case</id>
-    <content type="html"><![CDATA[<p>最近一直掉在一个坑里，今天刚出坑</p>
-
-<p>想用宏定义不同的函数，类似于:</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>(defmacro macro (name)
-</span><span class='line'>     `(defmethod ,(intern (format nil "set-~a" name)) ()))</span></code></pre></td></tr></table></div></figure>
-
-
-<p>跑(macro test)，结果就是</p>
-
-<figure class='code'><figcaption><span>函数名是&#8221;|set-TEST|&#8221;，而不是需要的&#8221;set-test&#8221;</span></figcaption>
-<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>#&lt;STANDARD-METHOD |set-TEST| NIL></span></code></pre></td></tr></table></div></figure>
-
-
-<p>几天的困惑以后（尝试换过lisp的实现去测试），找到了<a href="http://www.cs.rochester.edu/~schubert/247-447/symbols-in-lisp.html">这篇文章</a>，发现是符号名大小写引起的问题</p>
-
-<figure class='code'><figcaption><span>简单测试一下</span></figcaption>
-<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>CL-USER> (eq (intern "test") 'test)
-</span><span class='line'>NIL
-</span><span class='line'>CL-USER> (intern "test")
-</span><span class='line'>|test|
-</span><span class='line'>:INTERNAL
-</span><span class='line'>CL-USER> (eq (intern "TEST") 'test)
-</span><span class='line'>T
-</span><span class='line'>CL-USER> (intern "TEST")
-</span><span class='line'>TEST
-</span><span class='line'>:INTERNAL</span></code></pre></td></tr></table></div></figure>
-
-
-<p>大小写通过intern生成的符号是不一样的，全大写才会生成正确的符号。</p>
-
-<p>参考：</p>
-
-<p><a href="http://www.cs.rochester.edu/~schubert/247-447/symbols-in-lisp.html">How to handle symbols in LISP</a></p>
 ]]></content>
   </entry>
   
