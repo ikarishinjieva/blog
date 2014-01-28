@@ -9,22 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="需要写多行HTML string到javascript中，怎么排版代码都很难看，最后发现这个利用注释凶残的方法。(不过此方法对firefox无效，firefox中function#toString会吃掉注释) 1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-Function &hellip;">
+  <meta name="description" content="尝试给TProfiler写一些单元测试。难点是如何对byte code injection产生测试夹具。理想的状况是产生一些class byte code，通过transformer，将生成的class载入并测试行为。第一步产生class byte code的代码可以通过asm提供的工具生成: 1 &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -76,6 +61,71 @@ Function &hellip;">
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/01/29/generate-asm-java-from-classfile/" style='font-size:20px'>org.ow2.asm 通过类.class产生asm Java代码</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-01-29T23:00:00+08:00" pubdate data-updated="true">Jan 29<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/01/29/generate-asm-java-from-classfile/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"org.ow2.asm 通过类.class产生asm java代码", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>尝试给<a href="https://github.com/taobao/TProfiler">TProfiler</a>写一些单元测试。难点是如何对byte code injection产生测试夹具。理想的状况是产生一些class byte code，通过transformer，将生成的class载入并测试行为。第一步产生class byte code的代码可以通过asm提供的工具生成:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>java -classpath asm-all-4.1.jar org.objectweb.asm.util.ASMifier org/domain/package/YourClass.class</span></code></pre></td></tr></table></div></figure>
+
+
+<p>一些参考：
+<a href="http://asm.ow2.org/doc/faq.html">ASM的FAQ</a>，里面的干货很多</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -170,7 +220,7 @@ Function &hellip;">
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -234,7 +284,7 @@ Function &hellip;">
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -331,7 +381,7 @@ Function &hellip;">
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -407,6 +457,10 @@ Hello world @20130126
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/blog/2014/01/28/compile-mysql-plugin/">编译mysql插件的碰到的问题</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/blog/2014/01/08/jruby-bug-tcp-timeout/">jruby中tcp阻塞时Timeout::timeout失效</a>
       </li>
     
@@ -480,10 +534,6 @@ Hello world @20130126
     
       <li class="post">
         <a href="/blog/blog/2013/05/15/mysql-master-slave-standby-failover/">实验：Mysql master-slave-standby将source从master切换到standby</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/05/12/mysql-binlog-study/">关于Mysql binlog的一点学习</a>
       </li>
     
   </ul>

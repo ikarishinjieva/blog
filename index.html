@@ -9,16 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="问题场景 首先有一台tcp server, 模拟一个黑洞 1
-2
-3
-4
-5
-6
-7
-8
-9
-require &#39;socket&#39; tcp_server = TCPServer.new(&quot;0.0.0.0&quot;, 6666) loop do socket = &hellip;">
+  <meta name="description" content="最近尝试制作了一个mysql的插件. 对c/c++的编译不熟, 又是第一次尝试做mysql插件, 编译过程中碰到些状况 编写好mysql插件后, 编译成功, 在mysql中安装运行报错: 取了threads中的THD, 其中THD->thread_id值为空 由于是mysql内置的数据结构, &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -70,6 +61,99 @@ require &#39;socket&#39; tcp_server = TCPServer.new(&quot;0.0.0.0&quot;, 6666) l
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2014/01/28/compile-mysql-plugin/" style='font-size:20px'>编译mysql插件的碰到的问题</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-01-28T16:48:00+08:00" pubdate data-updated="true">Jan 28<span>th</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2014/01/28/compile-mysql-plugin/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"编译mysql插件的碰到的问题", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>最近尝试制作了<a href="https://github.com/ikarishinjieva/mysql_plugin-binlog_dump_list">一个mysql的插件</a>. 对c/c++的编译不熟, 又是第一次尝试做mysql插件, 编译过程中碰到些状况</p>
+
+<p>编写好mysql插件后, 编译成功, 在mysql中安装运行报错: 取了<code>threads</code>中的THD, 其中THD->thread_id值为空</p>
+
+<p>由于是mysql内置的数据结构, 一时没了头绪, 只能通过gdb连上去看看</p>
+
+<p>发现plugin打印出来的thread_id距离THD开头的距离为</p>
+
+<pre><code>tmp=0x3661f80
+&amp;tmp-&gt;thread_id=0x36637b0
+delta = 0x1830
+</code></pre>
+
+<p>而gdb打印出来的距离为</p>
+
+<pre><code>(gdb) p tmp
+$1 = (THD *) 0x3661f80
+(gdb) p &amp;tmp-&gt;thread_id
+$2 = (my_thread_id *) 0x3663878
+delta = 0x18F8
+</code></pre>
+
+<p>结论很显然, plugin编译的THD结构和mysqld的THD结构不匹配, 即plugin的编译参数和mysqld的编译参数不一样.</p>
+
+<p>当然mysql的文档上只会说一句大意是 &#8221;<strong>编译参数应当设置成一样的</strong>&#8220;的话</p>
+
+<p>其中比较重要的几个编译选项</p>
+
+<ol>
+<li>DBUG_ON</li>
+<li>SAFE_MUTEX</li>
+<li>DBUG_OFF (不设置DBUG_ON并不等于DBUG_OFF)</li>
+</ol>
+
+
+<p>这几个选项会影响当使用mysqld内部数据结构的长度, 不排除还有其他</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -261,7 +345,7 @@ require &#39;socket&#39; tcp_server = TCPServer.new(&quot;0.0.0.0&quot;, 6666) l
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -373,7 +457,7 @@ require &#39;socket&#39; tcp_server = TCPServer.new(&quot;0.0.0.0&quot;, 6666) l
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -611,7 +695,7 @@ require &#39;socket&#39; tcp_server = TCPServer.new(&quot;0.0.0.0&quot;, 6666) l
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -837,7 +921,7 @@ require &#39;socket&#39; tcp_server = TCPServer.new(&quot;0.0.0.0&quot;, 6666) l
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -920,7 +1004,7 @@ require &#39;socket&#39; tcp_server = TCPServer.new(&quot;0.0.0.0&quot;, 6666) l
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1047,7 +1131,7 @@ Software Developer’s Manual</a>，可知<code>dec</code>有多种形式</p>
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1196,7 +1280,7 @@ func main() {
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1292,7 +1376,7 @@ The φ Accrual Failure Detector</a>：</p>
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1455,7 +1539,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -1631,7 +1715,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -1813,7 +1897,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -2020,7 +2104,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -2163,7 +2247,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -2249,7 +2333,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -2329,7 +2413,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -2555,7 +2639,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -2650,7 +2734,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -2796,7 +2880,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -3003,258 +3087,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 
     </article>
   
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/05/12/mysql-binlog-study/" style='font-size:20px'>关于Mysql Binlog的一点学习</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-05-12T22:59:00+08:00" pubdate data-updated="true">May 12<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/05/12/mysql-binlog-study/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"关于Mysql binlog的一点学习", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>差不多一个月没更新了。除了忙些琐事，就是偷点懒。</p>
-
-<p>在读&lt;Mysql High Availability&gt;，扫了一遍，读第二遍的时候开始做些实验，所以这之后的blog写的也会没什么章法。</p>
-
-<p>&lt;Mysql High Availability&gt;第三章介绍binlog时特地提到了Rand()/Now()/User variable/Password()在基于sql复制时的行为，简单做些实验。</p>
-
-<ol>
-<li>Rand()</li>
-</ol>
-
-
-<p>Rand() 在replication中，值会被正确传递。如下查看binlog，发现pos 209处rand_seed会被传给slave，保证rand生成的值保持一致。</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>mysql> show binlog events in 'master-bin.000007';
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+--------------------------------------------------------+
-</span><span class='line'>| Log_name          | Pos | Event_type  | Server_id | End_log_pos | Info                                                   |
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+--------------------------------------------------------+
-</span><span class='line'>| master-bin.000007 |   4 | Format_desc |         1 |         107 | Server ver: 5.5.31-0ubuntu0.12.04.1-log, Binlog ver: 4 |
-</span><span class='line'>| master-bin.000007 | 107 | Query       |         1 |         174 | BEGIN                                                  |
-</span><span class='line'>| master-bin.000007 | 174 | RAND        |         1 |         209 | rand_seed1=598597315,rand_seed2=24268577               |
-</span><span class='line'>| master-bin.000007 | 209 | Query       |         1 |         302 | use `tac`; insert into test values(rand())             |
-</span><span class='line'>| master-bin.000007 | 302 | Xid         |         1 |         329 | COMMIT /* xid=151 */                                   |
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+--------------------------------------------------------+</span></code></pre></td></tr></table></div></figure>
-
-
-<ol>
-<li>Now()</li>
-</ol>
-
-
-<p>Now() 在replication中，值会被正确传递。如下查看binlog，pos 283处，貌似这个语句传给slave，会由于master和slave的时间不同步，导致问题。</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>master> flush logs;
-</span><span class='line'>     master> SET TIMESTAMP=unix_timestamp('2010-10-01 12:00:00');
-</span><span class='line'>     master> insert into test values(now());
-</span><span class='line'>     master> show binlog events in 'master-bin.000007';
-</span><span class='line'>
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+--------------------------------------------------------+
-</span><span class='line'>| Log_name          | Pos | Event_type  | Server_id | End_log_pos | Info                                                   |
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+--------------------------------------------------------+
-</span><span class='line'>| master-bin.000012 |   4 | Format_desc |         1 |         107 | Server ver: 5.5.31-0ubuntu0.12.04.1-log, Binlog ver: 4 |
-</span><span class='line'>| master-bin.000012 | 107 | Query       |         1 |         182 | BEGIN                                                  |
-</span><span class='line'>| master-bin.000012 | 182 | Query       |         1 |         283 | use `tac`; insert into test values (now())             |
-</span><span class='line'>| master-bin.000012 | 283 | Xid         |         1 |         310 | COMMIT /* xid=131 */                                   |
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+--------------------------------------------------------+</span></code></pre></td></tr></table></div></figure>
-
-
-<p>但通过mysqladmin查看binlog，可以看到binlog中会不断插入TIMESTAMP来保证now()函数的执行结果在master和slave是相同的。</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>master> sudo mysqlbinlog --short-form master-bin.000017
-</span><span class='line'>... 
-</span><span class='line'>DELIMITER /*!*/;
-</span><span class='line'>SET TIMESTAMP=1285934400/*!*/;
-</span><span class='line'>...
-</span><span class='line'>BEGIN
-</span><span class='line'>/*!*/;
-</span><span class='line'>use `tac`/*!*/;
-</span><span class='line'>SET TIMESTAMP=1285934400/*!*/;
-</span><span class='line'>insert into test values(now())
-</span><span class='line'>/*!*/;
-</span><span class='line'>COMMIT/*!*/;
-</span><span class='line'>SET TIMESTAMP=1368372377/*!*/;
-</span><span class='line'>BEGIN
-</span><span class='line'>/*!*/;
-</span><span class='line'>SET TIMESTAMP=1368372377/*!*/;
-</span><span class='line'>insert into test values(now())
-</span><span class='line'>/*!*/;
-</span><span class='line'>COMMIT/*!*/;
-</span><span class='line'>...</span></code></pre></td></tr></table></div></figure>
-
-
-<ol>
-<li>User variable</li>
-</ol>
-
-
-<p>User variable会被编码成十六进制串，含义不明，保密性不明。</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>mysql> flush logs;
-</span><span class='line'>Query OK, 0 rows affected (0.02 sec)
-</span><span class='line'>
-</span><span class='line'>mysql> set @foo = now();
-</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
-</span><span class='line'>
-</span><span class='line'>mysql> insert into test values (@foo);
-</span><span class='line'>Query OK, 1 row affected (0.01 sec)
-</span><span class='line'>
-</span><span class='line'>mysql> show binlog events in 'master-bin.000014';
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+-----------------------------------------------------------------------------------+
-</span><span class='line'>| Log_name          | Pos | Event_type  | Server_id | End_log_pos | Info                                                                              |
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+-----------------------------------------------------------------------------------+
-</span><span class='line'>| master-bin.000014 |   4 | Format_desc |         1 |         107 | Server ver: 5.5.31-0ubuntu0.12.04.1-log, Binlog ver: 4                            |
-</span><span class='line'>| master-bin.000014 | 107 | Query       |         1 |         174 | BEGIN                                                                             |
-</span><span class='line'>| master-bin.000014 | 174 | User var    |         1 |         229 | @`foo`=_latin1 0x323031302D31302D30312031323A30303A3030 COLLATE latin1_swedish_ci |
-</span><span class='line'>| master-bin.000014 | 229 | Query       |         1 |         321 | use `tac`; insert into test values (@foo)                                         |
-</span><span class='line'>| master-bin.000014 | 321 | Xid         |         1 |         348 | COMMIT /* xid=148 */                                                              |
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+-----------------------------------------------------------------------------------+
-</span><span class='line'>5 rows in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
-
-
-<ol>
-<li>Password()</li>
-</ol>
-
-
-<p>直接内嵌使用password，会在binlog里暴露密码，就像下面的测试。可以使用user variable,但是不知道user variable的编码保密性如何。</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>mysql> insert into test values(password('tac'));
-</span><span class='line'>mysql> show binlog events in 'master-bin.000015';
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+--------------------------------------------------------+
-</span><span class='line'>| Log_name          | Pos | Event_type  | Server_id | End_log_pos | Info                                                   |
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+--------------------------------------------------------+
-</span><span class='line'>| master-bin.000015 |   4 | Format_desc |         1 |         107 | Server ver: 5.5.31-0ubuntu0.12.04.1-log, Binlog ver: 4 |
-</span><span class='line'>| master-bin.000015 | 107 | Query       |         1 |         174 | BEGIN                                                  |
-</span><span class='line'>| master-bin.000015 | 174 | Query       |         1 |         276 | use `tac`; insert into test values(password('tac'))    |
-</span><span class='line'>| master-bin.000015 | 276 | Xid         |         1 |         303 | COMMIT /* xid=158 */                                   |
-</span><span class='line'>+-------------------+-----+-------------+-----------+-------------+--------------------------------------------------------+
-</span><span class='line'>4 rows in set (0.01 sec)</span></code></pre></td></tr></table></div></figure>
-
-
-<p>简单一点学习如上。</p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/2/">&larr; Older</a>
@@ -3268,6 +3100,10 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/01/28/compile-mysql-plugin/">编译mysql插件的碰到的问题</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2014/01/08/jruby-bug-tcp-timeout/">jruby中tcp阻塞时Timeout::timeout失效</a>
@@ -3343,10 +3179,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     
       <li class="post">
         <a href="/blog/blog/2013/05/15/mysql-master-slave-standby-failover/">实验：Mysql master-slave-standby将source从master切换到standby</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/05/12/mysql-binlog-study/">关于Mysql binlog的一点学习</a>
       </li>
     
   </ul>
