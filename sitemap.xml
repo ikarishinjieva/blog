@@ -211,12 +211,18 @@
         <lastmod>2014-01-28T17:00:12+08:00</lastmod>
     </url>
     <url>
+        <loc>
+            http://ikarishinjieva.github.com/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin/
+        </loc>
+        <lastmod>2014-02-11T23:23:24+08:00</lastmod>
+    </url>
+    <url>
         <loc>http://ikarishinjieva.github.com/blog/blog/archives/</loc>
-        <lastmod>2014-01-28T17:00:12+08:00</lastmod>
+        <lastmod>2014-02-11T23:23:24+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/</loc>
-        <lastmod>2014-01-28T17:00:12+08:00</lastmod>
+        <lastmod>2014-02-11T23:23:24+08:00</lastmod>
     </url>
     <url>
         <loc>http://ikarishinjieva.github.com/blog/robots.txt</loc>

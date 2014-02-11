@@ -9,7 +9,15 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="尝试给TProfiler写一些单元测试。难点是如何对byte code injection产生测试夹具。理想的状况是产生一些class byte code，通过transformer，将生成的class载入并测试行为。第一步产生class byte code的代码可以通过asm提供的工具生成: 1 &hellip;">
+  <meta name="description" content="Nicolas C.Zakas写了五个js语言用例的分析。举一例： 1
+2
+3
+4
+5
+function b(x, y, a) { arguments[2] = 10; alert(a);
+}
+b(1, 2, 3); 结果是10,。出乎意料。
+">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -61,6 +69,79 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/02/03/javascript-quiz-from-nicolas-c-zakas/" style='font-size:20px'>Javascript Quiz From Nicolas C.Zakas</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-02-03T23:36:00+08:00" pubdate data-updated="true">Feb 3<span>rd</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/02/03/javascript-quiz-from-nicolas-c-zakas/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"Javascript quiz from Nicolas C.Zakas", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>Nicolas C.Zakas写了五个js语言用例的分析。举一例：</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kd">function</span> <span class="nx">b</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">a</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">arguments</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+</span><span class='line'>    <span class="nx">alert</span><span class="p">(</span><span class="nx">a</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="nx">b</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">);</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>结果是10,。出乎意料。</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -125,7 +206,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -220,7 +301,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -284,7 +365,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -381,7 +462,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -457,6 +538,10 @@ Hello world @20130126
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin/">尝试使用mysql plugin将RESET SLAVE后的节点重新恢复成slave</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/blog/2014/01/28/compile-mysql-plugin/">编译mysql插件的碰到的问题</a>
       </li>
     
@@ -530,10 +615,6 @@ Hello world @20130126
     
       <li class="post">
         <a href="/blog/blog/2013/05/18/java-offheap-memory/">Java off-heap的一些参考</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/05/15/mysql-master-slave-standby-failover/">实验：Mysql master-slave-standby将source从master切换到standby</a>
       </li>
     
   </ul>

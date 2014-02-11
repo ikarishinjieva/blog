@@ -4,7 +4,7 @@
   <title><![CDATA[Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-01-28T17:00:32+08:00</updated>
+  <updated>2014-02-11T23:24:06+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,195 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[尝试使用mysql plugin将RESET SLAVE后的节点重新恢复成slave]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin/"/>
+    <updated>2014-02-11T22:31:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin</id>
+    <content type="html"><![CDATA[<p>这几天在尝试为以下场景制作一个mysql plugin, 但是是一个失败的尝试, 在此记录</p>
+
+<pre><code>一对mysql主从节点 M-S, 节点S执行了RESET SLAVE, 后来后悔了, 没有数据通过非replication的渠道写入S的条件下, 想让S和M重新恢复成一对主从
+</code></pre>
+
+<p>关键点是S能将<code>RESET SLAVE</code>时S的<code>Exec_Master_Log_Pos</code>和<code>S binlog pos</code>记录下来</p>
+
+<p>尝试了以下几种方案:</p>
+
+<h5>1. 调用者在<code>RESET SLAVE</code>时手工记录, 不需要制作插件</h5>
+
+<hr />
+
+<h5>2. Audit plugin.</h5>
+
+<p>Mysql的Audit plugin可以审计大部分mysqld经手的SQL, 包括<code>RESET SLAVE</code>.</p>
+
+<p>但Audit plugin是在每个SQL之后才会调用. 在<code>RESET SLAVE</code>时S上master_info会被清理, 即<code>Exec_Master_Log_Pos</code>的信息在调用Audit plugin已经丢失</p>
+
+<hr />
+
+<h5>3. Replication plugin (<code>after_reset_slave</code>)</h5>
+
+<p>Replication plugin (参看mysql semisync的源码), 在slave端提供了<code>Binlog_relay_IO_observer</code>, 贴个Mysql源码方便理解</p>
+
+<pre><code>/**
+    Observes and extends the service of slave IO thread.
+ */
+ typedef struct Binlog_relay_IO_observer {
+   uint32 len;
+
+   /**
+      This callback is called when slave IO thread starts
+
+      @param param Observer common parameter
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*thread_start)(Binlog_relay_IO_param *param);
+
+   /**
+      This callback is called when slave IO thread stops
+
+      @param param Observer common parameter
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*thread_stop)(Binlog_relay_IO_param *param);
+
+   /**
+      This callback is called before slave requesting binlog transmission from master
+
+      This is called before slave issuing BINLOG_DUMP command to master
+      to request binlog.
+
+      @param param Observer common parameter
+      @param flags binlog dump flags
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*before_request_transmit)(Binlog_relay_IO_param *param, uint32 flags);
+
+   /**
+      This callback is called after read an event packet from master
+
+      @param param Observer common parameter
+      @param packet The event packet read from master
+      @param len Length of the event packet read from master
+      @param event_buf The event packet return after process
+      @param event_len The length of event packet return after process
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*after_read_event)(Binlog_relay_IO_param *param,
+                           const char *packet, unsigned long len,
+                           const char **event_buf, unsigned long *event_len);
+
+   /**
+      This callback is called after written an event packet to relay log
+
+      @param param Observer common parameter
+      @param event_buf Event packet written to relay log
+      @param event_len Length of the event packet written to relay log
+      @param flags flags for relay log
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*after_queue_event)(Binlog_relay_IO_param *param,
+                            const char *event_buf, unsigned long event_len,
+                            uint32 flags);
+
+   /**
+      This callback is called after reset slave relay log IO status
+
+      @param param Observer common parameter
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*after_reset_slave)(Binlog_relay_IO_param *param);
+ } Binlog_relay_IO_observer;
+</code></pre>
+
+<p>首先尝试用<code>after_reset_slave</code>, 从函数名字就可以看到会遇到和Audit Plugin相同的问题: 即<code>Exec_Master_Log_Pos</code>的信息在调用时已经丢失</p>
+
+<hr />
+
+<h5>4. Replication plugin (<code>after_reset_slave</code>再尝试, <code>future_group_master_log_pos</code>)</h5>
+
+<p>还不死心, <code>Exec_Master_Log_Pos</code>的数据结构是<code>Relay_log_info.group_master_log_pos</code>, 尽管这个信息在<code>after_reset_slave</code>时已经丢失, 但发现<code>Relay_log_info.future_group_master_log_pos</code>可能是个方向</p>
+
+<p>先解释<code>Relay_log_info.future_group_master_log_pos</code>, 可以参看<code>log_event.cc</code>的这段注释</p>
+
+<pre><code>  /*
+    InnoDB internally stores the master log position it has executed so far,
+    i.e. the position just after the COMMIT event.
+    When InnoDB will want to store, the positions in rli won't have
+    been updated yet, so group_master_log_* will point to old BEGIN
+    and event_master_log* will point to the beginning of current COMMIT.
+    But log_pos of the COMMIT Query event is what we want, i.e. the pos of the
+    END of the current log event (COMMIT). We save it in rli so that InnoDB can
+    access it.
+  */
+  const_cast&lt;Relay_log_info*&gt;(rli)-&gt;future_group_master_log_pos= log_pos;
+</code></pre>
+
+<p><code>future_group_master_log_pos</code>指向了execute的最后一个transaction的COMMIT event之前, 即<code>future_group_master_log_pos</code> 大部分时间等于 <code>group_master_log_pos - 27</code> (27是COMMIT event的长度)</p>
+
+<p>但仍有例外情况: 如果M执行了<code>FLUSH LOGS</code>, 将log从0001递增到了0002, 此时S上的<code>future_group_master_log_pos</code>会指向0001的最后一个transaction的COMMIT event之前. 但S上的<code>group_master_log_name</code>已经到了0002, 与<code>future_group_master_log_pos</code>不匹配, 会引起异常</p>
+
+<p>(其实此时S上的<code>group_master_log_name</code>也已经置空了, 但可以从内存残片中恢复出文件名)</p>
+
+<p>设想如果对于log_name也有<code>future_group_master_log_name</code>, 那么S可以直接<code>change master</code>到M的<code>future_group_master_log_name</code>和<code>future_group_master_log_pos</code>位置, 可以恢复起M-S主从结构</p>
+
+<hr />
+
+<h5>5. Replication plugin (<code>thread_stop</code>)</h5>
+
+<p>Replication plugin的<code>thread_stop</code>是指Slave IO thread停止时调用, 此时可以拿到<code>Exec_Master_Log_Pos</code>和<code>S binlog pos</code>, 但拿到的<code>S binlog pos</code>没有意义, 因为不能保证Slave SQL thread也停下来了</p>
+
+<hr />
+
+<h5>6. Storage Engine plugin</h5>
+
+<p>这是我最后一根救命稻草, 阅读Mysql源码时注意到以下片段(做了缩减)</p>
+
+<pre><code>int reset_slave(THD *thd, Master_info* mi)
+{
+    ...
+    ha_reset_slave(thd);
+    ... //clean memory data
+}
+</code></pre>
+
+<p><code>reset_slave</code>在清理内存数据前通知了storage engine插件, 这个插件可以获得所有必要信息</p>
+
+<p>但存在一个问题, 即<code>ha_reset_slave</code>仅在Mysql NDB版本中存在, 不具备通用性, 参看宏定义(做了缩减)</p>
+
+<pre><code>#ifdef HAVE_NDB_BINLOG
+...
+void ha_reset_slave(THD *thd);
+...
+#else
+...
+#define ha_reset_slave(a) do {} while (0)
+...
+#endif
+</code></pre>
+
+<hr />
+
+<h4>吐槽和总结</h4>
+
+<p>可以看到Mysql plugin不<strong>太</strong>预留接口, 是仅仅为已知应用场景提供必要接口, 比如<code>Binlog_relay_IO_observer</code>中有<code>after</code>不一定有<code>before</code>. 比较容易控制插件质量, 但插件能做到的非常局限.</p>
+
+<p>以上各种尝试, 归根到底, 只要修改Mysql的一点源码编译一下就可以达到很好的效果, 不需要用插件的方式在Mysql中到处找功能插槽, 但通用性变差.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[编译mysql插件的碰到的问题]]></title>
@@ -1899,165 +2088,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 <p>3.<a href="http://mentablog.soliveirajr.com/2012/11/real-time-java-programming-without-gc">这篇文章</a> 讨论了如何让Java避开GC并提供了memory的测试类GCUtils。</p>
 
 <p>4.<a href="http://stackoverflow.com/questions/12246533/where-to-find-the-evidence-of-how-to-calculate-the-size-of-a-java-object">在这里</a> Peter Lawrey谈到了如何测量一个Java对象的大小和TLAB对测量的影响。仅供参考。</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[实验：Mysql master-slave-standby将source从master切换到standby]]></title>
-    <link href="http://ikarishinjieva.github.com/blog/blog/2013/05/15/mysql-master-slave-standby-failover/"/>
-    <updated>2013-05-15T22:40:00+08:00</updated>
-    <id>http://ikarishinjieva.github.com/blog/blog/2013/05/15/mysql-master-slave-standby-failover</id>
-    <content type="html"><![CDATA[<p>尝试了&lt;Mysql High Availability&gt;第四章热备份一节的实验,记录步骤.</p>
-
-<p>先统一原语,master/slave/standby表示三台机器名,source/target代表replication关系的两端（不适用master/slave用以和机器名区分）.&#8221;master(3)&#8221;表示master机器的db里有三条数据1,2,3.</p>
-
-<p>实验开始.</p>
-
-<ol>
-<li>初始状态是存在master->slave, master->standby的replication</li>
-<li>standby在切换成source时,需要有bin-log和replication user. 在此重新设置master->standby的replication, 让standby满足要求.</li>
-</ol>
-
-
-<p>忽略replication user的部分.</p>
-
-<p>bin-log的部分在my.cnf里要设置log-bin和log-slave-updates(默认情况下,master->standby的replication不会写standby的bin-log,需开始standby的log-slave-updates才会写).</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>server-id               = 3
-</span><span class='line'>log_bin                 = /var/log/mysql/mysql-bin.log
-</span><span class='line'>...
-</span><span class='line'>relay-log-index         = /var/log/mysql/slave-relay-bin.index
-</span><span class='line'>relay-log               = /var/log/mysql/slave-relay-bin
-</span><span class='line'>log-slave-updates</span></code></pre></td></tr></table></div></figure>
-
-
-<ol>
-<li>测试一下standby binlog设置成功。可以在master插入一条数据，在standby查看</li>
-</ol>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>standby> show binlog events;
-</span><span class='line'>+------------------+------+-------------+-----------+-------------+------------------------------------------------------------------------+
-</span><span class='line'>| Log_name         | Pos  | Event_type  | Server_id | End_log_pos | Info                                                                   |
-</span><span class='line'>+------------------+------+-------------+-----------+-------------+------------------------------------------------------------------------+
-</span><span class='line'>| mysql-bin.000001 |    4 | Format_desc |         3 |         107 | Server ver: 5.5.31-0ubuntu0.12.04.1-log, Binlog ver: 4                 |
-</span><span class='line'>| mysql-bin.000001 |  107 | Query       |         1 |         166 | BEGIN                                                                  |
-</span><span class='line'>| mysql-bin.000001 |  166 | Query       |         1 |         257 | use `tac`; insert into test values(8889)                               |
-</span><span class='line'>| mysql-bin.000001 |  257 | Xid         |         1 |         284 | COMMIT /* xid=111 */    
-</span><span class='line'>...</span></code></pre></td></tr></table></div></figure>
-
-
-<ol>
-<li>将replication调整至状态master(3),standby(2),slave(1). 人工造成各db的状态不一致</li>
-</ol>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>master> insert into test values(1);
-</span><span class='line'>slave> stop slave;
-</span><span class='line'>master> insert into test values(2);
-</span><span class='line'>standby> stop slave;
-</span><span class='line'>master> insert into test values(3);</span></code></pre></td></tr></table></div></figure>
-
-
-<ol>
-<li><p>想象此时master挂掉,开始将source从master切换成standby</p></li>
-<li><p>在建立standby->slave的replication之前，需要将standby和slave数据同步(此时slave落后于standby)。</p></li>
-</ol>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>-- 先查看standby从master拿了多少数据
-</span><span class='line'>standby> show slave status \G
-</span><span class='line'>*************************** 1. row ***************************
-</span><span class='line'>...
-</span><span class='line'>        Master_Log_File: master-bin.000023
-</span><span class='line'>...
-</span><span class='line'>        Exec_Master_Log_Pos: 1391
-</span><span class='line'>        
-</span><span class='line'>-- 让slave从master上同步到跟standby同样的位置
-</span><span class='line'>slave> start slave until master_log_file = 'master-bin.000023', master_log_pos = 1391;</span></code></pre></td></tr></table></div></figure>
-
-
-<p>有意思的是此处用了master(其实我们假设master已经坏了&#8230;)。</p>
-
-<ol>
-<li>此时可以讲slave的source从master切换到standby. 一个问题就是standby->slave的开始位置可能是和master->slave不同</li>
-</ol>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>-- 查看standby binlog的当前位置
-</span><span class='line'>mysql> show master status \G
-</span><span class='line'>*************************** 1. row ***************************
-</span><span class='line'>    File: mysql-bin.000001 
-</span><span class='line'>    Position: 796
-</span><span class='line'>    Binlog_Do_DB:
-</span><span class='line'>  Binlog_Ignore_DB:
-</span><span class='line'>-- 注意与master上的文件名和位置都不同
-</span><span class='line'>
-</span><span class='line'>-- 切换slave的source
-</span><span class='line'>slave> change master to 
-</span><span class='line'>            master_host = '192.168.50.4', 
-</span><span class='line'>            master_port = 3306, 
-</span><span class='line'>            master_user = 'repl', 
-</span><span class='line'>            master_password = 'repl', 
-</span><span class='line'>            master_log_file = 'mysql-bin.000001', 
-</span><span class='line'>            master_log_pos = 796;</span></code></pre></td></tr></table></div></figure>
-
-
-<ol>
-<li>测试一下standby->slave replication.</li>
-</ol>
-
-
-<p>总的思路就是讲master(3),standby(2),slave(1)同步成master(3),standby(2),slave(2),然后将master->slave切换成standby->slave.</p>
-
-<p>遗留了两个问题,其一是slave和standby同步时使用了&#8221;坏掉&#8221;的master;其二是master超前了standby和slave, 也就是standby->slave丢失了master的超前数据。留待慢慢学习。</p>
 ]]></content>
   </entry>
   
