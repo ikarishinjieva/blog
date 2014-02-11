@@ -4,7 +4,7 @@
   <title><![CDATA[Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-11T23:24:06+08:00</updated>
+  <updated>2014-02-11T23:26:18+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -20,7 +20,9 @@
     <id>http://ikarishinjieva.github.com/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin</id>
     <content type="html"><![CDATA[<p>这几天在尝试为以下场景制作一个mysql plugin, 但是是一个失败的尝试, 在此记录</p>
 
-<pre><code>一对mysql主从节点 M-S, 节点S执行了RESET SLAVE, 后来后悔了, 没有数据通过非replication的渠道写入S的条件下, 想让S和M重新恢复成一对主从
+<pre><code>一对mysql主从节点 M-S, 节点S执行了RESET SLAVE
+后来后悔了
+在没有数据通过非replication的渠道写入S的条件下, 想让S和M重新恢复成一对主从
 </code></pre>
 
 <p>关键点是S能将<code>RESET SLAVE</code>时S的<code>Exec_Master_Log_Pos</code>和<code>S binlog pos</code>记录下来</p>

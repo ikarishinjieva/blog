@@ -9,7 +9,9 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="这几天在尝试为以下场景制作一个mysql plugin, 但是是一个失败的尝试, 在此记录 一对mysql主从节点 M-S, 节点S执行了RESET SLAVE, 后来后悔了, 没有数据通过非replication的渠道写入S的条件下, 想让S和M重新恢复成一对主从 关键点是S能将RESET &hellip;">
+  <meta name="description" content="这几天在尝试为以下场景制作一个mysql plugin, 但是是一个失败的尝试, 在此记录 一对mysql主从节点 M-S, 节点S执行了RESET SLAVE
+后来后悔了
+在没有数据通过非replication的渠道写入S的条件下, 想让S和M重新恢复成一对主从 关键点是S能将RESET &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -108,7 +110,9 @@
 
 <div class="entry-content"><p>这几天在尝试为以下场景制作一个mysql plugin, 但是是一个失败的尝试, 在此记录</p>
 
-<pre><code>一对mysql主从节点 M-S, 节点S执行了RESET SLAVE, 后来后悔了, 没有数据通过非replication的渠道写入S的条件下, 想让S和M重新恢复成一对主从
+<pre><code>一对mysql主从节点 M-S, 节点S执行了RESET SLAVE
+后来后悔了
+在没有数据通过非replication的渠道写入S的条件下, 想让S和M重新恢复成一对主从
 </code></pre>
 
 <p>关键点是S能将<code>RESET SLAVE</code>时S的<code>Exec_Master_Log_Pos</code>和<code>S binlog pos</code>记录下来</p>
