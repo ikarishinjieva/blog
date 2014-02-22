@@ -5,26 +5,13 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>Javascript中写多行HTML - Tac say</title>
+  <title>GO exec.command.Wait 执行后台程序,在重定向输出时卡住 - Tac say</title>
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="需要写多行HTML string到javascript中，怎么排版代码都很难看，最后发现这个利用注释凶残的方法。(不过此方法对firefox无效，firefox中function#toString会吃掉注释) 1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-Function &hellip;">
+  <meta name="description" content="在GO上发现以下现象 c := exec.Command("sh", "-c", "sleep 100 &amp;")
+var b bytes.Buffer
+c.Stdout = &amp;b if e := c.Start(); nil != e { fmt.Printf("ERROR: %v\ &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -33,7 +20,7 @@ Function &hellip;">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2013/01/28/javascript-multiline-html/">
+  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2014/02/22/go-exec-command-block-when-redirect-stdout/">
   <link href="/blog/favicon.png" rel="icon">
   <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <script src="/blog/javascripts/modernizr-2.0.js"></script>
@@ -76,7 +63,7 @@ Function &hellip;">
   
   <header>
     
-      <h1 class="entry-title">Javascript中写多行HTML</h1>
+      <h1 class="entry-title">GO exec.command.Wait 执行后台程序,在重定向输出时卡住</h1>
     
     
       <p class="meta">
@@ -92,7 +79,7 @@ Function &hellip;">
   
 
 
-<time datetime="2013-01-28T23:00:00+08:00" pubdate data-updated="true">Jan 28<span>th</span>, 2013</time>
+<time datetime="2014-02-22T10:30:00+08:00" pubdate data-updated="true">Feb 22<span>nd</span>, 2014</time>
         
 		<script type="text/javascript" charset="utf-8">
 		(function(){
@@ -121,44 +108,86 @@ Function &hellip;">
   </header>
 
 
-<div class="entry-content"><p>需要写多行HTML string到javascript中，怎么排版代码都很难看，最后发现这个利用注释凶残的方法。(不过此方法对firefox无效，firefox中function#toString会吃掉注释)</p>
+<div class="entry-content"><p>在GO上发现以下现象</p>
 
-<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">getMultiLine</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>  <span class="kd">var</span> <span class="nx">lines</span> <span class="o">=</span> <span class="k">new</span> <span class="nb">String</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
-</span><span class='line'>  <span class="nx">lines</span> <span class="o">=</span> <span class="nx">lines</span><span class="p">.</span><span class="nx">substring</span><span class="p">(</span><span class="nx">lines</span><span class="p">.</span><span class="nx">indexOf</span><span class="p">(</span><span class="s2">&quot;/*&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">3</span><span class="p">,</span> <span class="nx">lines</span><span class="p">.</span><span class="nx">lastIndexOf</span><span class="p">(</span><span class="s2">&quot;*/&quot;</span><span class="p">));</span>
-</span><span class='line'>  <span class="k">return</span> <span class="nx">lines</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">var</span> <span class="nx">ffff</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>  <span class="cm">/* </span>
-</span><span class='line'><span class="cm"> 张三去倒水</span>
-</span><span class='line'><span class="cm"> </span>
-</span><span class='line'><span class="cm">  天哪！ </span>
-</span><span class='line'><span class="cm">  */</span>
-</span><span class='line'> <span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="nb">document</span><span class="p">.</span><span class="nx">write</span><span class="p">(</span><span class="nx">ffff</span><span class="p">.</span><span class="nx">getMultiLine</span><span class="p">());</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code>c := exec.Command("sh", "-c", "sleep 100 &amp;")
+var b bytes.Buffer
+c.Stdout = &amp;b
 
+if e := c.Start(); nil != e {
+    fmt.Printf("ERROR: %v\n", e)
+}
+if e := c.Wait(); nil != e {
+    fmt.Printf("ERROR: %v\n", e)
+}
+</code></pre>
 
-<p>一些参考：</p>
+<p>这个代码会一直等到<code>sleep 100</code>完成后才退出, 与常识不符.</p>
 
-<p><a href="http://www.cnblogs.com/starlet/archive/2010/05/24/1742572.html">代码抄自这里</a></p>
+<p>但去掉Stdout重定向后, 代码就不会等待卡住</p>
+
+<pre><code>c := exec.Command("sh", "-c", "sleep 100 &amp;")
+if e := c.Start(); nil != e {
+    fmt.Printf("ERROR: %v\n", e)
+}
+if e := c.Wait(); nil != e {
+    fmt.Printf("ERROR: %v\n", e)
+}
+</code></pre>
+
+<p>在运行时打出stacktrace, 再翻翻GO的源代码, 发现GO卡在以下代码</p>
+
+<pre><code>func (c *Cmd) Wait() error {
+    ...
+    state, err := c.Process.Wait()
+    ...
+    var copyError error
+    for _ = range c.goroutine {
+        if err := &lt;-c.errch; err != nil &amp;&amp; copyError == nil {
+            copyError = err
+        }
+    }
+    ...
+}
+</code></pre>
+
+<p>可以看到<code>Wait()</code>在等待Process结束后, 还等待了所有<code>c.goroutine</code>的<code>c.errch</code>信号. 参看以下代码:</p>
+
+<pre><code>func (c *Cmd) stdout() (f *os.File, err error) {
+    return c.writerDescriptor(c.Stdout)
+}
+
+func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err error) {
+    ...
+    c.goroutine = append(c.goroutine, func() error {
+        _, err := io.Copy(w, pr)
+        return err
+    })
+    ...
+}
+</code></pre>
+
+<p>重定向<code>stdout</code>时, 会添加一个监听任务到<code>goroutine</code> (<code>stderr</code>也是同理)</p>
+
+<p>结论是由于将<code>sleep 100</code>放到后台执行, 其进程<code>stdout</code>并没有关闭, <code>io.Copy()</code>不会返回, 所以会卡住</p>
+
+<p>临时的解决方法就是将后台进程的<code>stdout</code>和<code>stderr</code>重定向出去, 以下代码不会卡住:</p>
+
+<pre><code>c := exec.Command("sh", "-c", "sleep 100 &gt;/dev/null 2&gt;/dev/null &amp;")
+var b bytes.Buffer
+c.Stdout = &amp;b
+
+if e := c.Start(); nil != e {
+    fmt.Printf("ERROR: %v\n", e)
+}
+if e := c.Wait(); nil != e {
+    fmt.Printf("ERROR: %v\n", e)
+}
+</code></pre>
+
+<p>已经报了<a href="https://code.google.com/p/go/issues/detail?id=7378&amp;thanks=7378&amp;ts=1392967848">bug</a></p>
+
+<p>但想不出好的GO代码的修改方案</p>
 </div>
 
 
@@ -181,12 +210,12 @@ Function &hellip;">
   
 
 
-<time datetime="2013-01-28T23:00:00+08:00" pubdate data-updated="true">Jan 28<span>th</span>, 2013</time>
+<time datetime="2014-02-22T10:30:00+08:00" pubdate data-updated="true">Feb 22<span>nd</span>, 2014</time>
       
 
 <span class="categories">
   
-    <a class='category' href='/blog/blog/categories/javascript/'>javascript</a>
+    <a class='category' href='/blog/blog/categories/go/'>go</a>, <a class='category' href='/blog/blog/categories/坑/'>坑</a>
   
 </span>
 
@@ -202,10 +231,8 @@ Function &hellip;">
     
     <p class="meta">
       
-        <a class="basic-alignment left" href="/blog/blog/2013/01/27/TProfiler-basic/" title="Previous Post: TProfiler的基本原理">&laquo; TProfiler的基本原理</a>
+        <a class="basic-alignment left" href="/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin/" title="Previous Post: 尝试使用mysql plugin将RESET SLAVE后的节点重新恢复成slave">&laquo; 尝试使用mysql plugin将RESET SLAVE后的节点重新恢复成slave</a>
       
-      
-        <a class="basic-alignment right" href="/blog/blog/2013/01/29/generate-asm-java-from-classfile/" title="Next Post: org.ow2.asm 通过类.class产生asm java代码">org.ow2.asm 通过类.class产生asm java代码 &raquo;</a>
       
     </p>
   </footer>
@@ -361,8 +388,8 @@ Function &hellip;">
       
         
         // var disqus_developer = 1;
-        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2013/01/28/javascript-multiline-html/';
-        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2013/01/28/javascript-multiline-html/';
+        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2014/02/22/go-exec-command-block-when-redirect-stdout/';
+        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2014/02/22/go-exec-command-block-when-redirect-stdout/';
         var disqus_script = 'embed.js';
       
     (function () {

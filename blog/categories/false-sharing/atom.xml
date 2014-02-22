@@ -4,7 +4,7 @@
   <title><![CDATA[Category: false_sharing | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/false-sharing/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-22T10:59:17+08:00</updated>
+  <updated>2014-02-22T11:00:56+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -21,9 +21,9 @@
     <content type="html"><![CDATA[<p>应该说<a href="http://ifeve.com/disruptor-cacheline-padding/">这篇</a>和<a href="http://ifeve.com/false-sharing/">这篇文章</a>是最近读的最有意思的一篇文章，关于多线程访问时，内存预读到寄存器的内容产生的数据竞争(false sharing)对性能的影响(我已经不知道我在说什么了，文章里解释的很清楚)。</p>
 
 <p>重做了第二篇里的试验，发现六个padding不够，需要七个padding(p7)才能有两倍的性能差异。(没有文献里说的那么离谱，测试环境的差异吧)
-{% codeblock lang:java %}
-public long p1, p2, p3, p4, p5, p6; // comment out
-{% endcodeblock %}</p>
+<div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kt">long</span> <span class="n">p1</span><span class="o">,</span> <span class="n">p2</span><span class="o">,</span> <span class="n">p3</span><span class="o">,</span> <span class="n">p4</span><span class="o">,</span> <span class="n">p5</span><span class="o">,</span> <span class="n">p6</span><span class="o">;</span> <span class="c1">// comment out</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
 
 <p><del>TODO：了解第七个padding的来源</del></p>
 

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: replication | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/replication/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-22T10:59:17+08:00</updated>
+  <updated>2014-02-22T11:00:56+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -458,53 +458,100 @@ thread = 140016942216960}, m_psi = 0x0}
 
 <h2>主体结构</h2>
 
-<p>{% codeblock 源码的主体结构 lang:java %}</p>
-
-<p>handle_slave_io(master_info) {</p>
-
-<pre><code> 3955 bla bla…
- 4016 fire HOOK binlog_relay_io.thread_start
- 4032 与master建立连接
-(4047 设置max_packet_size)
- 4073 get_master_version_and_clock,
-      在master上：
-      通过SELECT UNIX_TIMESTAMP()获取server timestamp
-      通过SHOW VARIABLES LIKE 'SERVER_ID'获取server id
-      SET @master_heartbeat_period= ?
-      SET @master_binlog_checksum= @@global.binlog_checksum
-      SELECT @master_binlog_checksum获取master binlog checksum
-      SELECT @@GLOBAL.GTID_MODE
- 4075 get_master_uuid
-      在master上“SHOW VARIABLES LIKE 'SERVER_UUID'”
- 4077 io_thread_init_commands
-      在master上“SET @slave_uuid= '%s'”
- 4106 register_slave_on_master
-      向master发送COM_REGISTER_SLAVE
- 4133 while (!io_slave_killed(thd,mi))
- 4134 {
- 4136      request_dump
-           向master发送COM_BINLOG_DUMP_GTID/COM_BINLOG_DUMP
- 4159      while (!io_slave_killed(thd,mi))
- 4160      {
- 4169           read_event，此为阻塞方法，会阻塞等待有新数据包传入
- 4184          {
-                     一些包错误的处理，包括packet too large / out of resource等
- 4213          }
- 4219          fire HOOK binlog_relay_io.after_read_event
- 4232          queue_event，将event放入relay log写buf
- 4240          fire HOOK binlog_relay_io.after_queue_event
- 4250          flush_master_info，将master_info和relay log刷到disk上
-               此处，先刷relay log，后刷master_info。这样意外的故障可以通过重连恢复机制来恢复。
-               若先刷master_info，后刷relay log，意外故障时master_info已经更新，比如(0-100, 100-200)，而数据丢失，仅有(0-100)，恢复的replication会从200开始。整个relay log会成为(0-100, 200-)，中间数据会丢失。
-
- 4286          若relay log达到容量限制，则wait_for_relay_log_space
- 4292      }
- 4293 }
- 4296 之后都是收尾操作        
-</code></pre>
-
-<p>}
-{% endcodeblock %}</p>
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>源码的主体结构  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">handle_slave_io</span><span class="o">(</span><span class="n">master_info</span><span class="o">)</span> <span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span> <span class="mi">3955</span> <span class="n">bla</span> <span class="n">bla</span><span class="err">…</span>
+</span><span class='line'> <span class="mi">4016</span> <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">binlog_relay_io</span><span class="o">.</span><span class="na">thread_start</span>
+</span><span class='line'> <span class="mi">4032</span> <span class="err">与</span><span class="n">master</span><span class="err">建立连接</span>
+</span><span class='line'><span class="o">(</span><span class="mi">4047</span> <span class="err">设置</span><span class="n">max_packet_size</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">4073</span> <span class="n">get_master_version_and_clock</span><span class="o">,</span>
+</span><span class='line'>      <span class="err">在</span><span class="n">master</span><span class="err">上：</span>
+</span><span class='line'>      <span class="err">通过</span><span class="n">SELECT</span> <span class="n">UNIX_TIMESTAMP</span><span class="o">()</span><span class="err">获取</span><span class="n">server</span> <span class="n">timestamp</span>
+</span><span class='line'>      <span class="err">通过</span><span class="n">SHOW</span> <span class="n">VARIABLES</span> <span class="n">LIKE</span> <span class="err">&#39;</span><span class="n">SERVER_ID</span><span class="err">&#39;获取</span><span class="n">server</span> <span class="n">id</span>
+</span><span class='line'>      <span class="n">SET</span> <span class="nd">@master_heartbeat_period</span><span class="o">=</span> <span class="o">?</span>
+</span><span class='line'>      <span class="n">SET</span> <span class="nd">@master_binlog_checksum</span><span class="o">=</span> <span class="err">@</span><span class="nd">@global.binlog_checksum</span>
+</span><span class='line'>      <span class="n">SELECT</span> <span class="nd">@master_binlog_checksum</span><span class="err">获取</span><span class="n">master</span> <span class="n">binlog</span> <span class="n">checksum</span>
+</span><span class='line'>      <span class="n">SELECT</span> <span class="err">@</span><span class="nd">@GLOBAL.GTID_MODE</span>
+</span><span class='line'> <span class="mi">4075</span> <span class="n">get_master_uuid</span>
+</span><span class='line'>      <span class="err">在</span><span class="n">master</span><span class="err">上“</span><span class="n">SHOW</span> <span class="n">VARIABLES</span> <span class="n">LIKE</span> <span class="err">&#39;</span><span class="n">SERVER_UUID</span><span class="err">&#39;”</span>
+</span><span class='line'> <span class="mi">4077</span> <span class="n">io_thread_init_commands</span>
+</span><span class='line'>      <span class="err">在</span><span class="n">master</span><span class="err">上“</span><span class="n">SET</span> <span class="nd">@slave_uuid</span><span class="o">=</span> <span class="err">&#39;</span><span class="o">%</span><span class="n">s</span><span class="err">&#39;”</span>
+</span><span class='line'> <span class="mi">4106</span> <span class="n">register_slave_on_master</span>
+</span><span class='line'>      <span class="err">向</span><span class="n">master</span><span class="err">发送</span><span class="n">COM_REGISTER_SLAVE</span>
+</span><span class='line'> <span class="mi">4133</span> <span class="k">while</span> <span class="o">(!</span><span class="n">io_slave_killed</span><span class="o">(</span><span class="n">thd</span><span class="o">,</span><span class="n">mi</span><span class="o">))</span>
+</span><span class='line'> <span class="mi">4134</span> <span class="o">{</span>
+</span><span class='line'> <span class="mi">4136</span>      <span class="n">request_dump</span>
+</span><span class='line'>           <span class="err">向</span><span class="n">master</span><span class="err">发送</span><span class="n">COM_BINLOG_DUMP_GTID</span><span class="o">/</span><span class="n">COM_BINLOG_DUMP</span>
+</span><span class='line'> <span class="mi">4159</span>      <span class="k">while</span> <span class="o">(!</span><span class="n">io_slave_killed</span><span class="o">(</span><span class="n">thd</span><span class="o">,</span><span class="n">mi</span><span class="o">))</span>
+</span><span class='line'> <span class="mi">4160</span>      <span class="o">{</span>
+</span><span class='line'> <span class="mi">4169</span>           <span class="n">read_event</span><span class="err">，此为阻塞方法，会阻塞等待有新数据包传入</span>
+</span><span class='line'> <span class="mi">4184</span>          <span class="o">{</span>
+</span><span class='line'>                     <span class="err">一些包错误的处理，包括</span><span class="n">packet</span> <span class="n">too</span> <span class="n">large</span> <span class="o">/</span> <span class="n">out</span> <span class="n">of</span> <span class="n">resource</span><span class="err">等</span>
+</span><span class='line'> <span class="mi">4213</span>          <span class="o">}</span>
+</span><span class='line'> <span class="mi">4219</span>          <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">binlog_relay_io</span><span class="o">.</span><span class="na">after_read_event</span>
+</span><span class='line'> <span class="mi">4232</span>          <span class="n">queue_event</span><span class="err">，将</span><span class="n">event</span><span class="err">放入</span><span class="n">relay</span> <span class="n">log</span><span class="err">写</span><span class="n">buf</span>
+</span><span class='line'> <span class="mi">4240</span>          <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">binlog_relay_io</span><span class="o">.</span><span class="na">after_queue_event</span>
+</span><span class='line'> <span class="mi">4250</span>          <span class="n">flush_master_info</span><span class="err">，将</span><span class="n">master_info</span><span class="err">和</span><span class="n">relay</span> <span class="n">log</span><span class="err">刷到</span><span class="n">disk</span><span class="err">上</span>
+</span><span class='line'>               <span class="err">此处，先刷</span><span class="n">relay</span> <span class="n">log</span><span class="err">，后刷</span><span class="n">master_info</span><span class="err">。这样意外的故障可以通过重连恢复机制来恢复。</span>
+</span><span class='line'>               <span class="err">若先刷</span><span class="n">master_info</span><span class="err">，后刷</span><span class="n">relay</span> <span class="n">log</span><span class="err">，意外故障时</span><span class="n">master_info</span><span class="err">已经更新，比如</span><span class="o">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">100</span><span class="o">,</span> <span class="mi">100</span><span class="o">-</span><span class="mi">200</span><span class="o">)</span><span class="err">，而数据丢失，仅有</span><span class="o">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">100</span><span class="o">)</span><span class="err">，恢复的</span><span class="n">replication</span><span class="err">会从</span><span class="mi">200</span><span class="err">开始。整个</span><span class="n">relay</span> <span class="n">log</span><span class="err">会成为</span><span class="o">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">100</span><span class="o">,</span> <span class="mi">200</span><span class="o">-)</span><span class="err">，中间数据会丢失。</span>
+</span><span class='line'>
+</span><span class='line'> <span class="mi">4286</span>          <span class="err">若</span><span class="n">relay</span> <span class="n">log</span><span class="err">达到容量限制，则</span><span class="n">wait_for_relay_log_space</span>
+</span><span class='line'> <span class="mi">4292</span>      <span class="o">}</span>
+</span><span class='line'> <span class="mi">4293</span> <span class="o">}</span>
+</span><span class='line'> <span class="mi">4296</span> <span class="err">之后都是收尾操作</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
 
 <h2>一些重点</h2>
 
@@ -561,64 +608,120 @@ thread = 140016942216960}, m_psi = 0x0}
 
 <h1>源码的主体结构</h1>
 
-<p>{% codeblock 源码的主体结构 lang:java %}
-mysql_binlog_send(…)
-{</p>
-
-<pre><code> 0814 … bla bla
- 1011 fake_rotate_event
- 1028 max_alloed_packet= MAX_MAX_ALLOWED_PACKET
- 1038 if (请求的POS不是从binlog开头开始)
- 1039 {
-           从binlog开头中找到一个FD event(FORMAT_DESCRIPTION_EVENT), 并发送给slave
- 1123 }
- 1124 else
- 1125 {
-           FD event可以从正常的replication中传送给slave，此处不做操作
- 1127 }
- 1132 while (net和the都在运转)
- 1133 {
- 1143      while (从binlog中读取一个event)
- 1144      {
- 1178           switch (event_type)
- 1179           {
-                     分类型处理event
- 1281           }
- 1283           若event需跳转到下一个binlog(goto_next_binlog), break
- 1291           fire HOOK before_send_event
- 1300           记录skip_group
- 1306           {
-                     send last skip group heartbeat?
- 1326           }
- 1331           向slave发送event
- 1348           {
-                     处理LOAD_EVENT
- 1356           }
- 1358           fire HOOK after_send_event
- 1369      }
- 1391      if (!goto_next_binlog)
- 1392      {
-               发送完所有binlog，未发生binlog切换时
- 1437          加锁尝试再读取一个event（此时其他进程不能更新binlog），目的是试探之前处理过程中master上是否有更多的binlog写入，若有，则跳转1553处理read_packet
- 1451          若没有更多的binlog 
-               {
-                    等待更多的binlog写入，等待时发送心跳
- 1545          }
- 1553          处理read_packet
-               {                         
-                    分类型处理event
- 1682          }
- 1683      }
- 1685      if (goto_next_binlog)
-           {
-                切换到下一个binlog
-           }
- 1733 }
- 1735 之后是收尾处理
-</code></pre>
-
-<p>}
-{% endcodeblock %}</p>
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>源码的主体结构  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="n">mysql_binlog_send</span><span class="o">(</span><span class="err">…</span><span class="o">)</span>
+</span><span class='line'><span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span> <span class="mi">0814</span> <span class="err">…</span> <span class="n">bla</span> <span class="n">bla</span>
+</span><span class='line'> <span class="mi">1011</span> <span class="n">fake_rotate_event</span>
+</span><span class='line'> <span class="mi">1028</span> <span class="n">max_alloed_packet</span><span class="o">=</span> <span class="n">MAX_MAX_ALLOWED_PACKET</span>
+</span><span class='line'> <span class="mi">1038</span> <span class="k">if</span> <span class="o">(</span><span class="err">请求的</span><span class="n">POS</span><span class="err">不是从</span><span class="n">binlog</span><span class="err">开头开始</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">1039</span> <span class="o">{</span>
+</span><span class='line'>           <span class="err">从</span><span class="n">binlog</span><span class="err">开头中找到一个</span><span class="n">FD</span> <span class="n">event</span><span class="o">(</span><span class="n">FORMAT_DESCRIPTION_EVENT</span><span class="o">),</span> <span class="err">并发送给</span><span class="n">slave</span>
+</span><span class='line'> <span class="mi">1123</span> <span class="o">}</span>
+</span><span class='line'> <span class="mi">1124</span> <span class="k">else</span>
+</span><span class='line'> <span class="mi">1125</span> <span class="o">{</span>
+</span><span class='line'>           <span class="n">FD</span> <span class="n">event</span><span class="err">可以从正常的</span><span class="n">replication</span><span class="err">中传送给</span><span class="n">slave</span><span class="err">，此处不做操作</span>
+</span><span class='line'> <span class="mi">1127</span> <span class="o">}</span>
+</span><span class='line'> <span class="mi">1132</span> <span class="k">while</span> <span class="o">(</span><span class="n">net</span><span class="err">和</span><span class="n">the</span><span class="err">都在运转</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">1133</span> <span class="o">{</span>
+</span><span class='line'> <span class="mi">1143</span>      <span class="k">while</span> <span class="o">(</span><span class="err">从</span><span class="n">binlog</span><span class="err">中读取一个</span><span class="n">event</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">1144</span>      <span class="o">{</span>
+</span><span class='line'> <span class="mi">1178</span>           <span class="k">switch</span> <span class="o">(</span><span class="n">event_type</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">1179</span>           <span class="o">{</span>
+</span><span class='line'>                     <span class="err">分类型处理</span><span class="n">event</span>
+</span><span class='line'> <span class="mi">1281</span>           <span class="o">}</span>
+</span><span class='line'> <span class="mi">1283</span>           <span class="err">若</span><span class="n">event</span><span class="err">需跳转到下一个</span><span class="n">binlog</span><span class="o">(</span><span class="n">goto_next_binlog</span><span class="o">),</span> <span class="k">break</span>
+</span><span class='line'> <span class="mi">1291</span>           <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">before_send_event</span>
+</span><span class='line'> <span class="mi">1300</span>           <span class="err">记录</span><span class="n">skip_group</span>
+</span><span class='line'> <span class="mi">1306</span>           <span class="o">{</span>
+</span><span class='line'>                     <span class="n">send</span> <span class="n">last</span> <span class="n">skip</span> <span class="n">group</span> <span class="n">heartbeat</span><span class="o">?</span>
+</span><span class='line'> <span class="mi">1326</span>           <span class="o">}</span>
+</span><span class='line'> <span class="mi">1331</span>           <span class="err">向</span><span class="n">slave</span><span class="err">发送</span><span class="n">event</span>
+</span><span class='line'> <span class="mi">1348</span>           <span class="o">{</span>
+</span><span class='line'>                     <span class="err">处理</span><span class="n">LOAD_EVENT</span>
+</span><span class='line'> <span class="mi">1356</span>           <span class="o">}</span>
+</span><span class='line'> <span class="mi">1358</span>           <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">after_send_event</span>
+</span><span class='line'> <span class="mi">1369</span>      <span class="o">}</span>
+</span><span class='line'> <span class="mi">1391</span>      <span class="k">if</span> <span class="o">(!</span><span class="n">goto_next_binlog</span><span class="o">)</span>
+</span><span class='line'> <span class="mi">1392</span>      <span class="o">{</span>
+</span><span class='line'>               <span class="err">发送完所有</span><span class="n">binlog</span><span class="err">，未发生</span><span class="n">binlog</span><span class="err">切换时</span>
+</span><span class='line'> <span class="mi">1437</span>          <span class="err">加锁尝试再读取一个</span><span class="n">event</span><span class="err">（此时其他进程不能更新</span><span class="n">binlog</span><span class="err">），目的是试探之前处理过程中</span><span class="n">master</span><span class="err">上是否有更多的</span><span class="n">binlog</span><span class="err">写入，若有，则跳转</span><span class="mi">1553</span><span class="err">处理</span><span class="n">read_packet</span>
+</span><span class='line'> <span class="mi">1451</span>          <span class="err">若没有更多的</span><span class="n">binlog</span>
+</span><span class='line'>               <span class="o">{</span>
+</span><span class='line'>                    <span class="err">等待更多的</span><span class="n">binlog</span><span class="err">写入，等待时发送心跳</span>
+</span><span class='line'> <span class="mi">1545</span>          <span class="o">}</span>
+</span><span class='line'> <span class="mi">1553</span>          <span class="err">处理</span><span class="n">read_packet</span>
+</span><span class='line'>               <span class="o">{</span>
+</span><span class='line'>                    <span class="err">分类型处理</span><span class="n">event</span>
+</span><span class='line'> <span class="mi">1682</span>          <span class="o">}</span>
+</span><span class='line'> <span class="mi">1683</span>      <span class="o">}</span>
+</span><span class='line'> <span class="mi">1685</span>      <span class="k">if</span> <span class="o">(</span><span class="n">goto_next_binlog</span><span class="o">)</span>
+</span><span class='line'>           <span class="o">{</span>
+</span><span class='line'>                <span class="err">切换到下一个</span><span class="n">binlog</span>
+</span><span class='line'>           <span class="o">}</span>
+</span><span class='line'> <span class="mi">1733</span> <span class="o">}</span>
+</span><span class='line'> <span class="mi">1735</span> <span class="err">之后是收尾处理</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
 
 <h1>重点步骤</h1>
 

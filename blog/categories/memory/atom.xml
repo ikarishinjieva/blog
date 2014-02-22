@@ -4,7 +4,7 @@
   <title><![CDATA[Category: memory | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/memory/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-22T10:59:17+08:00</updated>
+  <updated>2014-02-22T11:00:56+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -21,50 +21,84 @@
     <content type="html"><![CDATA[<p>读了Hazelcast的文档，很有意思的部分是"Elastic Memory"，为了减少GC，用到了java off-heap(off-heap允许Java直接操作内存空间, 类似于C的malloc和free)。之前孤陋寡闻，记录一些off-heap的参考。</p>
 
 <p>1.做了以下对比试验，来对比Heap和Non-heap
-{% codeblock Heap lang:java %}
-public class HeapAllocation {</p>
-
-<pre><code>public static void main(String[] args) {
-    while (true) {
-        Integer[] a = new Integer[1000000];
-    }
-}
-</code></pre>
-
-<p>}
-{% endcodeblock %}
-{% codeblock Off-heap lang:java %}
-import java.lang.reflect.Field;</p>
-
-<p>public class OffHeapAllocation {</p>
-
-<pre><code>private static Unsafe unsafe;
-
-static {
-    try {
-        Field field = Unsafe.class.getDeclaredField("theUnsafe");
-        field.setAccessible(true);
-        unsafe = (Unsafe)field.get(null);
-    } catch(Exception e) {
-    }
-}
-
-public static void main(String[] args) {
-    while (true) {
-        long addr = unsafe.allocateMemory(8 * 1000000);
-        unsafe.freeMemory(addr);
-    }
-}
-</code></pre>
-
-<p>}
-{% endcodeblock %}</p>
+<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>Heap  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">HeapAllocation</span> <span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="n">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">Integer</span><span class="o">[]</span> <span class="n">a</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Integer</span><span class="o">[</span><span class="mi">1000000</span><span class="o">];</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>Off-heap  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kn">import</span> <span class="nn">java.lang.reflect.Field</span><span class="o">;&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kd">public</span> <span class="kd">class</span> <span class="nc">OffHeapAllocation</span> <span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="kd">private</span> <span class="kd">static</span> <span class="n">Unsafe</span> <span class="n">unsafe</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">static</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">try</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">Field</span> <span class="n">field</span> <span class="o">=</span> <span class="n">Unsafe</span><span class="o">.</span><span class="na">class</span><span class="o">.</span><span class="na">getDeclaredField</span><span class="o">(</span><span class="s">&quot;theUnsafe&quot;</span><span class="o">);</span>
+</span><span class='line'>        <span class="n">field</span><span class="o">.</span><span class="na">setAccessible</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+</span><span class='line'>        <span class="n">unsafe</span> <span class="o">=</span> <span class="o">(</span><span class="n">Unsafe</span><span class="o">)</span><span class="n">field</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="kc">null</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">catch</span><span class="o">(</span><span class="n">Exception</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="kt">long</span> <span class="n">addr</span> <span class="o">=</span> <span class="n">unsafe</span><span class="o">.</span><span class="na">allocateMemory</span><span class="o">(</span><span class="mi">8</span> <span class="o">*</span> <span class="mi">1000000</span><span class="o">);</span>
+</span><span class='line'>        <span class="n">unsafe</span><span class="o">.</span><span class="na">freeMemory</span><span class="o">(</span><span class="n">addr</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
 
 <p>Heap GC的测试结果：
-{% img /images/2013-05-18-java-offheap-memory-0.png Heap %}</p>
+<img src="/images/2013-05-18-java-offheap-memory-0.png" title="Heap" ></p>
 
 <p>Off-heap GC的测试结果：
-{% img /images/2013-05-18-java-offheap-memory-1.png Off-heap %}</p>
+<img src="/images/2013-05-18-java-offheap-memory-1.png" title="Off-heap" ></p>
 
 <p>尽管这种测试没啥意义，只能给个直观感受，还是可以看到Heap GC Pause Time还是很多的。</p>
 

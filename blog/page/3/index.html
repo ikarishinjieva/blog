@@ -9,15 +9,20 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="Nicolas C.Zakas写了五个js语言用例的分析。举一例： 1
+  <meta name="description" content="使用css compressor 压缩项目中的css，可以合并相同定义的style，但也引起了bug。 比如： .A的类型应当是background: BB 1
 2
 3
 4
 5
-function b(x, y, a) { arguments[2] = 10; alert(a);
-}
-b(1, 2, 3); 结果是10,。出乎意料。
-">
+6
+7
+8
+9
+10
+11
+12
+.A, .B { background: BB
+} .A { background: &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -69,6 +74,118 @@ b(1, 2, 3); 结果是10,。出乎意料。
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/02/04/css-compressor-bug/" style='font-size:20px'>CSS Compressor Bug</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-02-04T21:49:00+08:00" pubdate data-updated="true">Feb 4<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/02/04/css-compressor-bug/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"CSS compressor bug", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>使用<a href="http://www.csscompressor.com/">css compressor</a> 压缩项目中的css，可以合并相同定义的style，但也引起了bug。</p>
+
+<p>比如：</p>
+
+<figure class='code'><figcaption><span>.A的类型应当是background: BB  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='css'><span class='line'><span class="nc">.A</span><span class="o">,</span> <span class="nc">.B</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">background</span><span class="o">:</span> <span class="n">BB</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nc">.A</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">background</span><span class="o">:</span> <span class="n">AA</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">//</span><span class="nt">in</span> <span class="nt">another</span> <span class="nt">file</span>
+</span><span class='line'><span class="nc">.A</span><span class="o">,</span> <span class="nc">.B</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">background</span><span class="o">:</span> <span class="n">BB</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>压缩后，.A的类型变为background: AA  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='css'><span class='line'><span class="nc">.A</span><span class="o">,</span> <span class="nc">.B</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">background</span><span class="o">:</span> <span class="n">BB</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nc">.A</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">background</span><span class="o">:</span> <span class="n">AA</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>因为合并了相同定义，覆盖关系被打乱。</p>
+
+<p>暂时没找到好的css compressor，来分解并合并css</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -141,7 +258,7 @@ b(1, 2, 3); 结果是10,。出乎意料。
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -206,7 +323,7 @@ b(1, 2, 3); 结果是10,。出乎意料。
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -301,7 +418,7 @@ b(1, 2, 3); 结果是10,。出乎意料。
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -365,7 +482,7 @@ b(1, 2, 3); 结果是10,。出乎意料。
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -462,7 +579,7 @@ b(1, 2, 3); 结果是10,。出乎意料。
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -538,6 +655,10 @@ Hello world @20130126
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/blog/2014/02/22/go-exec-command-block-when-redirect-stdout/">GO exec.command.Wait 执行后台程序,在重定向输出时卡住</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin/">尝试使用mysql plugin将RESET SLAVE后的节点重新恢复成slave</a>
       </li>
     
@@ -611,10 +732,6 @@ Hello world @20130126
     
       <li class="post">
         <a href="/blog/blog/2013/05/28/interesting-js/">有意思的javascript笔误</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/05/18/java-offheap-memory/">Java off-heap的一些参考</a>
       </li>
     
   </ul>

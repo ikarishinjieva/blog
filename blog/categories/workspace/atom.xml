@@ -4,7 +4,7 @@
   <title><![CDATA[Category: workspace | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/workspace/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-22T10:59:17+08:00</updated>
+  <updated>2014-02-22T11:00:56+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -34,22 +34,22 @@
 
 <ol>
 <li><p>开启"开发者工具实验"(这翻译真心烂...): 在browser输入chrome://flags/，启用"开发者工具实验"
-{% img /images/2013-03-05-chrome-workspace-1.png 启用"开发者工具实验" %}</p></li>
+<img src="/images/2013-03-05-chrome-workspace-1.png" title="启用&#34;开发者工具实验&#34;" alt="启用&#34;开发者工具实验&#34;"></p></li>
 <li><p>重启chrome</p></li>
 <li><p>打开要调试的site，进入Developer tools的setting
-{% img /images/2013-03-05-chrome-workspace-2.png 进入Developer tools的setting %}</p></li>
+<img src="/images/2013-03-05-chrome-workspace-2.png" title="进入Developer tools的setting" ></p></li>
 <li><p>启用Workspace功能 (Developer tools -> setting -> Experiments -> File system folders in Sources Panel)
-{% img /images/2013-03-05-chrome-workspace-3.png 启用Workspace功能 %}</p></li>
+<img src="/images/2013-03-05-chrome-workspace-3.png" title="启用Workspace功能" ></p></li>
 <li><p>重启Developer Tools, 可以看到Settings里Workspace页
-{% img /images/2013-03-05-chrome-workspace-4.png Settings里Workspace页 %}</p></li>
+<img src="/images/2013-03-05-chrome-workspace-4.png" title="Settings里Workspace页" ></p></li>
 <li><p>假设源js的目录为c:\test, 需要现在这个目录下创建空文件.allow-devtools-edit, browser才会认可这个为源文件夹
-{% img /images/2013-03-05-chrome-workspace-5.png 创建空文件.allow-devtools-edit %}</p></li>
+<img src="/images/2013-03-05-chrome-workspace-5.png" title="创建空文件.allow-devtools-edit" ></p></li>
 <li><p>在Developer tool -> setting ->Workspace -> File system里，添加源js的目录
-{% img /images/2013-03-05-chrome-workspace-6.png 创建空文件.allow-devtools-edit %}</p></li>
+<img src="/images/2013-03-05-chrome-workspace-6.png" title="创建空文件.allow-devtools-edit" ></p></li>
 <li><p>重启Developer Tools, 可以在Sources页里看到本地folder
-{% img /images/2013-03-05-chrome-workspace-7.png 可以在Sources页里看到本地folder %}</p></li>
+<img src="/images/2013-03-05-chrome-workspace-7.png" title="可以在Sources页里看到本地folder" ></p></li>
 <li><p>此时在Chrome用Ctrl + O打开文件列表，可以看到两个相同的文件，一个是远端，一个是本地。在本地文件上打断点没有作用
-{% img /images/2013-03-05-chrome-workspace-8.png Ctrl + O打开文件列表，可以看到两个相同的文件 %}</p></li>
+<img src="/images/2013-03-05-chrome-workspace-8.png" title="Ctrl + O打开文件列表，可以看到两个相同的文件" ></p></li>
 <li><p>在Developer tool -> setting ->Workspace -> Mappings里，添加mapping：
 <code>
 http://localhost:7001/.../js/slickgrid C:\test
@@ -58,7 +58,7 @@ http://localhost:7001/.../js/slickgrid C:\test
 
 
 <p><em>URL是以http开头的完整路径，url和path都万万不要以/结尾，虽然添加后会自动显示为以/结尾。千万注意大小写会坑爹，要保持mapping和folder的大小写一致</em>
-{% img /images/2013-03-05-chrome-workspace-9.png 添加mapping %}</p>
+<img src="/images/2013-03-05-chrome-workspace-9.png" title="添加mapping" ></p>
 
 <ol>
 <li>此时，用Ctrl + O打开文件列表，只能看到一个文件，在本地文件上可以打断点(此处有坑，请阅读坑部分)，对本地文件的修改也会灵验的(直接反应在C:\test中)。</li>

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: dsl | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/dsl/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-22T10:59:17+08:00</updated>
+  <updated>2014-02-22T11:00:56+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -60,20 +60,31 @@
 
 <p>在迁移过程中，加入了一些DSL，让代码变得更可读，类似于</p>
 
-<p>{% codeblock lang:ruby %}
-unless can_load local_node.config.from_file</p>
-
-<pre><code>load local_node.config, :sip_ip
-cluster.join local_node.config.sip_ip
-cluster.lock "lock_config" do
-    load_remote_global_config
-    load local_node.config, with(@remote_global_config)
-    dump local_node.config
-end
-</code></pre>
-
-<p>else
-{% endcodeblock %}</p>
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">unless</span> <span class="n">can_load</span> <span class="n">local_node</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">from_file</span><span class="o">&lt;</span><span class="sr">/p&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="sr">&lt;pre&gt;&lt;code&gt;load local_node.config, :sip_ip</span>
+</span><span class='line'><span class="sr">cluster.join local_node.config.sip_ip</span>
+</span><span class='line'><span class="sr">cluster.lock &quot;lock_config&quot; do</span>
+</span><span class='line'><span class="sr">    load_remote_global_config</span>
+</span><span class='line'><span class="sr">    load local_node.config, with(@remote_global_config)</span>
+</span><span class='line'><span class="sr">    dump local_node.config</span>
+</span><span class='line'><span class="sr">end</span>
+</span><span class='line'><span class="sr">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;</span><span class="sr">/pre&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="sr">&lt;p&gt;else</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
 
 <p>如果了所有符号，就变成稍微(!)可读的一篇描述</p>
 
@@ -93,30 +104,47 @@ end
 
 <p>   1.3.mixin。奇怪的是我混入的往往不是特性，而是辅助函数... 尽管这种方法不正规，但对于小类来说非常实用。比较以下两段代码</p>
 
-<p>{% codeblock lang:ruby %}
-class A</p>
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">A</span><span class="o">&lt;</span><span class="sr">/p&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="sr">&lt;pre&gt;&lt;code&gt;def aaaa</span>
+</span><span class='line'><span class="sr">    XxxUtils.blabla ...</span>
+</span><span class='line'><span class="sr">    YyyHelper.blublu ...</span>
+</span><span class='line'><span class="sr">end</span>
+</span><span class='line'><span class="sr">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;</span><span class="sr">/pre&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="sr">&lt;p&gt;end</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
 
-<pre><code>def aaaa
-    XxxUtils.blabla ...
-    YyyHelper.blublu ...
-end
-</code></pre>
-
-<p>end
-{% endcodeblock %}</p>
-
-<p>{% codeblock lang:ruby %}
-class A</p>
-
-<pre><code>include XxxUtils, YyyHelper
-def aaaa
-    blabla ...
-    blublu ...
-end
-</code></pre>
-
-<p>end
-{% endcodeblock %}</p>
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">A</span><span class="o">&lt;</span><span class="sr">/p&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="sr">&lt;pre&gt;&lt;code&gt;include XxxUtils, YyyHelper</span>
+</span><span class='line'><span class="sr">def aaaa</span>
+</span><span class='line'><span class="sr">    blabla ...</span>
+</span><span class='line'><span class="sr">    blublu ...</span>
+</span><span class='line'><span class="sr">end</span>
+</span><span class='line'><span class="sr">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;</span><span class="sr">/pre&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="sr">&lt;p&gt;end</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
 
 <p>   如果你跟我一样厌恶到处都是Utils、Helper，又比较烦static import...</p>
 

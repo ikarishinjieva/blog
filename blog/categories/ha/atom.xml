@@ -4,7 +4,7 @@
   <title><![CDATA[Category: HA | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/ha/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-22T10:59:17+08:00</updated>
+  <updated>2014-02-22T11:00:56+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -28,7 +28,7 @@
 slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 New master</p>
 
 <p>如图
-{% img /images/2013-10-14-mha-failover-1.png %}</p>
+<img src="/images/2013-10-14-mha-failover-1.png"></p>
 
 <h1>Failover的步骤代码</h1>
 
@@ -79,7 +79,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 <p>另一种情况是不能用于补齐oldest slave, 比如下图的状况, 集群里最全最新的relay log也无法和oldest slave对接上. 这种情况的处理跟ignore_fail配置有关, 若所有努力都失败只好failover失败</p>
 
 <p>关于ignore_fail的处理逻辑，可参看源码或者文后我附的源码笔记
-{% img /images/2013-10-14-mha-failover-2.png %}</p>
+<img src="/images/2013-10-14-mha-failover-2.png"></p>
 
 <p>3.3.2  select_new_master, 选举new master.</p>
 
