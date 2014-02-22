@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mysql | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/mysql/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-11T23:26:18+08:00</updated>
+  <updated>2014-02-22T10:59:17+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -502,100 +502,53 @@ thread = 140016942216960}, m_psi = 0x0}
 
 <h2>主体结构</h2>
 
-<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>源码的主体结构  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-<span class='line-number'>41</span>
-<span class='line-number'>42</span>
-<span class='line-number'>43</span>
-<span class='line-number'>44</span>
-<span class='line-number'>45</span>
-<span class='line-number'>46</span>
-</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">handle_slave_io</span><span class="o">(</span><span class="n">master_info</span><span class="o">)</span> <span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span> <span class="mi">3955</span> <span class="n">bla</span> <span class="n">bla</span><span class="err">…</span>
-</span><span class='line'> <span class="mi">4016</span> <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">binlog_relay_io</span><span class="o">.</span><span class="na">thread_start</span>
-</span><span class='line'> <span class="mi">4032</span> <span class="err">与</span><span class="n">master</span><span class="err">建立连接</span>
-</span><span class='line'><span class="o">(</span><span class="mi">4047</span> <span class="err">设置</span><span class="n">max_packet_size</span><span class="o">)</span>
-</span><span class='line'> <span class="mi">4073</span> <span class="n">get_master_version_and_clock</span><span class="o">,</span>
-</span><span class='line'>      <span class="err">在</span><span class="n">master</span><span class="err">上：</span>
-</span><span class='line'>      <span class="err">通过</span><span class="n">SELECT</span> <span class="n">UNIX_TIMESTAMP</span><span class="o">()</span><span class="err">获取</span><span class="n">server</span> <span class="n">timestamp</span>
-</span><span class='line'>      <span class="err">通过</span><span class="n">SHOW</span> <span class="n">VARIABLES</span> <span class="n">LIKE</span> <span class="err">&#39;</span><span class="n">SERVER_ID</span><span class="err">&#39;获取</span><span class="n">server</span> <span class="n">id</span>
-</span><span class='line'>      <span class="n">SET</span> <span class="nd">@master_heartbeat_period</span><span class="o">=</span> <span class="o">?</span>
-</span><span class='line'>      <span class="n">SET</span> <span class="nd">@master_binlog_checksum</span><span class="o">=</span> <span class="err">@</span><span class="nd">@global.binlog_checksum</span>
-</span><span class='line'>      <span class="n">SELECT</span> <span class="nd">@master_binlog_checksum</span><span class="err">获取</span><span class="n">master</span> <span class="n">binlog</span> <span class="n">checksum</span>
-</span><span class='line'>      <span class="n">SELECT</span> <span class="err">@</span><span class="nd">@GLOBAL.GTID_MODE</span>
-</span><span class='line'> <span class="mi">4075</span> <span class="n">get_master_uuid</span>
-</span><span class='line'>      <span class="err">在</span><span class="n">master</span><span class="err">上“</span><span class="n">SHOW</span> <span class="n">VARIABLES</span> <span class="n">LIKE</span> <span class="err">&#39;</span><span class="n">SERVER_UUID</span><span class="err">&#39;”</span>
-</span><span class='line'> <span class="mi">4077</span> <span class="n">io_thread_init_commands</span>
-</span><span class='line'>      <span class="err">在</span><span class="n">master</span><span class="err">上“</span><span class="n">SET</span> <span class="nd">@slave_uuid</span><span class="o">=</span> <span class="err">&#39;</span><span class="o">%</span><span class="n">s</span><span class="err">&#39;”</span>
-</span><span class='line'> <span class="mi">4106</span> <span class="n">register_slave_on_master</span>
-</span><span class='line'>      <span class="err">向</span><span class="n">master</span><span class="err">发送</span><span class="n">COM_REGISTER_SLAVE</span>
-</span><span class='line'> <span class="mi">4133</span> <span class="k">while</span> <span class="o">(!</span><span class="n">io_slave_killed</span><span class="o">(</span><span class="n">thd</span><span class="o">,</span><span class="n">mi</span><span class="o">))</span>
-</span><span class='line'> <span class="mi">4134</span> <span class="o">{</span>
-</span><span class='line'> <span class="mi">4136</span>      <span class="n">request_dump</span>
-</span><span class='line'>           <span class="err">向</span><span class="n">master</span><span class="err">发送</span><span class="n">COM_BINLOG_DUMP_GTID</span><span class="o">/</span><span class="n">COM_BINLOG_DUMP</span>
-</span><span class='line'> <span class="mi">4159</span>      <span class="k">while</span> <span class="o">(!</span><span class="n">io_slave_killed</span><span class="o">(</span><span class="n">thd</span><span class="o">,</span><span class="n">mi</span><span class="o">))</span>
-</span><span class='line'> <span class="mi">4160</span>      <span class="o">{</span>
-</span><span class='line'> <span class="mi">4169</span>           <span class="n">read_event</span><span class="err">，此为阻塞方法，会阻塞等待有新数据包传入</span>
-</span><span class='line'> <span class="mi">4184</span>          <span class="o">{</span>
-</span><span class='line'>                     <span class="err">一些包错误的处理，包括</span><span class="n">packet</span> <span class="n">too</span> <span class="n">large</span> <span class="o">/</span> <span class="n">out</span> <span class="n">of</span> <span class="n">resource</span><span class="err">等</span>
-</span><span class='line'> <span class="mi">4213</span>          <span class="o">}</span>
-</span><span class='line'> <span class="mi">4219</span>          <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">binlog_relay_io</span><span class="o">.</span><span class="na">after_read_event</span>
-</span><span class='line'> <span class="mi">4232</span>          <span class="n">queue_event</span><span class="err">，将</span><span class="n">event</span><span class="err">放入</span><span class="n">relay</span> <span class="n">log</span><span class="err">写</span><span class="n">buf</span>
-</span><span class='line'> <span class="mi">4240</span>          <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">binlog_relay_io</span><span class="o">.</span><span class="na">after_queue_event</span>
-</span><span class='line'> <span class="mi">4250</span>          <span class="n">flush_master_info</span><span class="err">，将</span><span class="n">master_info</span><span class="err">和</span><span class="n">relay</span> <span class="n">log</span><span class="err">刷到</span><span class="n">disk</span><span class="err">上</span>
-</span><span class='line'>               <span class="err">此处，先刷</span><span class="n">relay</span> <span class="n">log</span><span class="err">，后刷</span><span class="n">master_info</span><span class="err">。这样意外的故障可以通过重连恢复机制来恢复。</span>
-</span><span class='line'>               <span class="err">若先刷</span><span class="n">master_info</span><span class="err">，后刷</span><span class="n">relay</span> <span class="n">log</span><span class="err">，意外故障时</span><span class="n">master_info</span><span class="err">已经更新，比如</span><span class="o">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">100</span><span class="o">,</span> <span class="mi">100</span><span class="o">-</span><span class="mi">200</span><span class="o">)</span><span class="err">，而数据丢失，仅有</span><span class="o">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">100</span><span class="o">)</span><span class="err">，恢复的</span><span class="n">replication</span><span class="err">会从</span><span class="mi">200</span><span class="err">开始。整个</span><span class="n">relay</span> <span class="n">log</span><span class="err">会成为</span><span class="o">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">100</span><span class="o">,</span> <span class="mi">200</span><span class="o">-)</span><span class="err">，中间数据会丢失。</span>
-</span><span class='line'>
-</span><span class='line'> <span class="mi">4286</span>          <span class="err">若</span><span class="n">relay</span> <span class="n">log</span><span class="err">达到容量限制，则</span><span class="n">wait_for_relay_log_space</span>
-</span><span class='line'> <span class="mi">4292</span>      <span class="o">}</span>
-</span><span class='line'> <span class="mi">4293</span> <span class="o">}</span>
-</span><span class='line'> <span class="mi">4296</span> <span class="err">之后都是收尾操作</span>
-</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+<p>{% codeblock 源码的主体结构 lang:java %}</p>
+
+<p>handle_slave_io(master_info) {</p>
+
+<pre><code> 3955 bla bla…
+ 4016 fire HOOK binlog_relay_io.thread_start
+ 4032 与master建立连接
+(4047 设置max_packet_size)
+ 4073 get_master_version_and_clock,
+      在master上：
+      通过SELECT UNIX_TIMESTAMP()获取server timestamp
+      通过SHOW VARIABLES LIKE 'SERVER_ID'获取server id
+      SET @master_heartbeat_period= ?
+      SET @master_binlog_checksum= @@global.binlog_checksum
+      SELECT @master_binlog_checksum获取master binlog checksum
+      SELECT @@GLOBAL.GTID_MODE
+ 4075 get_master_uuid
+      在master上“SHOW VARIABLES LIKE 'SERVER_UUID'”
+ 4077 io_thread_init_commands
+      在master上“SET @slave_uuid= '%s'”
+ 4106 register_slave_on_master
+      向master发送COM_REGISTER_SLAVE
+ 4133 while (!io_slave_killed(thd,mi))
+ 4134 {
+ 4136      request_dump
+           向master发送COM_BINLOG_DUMP_GTID/COM_BINLOG_DUMP
+ 4159      while (!io_slave_killed(thd,mi))
+ 4160      {
+ 4169           read_event，此为阻塞方法，会阻塞等待有新数据包传入
+ 4184          {
+                     一些包错误的处理，包括packet too large / out of resource等
+ 4213          }
+ 4219          fire HOOK binlog_relay_io.after_read_event
+ 4232          queue_event，将event放入relay log写buf
+ 4240          fire HOOK binlog_relay_io.after_queue_event
+ 4250          flush_master_info，将master_info和relay log刷到disk上
+               此处，先刷relay log，后刷master_info。这样意外的故障可以通过重连恢复机制来恢复。
+               若先刷master_info，后刷relay log，意外故障时master_info已经更新，比如(0-100, 100-200)，而数据丢失，仅有(0-100)，恢复的replication会从200开始。整个relay log会成为(0-100, 200-)，中间数据会丢失。
+
+ 4286          若relay log达到容量限制，则wait_for_relay_log_space
+ 4292      }
+ 4293 }
+ 4296 之后都是收尾操作        
+</code></pre>
+
+<p>}
+{% endcodeblock %}</p>
 
 <h2>一些重点</h2>
 

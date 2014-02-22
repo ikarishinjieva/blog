@@ -4,7 +4,7 @@
   <title><![CDATA[Category: function-name | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/function-name/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-11T23:26:18+08:00</updated>
+  <updated>2014-02-22T10:59:17+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -22,55 +22,35 @@
 
 <p>想用宏定义不同的函数，类似于:</p>
 
-<p><div class='bogus-wrapper'><notextile><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>(defmacro macro (name)&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;pre>&lt;code>   `(defmethod ,(intern (format nil "set-~a" name)) ()))
-</span><span class='line'>&lt;/code>&lt;/pre>
-</span><span class='line'>
-</span><span class='line'>&lt;p></span></code></pre></td></tr></table></div></figure></notextile></div></p>
+<p>{% codeblock %}
+(defmacro macro (name)</p>
+
+<pre><code>   `(defmethod ,(intern (format nil "set-~a" name)) ()))
+</code></pre>
+
+<p>{% endcodeblock %}</p>
 
 <p>跑(macro test)，结果就是
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>函数名是"|set-TEST|"，而不是需要的"set-test"</span></figcaption>
-<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;h1>&lt;STANDARD-METHOD |set-TEST| NIL>&lt;/h1>
-</span><span class='line'>
-</span><span class='line'>&lt;p></span></code></pre></td></tr></table></div></figure></notextile></div></p>
+{% codeblock 函数名是"|set-TEST|"，而不是需要的"set-test"%}</p>
+
+<h1><STANDARD-METHOD |set-TEST| NIL></h1>
+
+<p>{% endcodeblock %}</p>
 
 <p>几天的困惑以后（尝试换过lisp的实现去测试），找到了<a href="http://www.cs.rochester.edu/~schubert/247-447/symbols-in-lisp.html">这篇文章</a>，发现是符号名大小写引起的问题</p>
 
-<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>简单测试一下</span></figcaption>
-<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>CL-USER> (eq (intern "test") 'test)
-</span><span class='line'>NIL
-</span><span class='line'>CL-USER> (intern "test")
-</span><span class='line'>|test|
-</span><span class='line'>:INTERNAL
-</span><span class='line'>CL-USER> (eq (intern "TEST") 'test)
-</span><span class='line'>T
-</span><span class='line'>CL-USER> (intern "TEST")
-</span><span class='line'>TEST
-</span><span class='line'>:INTERNAL</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+<p>{% codeblock 简单测试一下%}
+CL-USER> (eq (intern "test") 'test)
+NIL
+CL-USER> (intern "test")
+|test|
+:INTERNAL
+CL-USER> (eq (intern "TEST") 'test)
+T
+CL-USER> (intern "TEST")
+TEST
+:INTERNAL
+{% endcodeblock %}</p>
 
 <p>大小写通过intern生成的符号是不一样的，全大写才会生成正确的符号。</p>
 

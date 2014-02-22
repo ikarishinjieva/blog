@@ -4,7 +4,7 @@
   <title><![CDATA[Category: standby | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/standby/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-11T23:26:18+08:00</updated>
+  <updated>2014-02-22T10:59:17+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -34,58 +34,44 @@
 
 <p>bin-log的部分在my.cnf里要设置log-bin和log-slave-updates(默认情况下,master->standby的replication不会写standby的bin-log,需开始standby的log-slave-updates才会写).</p>
 
-<p><div class='bogus-wrapper'><notextile><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>server-id               = 3
-</span><span class='line'>log_bin                 = /var/log/mysql/mysql-bin.log
-</span><span class='line'>...
-</span><span class='line'>relay-log-index         = /var/log/mysql/slave-relay-bin.index
-</span><span class='line'>relay-log               = /var/log/mysql/slave-relay-bin
-</span><span class='line'>log-slave-updates</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+<p>{% codeblock%}
+server-id               = 3
+log_bin                 = /var/log/mysql/mysql-bin.log
+...
+relay-log-index         = /var/log/mysql/slave-relay-bin.index
+relay-log               = /var/log/mysql/slave-relay-bin
+log-slave-updates
+{% endcodeblock %}</p>
 
 <ol>
 <li>测试一下standby binlog设置成功。可以在master插入一条数据，在standby查看</li>
 </ol>
 
 
-<p><div class='bogus-wrapper'><notextile><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>standby> show binlog events;
-</span><span class='line'>+------------------+------+-------------+-----------+-------------+------------------------------------------------------------------------+
-</span><span class='line'>| Log_name         | Pos  | Event_type  | Server_id | End_log_pos | Info                                                                   |
-</span><span class='line'>+------------------+------+-------------+-----------+-------------+------------------------------------------------------------------------+
-</span><span class='line'>| mysql-bin.000001 |    4 | Format_desc |         3 |         107 | Server ver: 5.5.31-0ubuntu0.12.04.1-log, Binlog ver: 4                 |
-</span><span class='line'>| mysql-bin.000001 |  107 | Query       |         1 |         166 | BEGIN                                                                  |
-</span><span class='line'>| mysql-bin.000001 |  166 | Query       |         1 |         257 | use &lt;code>tac&lt;/code>; insert into test values(8889)                               |
-</span><span class='line'>| mysql-bin.000001 |  257 | Xid         |         1 |         284 | COMMIT /&lt;em> xid=111 &lt;/em>/  &lt;br/>
-</span><span class='line'>...</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+<p>{% codeblock%}
+standby> show binlog events;
++------------------+------+-------------+-----------+-------------+------------------------------------------------------------------------+
+| Log_name         | Pos  | Event_type  | Server_id | End_log_pos | Info                                                                   |
++------------------+------+-------------+-----------+-------------+------------------------------------------------------------------------+
+| mysql-bin.000001 |    4 | Format_desc |         3 |         107 | Server ver: 5.5.31-0ubuntu0.12.04.1-log, Binlog ver: 4                 |
+| mysql-bin.000001 |  107 | Query       |         1 |         166 | BEGIN                                                                  |
+| mysql-bin.000001 |  166 | Query       |         1 |         257 | use <code>tac</code>; insert into test values(8889)                               |
+| mysql-bin.000001 |  257 | Xid         |         1 |         284 | COMMIT /<em> xid=111 </em>/  <br/>
+...
+{% endcodeblock %}</p>
 
 <ol>
 <li>将replication调整至状态master(3),standby(2),slave(1). 人工造成各db的状态不一致</li>
 </ol>
 
 
-<p><div class='bogus-wrapper'><notextile><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>master> insert into test values(1);
-</span><span class='line'>slave> stop slave;
-</span><span class='line'>master> insert into test values(2);
-</span><span class='line'>standby> stop slave;
-</span><span class='line'>master> insert into test values(3);</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+<p>{% codeblock %}
+master> insert into test values(1);
+slave> stop slave;
+master> insert into test values(2);
+standby> stop slave;
+master> insert into test values(3);
+{% endcodeblock %}</p>
 
 <ol>
 <li><p>想象此时master挂掉,开始将source从master切换成standby</p></li>
@@ -93,36 +79,23 @@
 </ol>
 
 
-<p><div class='bogus-wrapper'><notextile><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>-- 先查看standby从master拿了多少数据
-</span><span class='line'>standby> show slave status \G
-</span><span class='line'>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;em> 1. row &lt;/em>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>
-</span><span class='line'>...&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;pre>&lt;code>    Master_Log_File: master-bin.000023
-</span><span class='line'>&lt;/code>&lt;/pre>
-</span><span class='line'>
-</span><span class='line'>&lt;p>...&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;pre>&lt;code>    Exec_Master_Log_Pos: 1391
-</span><span class='line'>&lt;/code>&lt;/pre>
-</span><span class='line'>
-</span><span class='line'>&lt;p>-- 让slave从master上同步到跟standby同样的位置
-</span><span class='line'>slave> start slave until master_log_file = 'master-bin.000023', master_log_pos = 1391;</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+<p>{% codeblock %}
+-- 先查看standby从master拿了多少数据
+standby> show slave status \G
+<strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><em> 1. row </em></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong>
+...</p>
+
+<pre><code>    Master_Log_File: master-bin.000023
+</code></pre>
+
+<p>...</p>
+
+<pre><code>    Exec_Master_Log_Pos: 1391
+</code></pre>
+
+<p>-- 让slave从master上同步到跟standby同样的位置
+slave> start slave until master_log_file = 'master-bin.000023', master_log_pos = 1391;
+{% endcodeblock %}</p>
 
 <p>有意思的是此处用了master(其实我们假设master已经坏了...)。</p>
 
@@ -131,54 +104,31 @@
 </ol>
 
 
-<p><div class='bogus-wrapper'><notextile><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>-- 查看standby binlog的当前位置
-</span><span class='line'>mysql> show master status \G
-</span><span class='line'>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;strong>&lt;em> 1. row &lt;/em>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/strong>&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;pre>&lt;code>File: mysql-bin.000001 
-</span><span class='line'>Position: 796
-</span><span class='line'>Binlog_Do_DB:
-</span><span class='line'>Binlog_Ignore_DB:
-</span><span class='line'>&lt;/code>&lt;/pre>
-</span><span class='line'>
-</span><span class='line'>&lt;p>-- 注意与master上的文件名和位置都不同&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;p>-- 切换slave的source
-</span><span class='line'>slave> change master to&lt;/p>
-</span><span class='line'>
-</span><span class='line'>&lt;pre>&lt;code>          master_host = '192.168.50.4', 
-</span><span class='line'>          master_port = 3306, 
-</span><span class='line'>          master_user = 'repl', 
-</span><span class='line'>          master_password = 'repl', 
-</span><span class='line'>          master_log_file = 'mysql-bin.000001', 
-</span><span class='line'>          master_log_pos = 796;
-</span><span class='line'>&lt;/code>&lt;/pre>
-</span><span class='line'>
-</span><span class='line'>&lt;p></span></code></pre></td></tr></table></div></figure></notextile></div></p>
+<p>{% codeblock %}
+-- 查看standby binlog的当前位置
+mysql> show master status \G
+<strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><em> 1. row </em></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></p>
+
+<pre><code>File: mysql-bin.000001 
+Position: 796
+Binlog_Do_DB:
+Binlog_Ignore_DB:
+</code></pre>
+
+<p>-- 注意与master上的文件名和位置都不同</p>
+
+<p>-- 切换slave的source
+slave> change master to</p>
+
+<pre><code>          master_host = '192.168.50.4', 
+          master_port = 3306, 
+          master_user = 'repl', 
+          master_password = 'repl', 
+          master_log_file = 'mysql-bin.000001', 
+          master_log_pos = 796;
+</code></pre>
+
+<p>{% endcodeblock %}</p>
 
 <ol>
 <li>测试一下standby->slave replication.</li>

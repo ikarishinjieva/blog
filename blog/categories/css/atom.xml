@@ -4,7 +4,7 @@
   <title><![CDATA[Category: css | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/css/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-11T23:26:18+08:00</updated>
+  <updated>2014-02-22T10:59:17+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -22,36 +22,21 @@
 <a href="http://www.amazon.com/CSS-Cookbook-Edition-Animal-Guide/dp/059615593X/">css cookbook</a> 2.21讨论了clear的用法。</p>
 
 <p>简单做了个实验。
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>http://jsfiddle.net/PzwkP  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="o">&lt;</span><span class="nx">img</span> <span class="kr">class</span><span class="o">=</span><span class="s1">&#39;leftFloat&#39;</span> <span class="o">/&gt;&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="nx">test</span> <span class="nx">test</span> <span class="nx">line</span> <span class="mi">1</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;&lt;</span><span class="nx">img</span> <span class="nx">style</span><span class="o">=</span><span class="s1">&#39;clear:left&#39;</span> <span class="kr">class</span><span class="o">=</span><span class="s1">&#39;rightFloat&#39;</span><span class="o">/&gt;&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span> <span class="nx">style</span><span class="o">=</span><span class="s1">&#39;clear:left&#39;</span><span class="o">&gt;</span><span class="nx">test</span> <span class="nx">test</span> <span class="nx">line</span> <span class="mi">2</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="nx">test</span> <span class="nx">test</span> <span class="nx">line</span> <span class="mi">3</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+{% codeblock http://jsfiddle.net/PzwkP lang:js %}
+<img class='leftFloat' /></p>
+
+<p>test test line 1</p>
+
+
+<p><img style='clear:left' class='rightFloat'/></p>
+
+<p style='clear:left'>test test line 2</p>
+
+
+<p>test test line 3</p>
+
+
+<p>{% endcodeblock %}</p>
 
 <p>总的感觉就是clear可以某方向(left/right/both)上的浮动元素算成固定元素，来决定当前元素的高度。</p>
 
@@ -73,79 +58,45 @@
     <content type="html"><![CDATA[<p>使用<a href="http://www.csscompressor.com/">css compressor</a> 压缩项目中的css，可以合并相同定义的style，但也引起了bug。</p>
 
 <p>比如：
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>.A的类型应当是background: BB  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='css'><span class='line'><span class="nc">.A</span><span class="o">,</span> <span class="nc">.B</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>    <span class="k">background</span><span class="o">:</span> <span class="n">BB</span>
-</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span><span class="o">&lt;/</span><span class="nt">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nt">p</span><span class="o">&gt;</span><span class="nc">.A</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>    <span class="k">background</span><span class="o">:</span> <span class="n">AA</span>
-</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span><span class="o">&lt;/</span><span class="nt">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nt">p</span><span class="o">&gt;//</span><span class="nt">in</span> <span class="nt">another</span> <span class="nt">file</span>
-</span><span class='line'><span class="nc">.A</span><span class="o">,</span> <span class="nc">.B</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>    <span class="k">background</span><span class="o">:</span> <span class="n">BB</span>
-</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+{% codeblock .A的类型应当是background: BB lang:css %}
+.A, .B {</p>
 
-<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>压缩后，.A的类型变为background: AA  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class='css'><span class='line'><span class="nc">.A</span><span class="o">,</span> <span class="nc">.B</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>    <span class="k">background</span><span class="o">:</span> <span class="n">BB</span>
-</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span><span class="o">&lt;/</span><span class="nt">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nt">p</span><span class="o">&gt;</span><span class="nc">.A</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>    <span class="k">background</span><span class="o">:</span> <span class="n">AA</span>
-</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+<pre><code>    background: BB
+</code></pre>
+
+<p>}</p>
+
+<p>.A {</p>
+
+<pre><code>    background: AA
+</code></pre>
+
+<p>}</p>
+
+<p>//in another file
+.A, .B {</p>
+
+<pre><code>    background: BB
+</code></pre>
+
+<p>}
+{% endcodeblock %}</p>
+
+<p>{% codeblock 压缩后，.A的类型变为background: AA lang:css %}
+.A, .B {</p>
+
+<pre><code>    background: BB
+</code></pre>
+
+<p>}</p>
+
+<p>.A {</p>
+
+<pre><code>    background: AA
+</code></pre>
+
+<p>}
+{% endcodeblock %}</p>
 
 <p>因为合并了相同定义，覆盖关系被打乱。</p>
 

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Q | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/q/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-11T23:26:18+08:00</updated>
+  <updated>2014-02-22T10:59:17+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -19,69 +19,39 @@
     <updated>2013-02-04T23:04:00+08:00</updated>
     <id>http://ikarishinjieva.github.com/blog/blog/2013/02/04/Q-uncurry-safe-meta-programming</id>
     <content type="html"><![CDATA[<p><a href="http://documentup.com/kriskowal/q/">Q</a>里关于uncurry的代码
-<div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="c1">// Attempt to make generics safe in the face of downstream</span>
-</span><span class='line'><span class="c1">// modifications.</span>
-</span><span class='line'><span class="c1">// There is no situation where this is necessary.</span>
-</span><span class='line'><span class="c1">// If you need a security guarantee, these primordials need to be</span>
-</span><span class='line'><span class="c1">// deeply frozen anyway, and if you don’t need a security guarantee,</span>
-</span><span class='line'><span class="c1">// this is just plain paranoid.</span>
-</span><span class='line'><span class="c1">// However, this does have the nice side-effect of reducing the size</span>
-</span><span class='line'><span class="c1">// of the code by reducing x.call() to merely x(), eliminating many</span>
-</span><span class='line'><span class="c1">// hard-to-minify characters.</span>
-</span><span class='line'><span class="c1">// See Mark Miller’s explanation of what this does.</span>
-</span><span class='line'><span class="c1">// http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming</span>
-</span><span class='line'><span class="kd">var</span> <span class="nx">uncurryThis</span><span class="p">;</span>
-</span><span class='line'><span class="c1">// I have kept both variations because the first is theoretically</span>
-</span><span class='line'><span class="c1">// faster, if bind is available.</span>
-</span><span class='line'><span class="k">if</span> <span class="p">(</span><span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">bind</span><span class="p">)</span> <span class="p">{</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">pre</span><span class="o">&gt;&lt;</span><span class="nx">code</span><span class="o">&gt;</span><span class="kd">var</span> <span class="nx">Function_bind</span> <span class="o">=</span> <span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">bind</span><span class="p">;</span>
-</span><span class='line'><span class="nx">uncurryThis</span> <span class="o">=</span> <span class="nx">Function_bind</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="nx">Function_bind</span><span class="p">.</span><span class="nx">call</span><span class="p">);</span>
-</span><span class='line'><span class="o">&lt;</span><span class="err">/code&gt;&lt;/pre&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="p">}</span> <span class="k">else</span> <span class="p">{</span><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">pre</span><span class="o">&gt;&lt;</span><span class="nx">code</span><span class="o">&gt;</span><span class="nx">uncurryThis</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">return</span> <span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>        <span class="k">return</span> <span class="nx">f</span><span class="p">.</span><span class="nx">call</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="nx">f</span><span class="p">,</span> <span class="nx">arguments</span><span class="p">);</span>
-</span><span class='line'>    <span class="p">};</span>
-</span><span class='line'><span class="p">};</span>
-</span><span class='line'><span class="o">&lt;</span><span class="err">/code&gt;&lt;/pre&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="p">}</span>
-</span><span class='line'><span class="kd">var</span> <span class="nx">array_slice</span> <span class="o">=</span> <span class="nx">uncurryThis</span><span class="p">(</span><span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">);</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+{% codeblock lang:js %}
+// Attempt to make generics safe in the face of downstream
+// modifications.
+// There is no situation where this is necessary.
+// If you need a security guarantee, these primordials need to be
+// deeply frozen anyway, and if you don’t need a security guarantee,
+// this is just plain paranoid.
+// However, this does have the nice side-effect of reducing the size
+// of the code by reducing x.call() to merely x(), eliminating many
+// hard-to-minify characters.
+// See Mark Miller’s explanation of what this does.
+// http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
+var uncurryThis;
+// I have kept both variations because the first is theoretically
+// faster, if bind is available.
+if (Function.prototype.bind) {</p>
+
+<pre><code>var Function_bind = Function.prototype.bind;
+uncurryThis = Function_bind.bind(Function_bind.call);
+</code></pre>
+
+<p>} else {</p>
+
+<pre><code>uncurryThis = function (f) {
+    return function () {
+        return f.call.apply(f, arguments);
+    };
+};
+</code></pre>
+
+<p>}
+var array_slice = uncurryThis(Array.prototype.slice);
+{% endcodeblock %}</p>
 
 <p>Uncurry/反柯西化的定义可参见<a href="http://en.wikipedia.org/wiki/Uncurry">wiki</a>，不是吾等凡人可以理解的。</p>
 
@@ -89,18 +59,13 @@
 
 <p>对于Q里用到的这种形式，前提条件是Function.prototype.bind和Function.prototype.bind.call在之前不被重写。简单推导array_slice</p>
 
-<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>array_slice推导  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">array_slice</span> <span class="o">=</span> <span class="nx">uncurryThis</span><span class="p">(</span><span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">)</span>
-</span><span class='line'><span class="o">=</span> <span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">bind</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">bind</span><span class="p">.</span><span class="nx">call</span><span class="p">)(</span><span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">)</span>
-</span><span class='line'><span class="o">=</span> <span class="nb">Function</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">bind</span><span class="p">.</span><span class="nx">call</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">)</span> <span class="c1">//Function.prototype.bind.call.bind is safe</span>
-</span><span class='line'><span class="o">=</span> <span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">.</span><span class="nx">call</span> <span class="c1">//Array.prototype.slice.call is safe</span>
-</span><span class='line'><span class="c1">//Array.prototype.slice is also safe</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+<p>{% codeblock array_slice推导 lang:js %}
+array_slice = uncurryThis(Array.prototype.slice)
+= Function.prototype.bind.bind(Function.prototype.bind.call)(Array.prototype.slice)
+= Function.prototype.bind.call.bind(Array.prototype.slice) //Function.prototype.bind.call.bind is safe
+= Array.prototype.slice.call //Array.prototype.slice.call is safe
+//Array.prototype.slice is also safe
+{% endcodeblock %}</p>
 
 <p>不过，Q的注释里写的很清楚，uncurry在这里不是必要的... 写写而已...</p>
 
@@ -116,43 +81,24 @@
     <updated>2013-01-27T23:00:00+08:00</updated>
     <id>http://ikarishinjieva.github.com/blog/blog/2013/01/27/Q-nextTick</id>
     <content type="html"><![CDATA[<p><a href="https://github.com/kriskowal/q">Q</a> 其中nextTick的一部分是用MessageChannel实现
-<div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="o">&lt;</span><span class="err">/p&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">pre</span><span class="o">&gt;&lt;</span><span class="nx">code</span><span class="o">&gt;</span><span class="kd">var</span> <span class="nx">channel</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MessageChannel</span><span class="p">();</span>
-</span><span class='line'><span class="c1">// linked list of tasks (single, with head node)</span>
-</span><span class='line'><span class="kd">var</span> <span class="nx">head</span> <span class="o">=</span> <span class="p">{},</span> <span class="nx">tail</span> <span class="o">=</span> <span class="nx">head</span><span class="p">;</span>
-</span><span class='line'><span class="nx">channel</span><span class="p">.</span><span class="nx">port1</span><span class="p">.</span><span class="nx">onmessage</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nx">head</span> <span class="o">=</span> <span class="nx">head</span><span class="p">.</span><span class="nx">next</span><span class="p">;</span>
-</span><span class='line'>    <span class="kd">var</span> <span class="nx">task</span> <span class="o">=</span> <span class="nx">head</span><span class="p">.</span><span class="nx">task</span><span class="p">;</span>
-</span><span class='line'>    <span class="k">delete</span> <span class="nx">head</span><span class="p">.</span><span class="nx">task</span><span class="p">;</span>
-</span><span class='line'>    <span class="nx">task</span><span class="p">();</span>
-</span><span class='line'><span class="p">};</span>
-</span><span class='line'><span class="nx">nextTick</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">task</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nx">tail</span> <span class="o">=</span> <span class="nx">tail</span><span class="p">.</span><span class="nx">next</span> <span class="o">=</span> <span class="p">{</span><span class="nx">task</span><span class="o">:</span> <span class="nx">task</span><span class="p">};</span>
-</span><span class='line'>    <span class="nx">channel</span><span class="p">.</span><span class="nx">port2</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
-</span><span class='line'><span class="p">};</span>
-</span><span class='line'><span class="o">&lt;</span><span class="err">/code&gt;&lt;/pre&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+{% codeblock lang:js %}</p>
+
+<pre><code>var channel = new MessageChannel();
+// linked list of tasks (single, with head node)
+var head = {}, tail = head;
+channel.port1.onmessage = function () {
+    head = head.next;
+    var task = head.task;
+    delete head.task;
+    task();
+};
+nextTick = function (task) {
+    tail = tail.next = {task: task};
+    channel.port2.postMessage(0);
+};
+</code></pre>
+
+<p>{% endcodeblock %}
 也有一种实现是用setTimeout(task, 0);</p>
 
 <p>测试下两者的性能区别：<a href="http://jsperf.com/messagechannel-vs-settimeout">http://jsperf.com/messagechannel-vs-settimeout</a>. MessageChannel还是有明显的性能优势</p>
