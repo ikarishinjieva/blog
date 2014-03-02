@@ -9,20 +9,10 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="使用css compressor 压缩项目中的css，可以合并相同定义的style，但也引起了bug。 比如： .A的类型应当是background: BB 1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-.A, .B { background: BB
-} .A { background: &hellip;">
+  <meta name="description" content="解决方案：
+将markdown文件保存格式设为 UTF-8 without BOM，并
+在环境变量里加上 LC_ALL=zh_CN.UTF-8
+">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -74,6 +64,66 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/02/04/octopress-chinese-character/" style='font-size:20px'>Octopress Win7上遭遇invalid GBK Character Exception</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-02-04T21:59:00+08:00" pubdate data-updated="true">Feb 4<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/02/04/octopress-chinese-character/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"octopress win7上遭遇invalid GBK character exception", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>解决方案：
+将markdown文件保存格式设为 UTF-8 without BOM，并
+在环境变量里加上 LC_ALL=zh_CN.UTF-8</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -185,7 +235,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -258,7 +308,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -323,7 +373,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -418,7 +468,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -482,7 +532,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -579,7 +629,7 @@
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -655,6 +705,10 @@ Hello world @20130126
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/blog/2014/03/02/gen/">推荐下我修改的gen</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/blog/2014/02/22/go-exec-command-block-when-redirect-stdout/">GO exec.command.Wait 执行后台程序,在重定向输出时卡住</a>
       </li>
     
@@ -728,10 +782,6 @@ Hello world @20130126
     
       <li class="post">
         <a href="/blog/blog/2013/08/29/rewrite-project-into-ruby/">jruby重写java项目的一些总结</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/05/28/interesting-js/">有意思的javascript笔误</a>
       </li>
     
   </ul>

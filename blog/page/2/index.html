@@ -9,7 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="读了Hazelcast的文档，很有意思的部分是&#8221;Elastic Memory&#8221;，为了减少GC，用到了java off-heap(off-heap允许Java直接操作内存空间, 类似于C的malloc和free)。之前孤陋寡闻，记录一些off-heap的参考。 1. &hellip;">
+  <meta name="description" content="前两天被拉去查一个很怪的错，描述是“一个js文件压缩前和压缩后执行结果不一样” 查了很久锁定以下代码 1 s = s + +(&quot;...&quot;) 一看就是笔误了，压缩后为 1 s=s++(&quot;...&quot;) 空格被压缩后显然会抛语法错。但没压缩能正常运行就有点意思了， &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -61,6 +61,101 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/05/28/interesting-js/" style='font-size:20px'>有意思的javascript笔误</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-28T22:33:00+08:00" pubdate data-updated="true">May 28<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/05/28/interesting-js/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"有意思的javascript笔误", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>前两天被拉去查一个很怪的错，描述是“一个js文件压缩前和压缩后执行结果不一样”</p>
+
+<p>查了很久锁定以下代码</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'>   <span class="nx">s</span> <span class="o">=</span> <span class="nx">s</span> <span class="o">+</span> <span class="o">+</span><span class="p">(</span><span class="s2">&quot;...&quot;</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>一看就是笔误了，压缩后为</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'>   <span class="nx">s</span><span class="o">=</span><span class="nx">s</span><span class="o">++</span><span class="p">(</span><span class="s2">&quot;...&quot;</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>空格被压缩后显然会抛语法错。但没压缩能正常运行就有点意思了，做了以下尝试</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="o">+</span><span class="p">(</span><span class="s1">&#39;...&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="o">&gt;</span> <span class="kc">NaN</span>
+</span><span class='line'><span class="o">-</span><span class="p">(</span><span class="s1">&#39;...&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="o">&gt;</span> <span class="kc">NaN</span>
+</span><span class='line'><span class="s1">&#39;1&#39;</span> <span class="o">+</span> <span class="o">+</span><span class="p">(</span><span class="s1">&#39;...&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="o">&gt;</span> <span class="s2">&quot;1NaN&quot;</span>
+</span><span class='line'><span class="o">+</span><span class="p">(</span><span class="kc">NaN</span><span class="p">)</span>
+</span><span class='line'><span class="o">&gt;</span> <span class="kc">NaN</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>那个多出来的加号，被解释成取数字正值，就像减号在数字前是取数字的负值一样。</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -206,7 +301,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -414,7 +509,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -666,7 +761,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -770,7 +865,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -893,7 +988,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -969,7 +1064,7 @@
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1070,7 +1165,7 @@
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1130,7 +1225,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1444,7 +1539,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -1696,7 +1791,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -1824,7 +1919,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -2068,7 +2163,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -2141,7 +2236,7 @@
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -2255,7 +2350,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -2315,7 +2410,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -2373,7 +2468,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -2431,7 +2526,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -2516,7 +2611,7 @@ http://localhost:7001/.../js/slickgrid C:\test
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -2652,66 +2747,6 @@ http://localhost:7001/.../js/slickgrid C:\test
 
     </article>
   
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/02/04/octopress-chinese-character/" style='font-size:20px'>Octopress Win7上遭遇invalid GBK Character Exception</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-02-04T21:59:00+08:00" pubdate data-updated="true">Feb 4<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/02/04/octopress-chinese-character/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"octopress win7上遭遇invalid GBK character exception", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>解决方案：
-将markdown文件保存格式设为 UTF-8 without BOM，并
-在环境变量里加上 LC_ALL=zh_CN.UTF-8</p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/3/">&larr; Older</a>
@@ -2727,6 +2762,10 @@ http://localhost:7001/.../js/slickgrid C:\test
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/02/gen/">推荐下我修改的gen</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2014/02/22/go-exec-command-block-when-redirect-stdout/">GO exec.command.Wait 执行后台程序,在重定向输出时卡住</a>
@@ -2802,10 +2841,6 @@ http://localhost:7001/.../js/slickgrid C:\test
     
       <li class="post">
         <a href="/blog/blog/2013/08/29/rewrite-project-into-ruby/">jruby重写java项目的一些总结</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/05/28/interesting-js/">有意思的javascript笔误</a>
       </li>
     
   </ul>

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: go | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/go/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-22T11:00:56+08:00</updated>
+  <updated>2014-03-02T21:30:15+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,56 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[推荐下我修改的gen]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/03/02/gen/"/>
+    <updated>2014-03-02T21:29:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/03/02/gen</id>
+    <content type="html"><![CDATA[<p><a href="http://clipperhouse.github.io/gen/"><code>gen</code></a>是go的代码生成器, 提供类似于<code>underscore</code>的函数集.</p>
+
+<p>尝试将<code>gen</code>用在项目上,发现不太方便,对源码做了如下两个修改, 修改后的代码在<a href="https://github.com/ikarishinjieva/gen">这里</a>:</p>
+
+<h4>1. 支持条件编译</h4>
+
+<p>go提供了条件编译,根据<code>GOOS</code>和<code>GOARCH</code>进行交叉编译,也可以利用<a href="http://golang.org/cmd/go"><code>build tags</code></a>自定义条件编译</p>
+
+<p>修改前可能碰到的问题是存在<code>a_linux.go</code>和<code>a_windows.go</code>, 分别定义一个函数<code>A</code>的两个版本. 调用<code>gen</code>时会报错:<code>A</code>不可以重复定义</p>
+
+<p>这个修改已经被merge回原分支</p>
+
+<h4>2. 对于import的其它包, 支持分析其源码</h4>
+
+<p>设想一个场景, 存在<code>root/A</code>和<code>root/B</code>两个包, <code>root/B</code> import <code>root/A</code></p>
+
+<p>在<code>root/B</code>上调用<code>gen</code>, <code>gen</code>会分析import关系, 找到并分析<code>root/A</code></p>
+
+<p>在修改之前, 由于<code>gen</code>只使用了<code>types.Check</code>, 默认只会使用<code>gcimport</code>,只分析<code>root/A</code>编译好的pkg(<code>.a</code>文件), 而不包括<code>root/A</code>的源码.</p>
+
+<p>也就是说对于所有依赖, 必须都保证其跑过<code>go install</code>, 才能在下游模块使用<code>gen</code>. 这个并不方便</p>
+
+<p>做的修改是使用<code>go.tools/importer</code>代替<code>gcimporter</code>, 既可以分析编译好的pkg, 又可以分析源码</p>
+
+<p>不过这个修改的代价是分析的时间会比较长</p>
+
+<p>这个修改尚未被原分支接受</p>
+
+<h4>3. <code>types</code>源码分析的一个问题</h4>
+
+<p>以下代码在分析源码时报错, 但编译时是通过的</p>
+
+<pre><code>c := make(chan os.Signal, 1)
+signal.Notify(c, syscall.SIGTTIN)
+</code></pre>
+
+<p>分析时报的错是</p>
+
+<pre><code>cannot pass argument c (variable of type chan os.Signal) to parameter of type chan&lt;- os.Signal
+</code></pre>
+
+<p>目前无解, 但结论是用<code>types</code>包进行的源码分析结果和编译时的略有差异</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[GO exec.command.Wait 执行后台程序,在重定向输出时卡住]]></title>

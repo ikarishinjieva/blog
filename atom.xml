@@ -4,7 +4,7 @@
   <title><![CDATA[Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-02-22T11:00:56+08:00</updated>
+  <updated>2014-03-02T21:30:15+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,56 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[推荐下我修改的gen]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/03/02/gen/"/>
+    <updated>2014-03-02T21:29:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/03/02/gen</id>
+    <content type="html"><![CDATA[<p><a href="http://clipperhouse.github.io/gen/"><code>gen</code></a>是go的代码生成器, 提供类似于<code>underscore</code>的函数集.</p>
+
+<p>尝试将<code>gen</code>用在项目上,发现不太方便,对源码做了如下两个修改, 修改后的代码在<a href="https://github.com/ikarishinjieva/gen">这里</a>:</p>
+
+<h4>1. 支持条件编译</h4>
+
+<p>go提供了条件编译,根据<code>GOOS</code>和<code>GOARCH</code>进行交叉编译,也可以利用<a href="http://golang.org/cmd/go"><code>build tags</code></a>自定义条件编译</p>
+
+<p>修改前可能碰到的问题是存在<code>a_linux.go</code>和<code>a_windows.go</code>, 分别定义一个函数<code>A</code>的两个版本. 调用<code>gen</code>时会报错:<code>A</code>不可以重复定义</p>
+
+<p>这个修改已经被merge回原分支</p>
+
+<h4>2. 对于import的其它包, 支持分析其源码</h4>
+
+<p>设想一个场景, 存在<code>root/A</code>和<code>root/B</code>两个包, <code>root/B</code> import <code>root/A</code></p>
+
+<p>在<code>root/B</code>上调用<code>gen</code>, <code>gen</code>会分析import关系, 找到并分析<code>root/A</code></p>
+
+<p>在修改之前, 由于<code>gen</code>只使用了<code>types.Check</code>, 默认只会使用<code>gcimport</code>,只分析<code>root/A</code>编译好的pkg(<code>.a</code>文件), 而不包括<code>root/A</code>的源码.</p>
+
+<p>也就是说对于所有依赖, 必须都保证其跑过<code>go install</code>, 才能在下游模块使用<code>gen</code>. 这个并不方便</p>
+
+<p>做的修改是使用<code>go.tools/importer</code>代替<code>gcimporter</code>, 既可以分析编译好的pkg, 又可以分析源码</p>
+
+<p>不过这个修改的代价是分析的时间会比较长</p>
+
+<p>这个修改尚未被原分支接受</p>
+
+<h4>3. <code>types</code>源码分析的一个问题</h4>
+
+<p>以下代码在分析源码时报错, 但编译时是通过的</p>
+
+<pre><code>c := make(chan os.Signal, 1)
+signal.Notify(c, syscall.SIGTTIN)
+</code></pre>
+
+<p>分析时报的错是</p>
+
+<pre><code>cannot pass argument c (variable of type chan os.Signal) to parameter of type chan&lt;- os.Signal
+</code></pre>
+
+<p>目前无解, 但结论是用<code>types</code>包进行的源码分析结果和编译时的略有差异</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[GO exec.command.Wait 执行后台程序,在重定向输出时卡住]]></title>
@@ -2035,52 +2085,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 <p>   4.3.改进后的代码也不是完全可读，难以忽略一些语言元素，也没法忽略业务背景</p>
 
 <p>   4.4.写单元测试吧，懒不是个办法&#8230;</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[有意思的javascript笔误]]></title>
-    <link href="http://ikarishinjieva.github.com/blog/blog/2013/05/28/interesting-js/"/>
-    <updated>2013-05-28T22:33:00+08:00</updated>
-    <id>http://ikarishinjieva.github.com/blog/blog/2013/05/28/interesting-js</id>
-    <content type="html"><![CDATA[<p>前两天被拉去查一个很怪的错，描述是“一个js文件压缩前和压缩后执行结果不一样”</p>
-
-<p>查了很久锁定以下代码</p>
-
-<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='javascript'><span class='line'>   <span class="nx">s</span> <span class="o">=</span> <span class="nx">s</span> <span class="o">+</span> <span class="o">+</span><span class="p">(</span><span class="s2">&quot;...&quot;</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>一看就是笔误了，压缩后为</p>
-
-<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='javascript'><span class='line'>   <span class="nx">s</span><span class="o">=</span><span class="nx">s</span><span class="o">++</span><span class="p">(</span><span class="s2">&quot;...&quot;</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>空格被压缩后显然会抛语法错。但没压缩能正常运行就有点意思了，做了以下尝试</p>
-
-<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="o">+</span><span class="p">(</span><span class="s1">&#39;...&#39;</span><span class="p">)</span>
-</span><span class='line'><span class="o">&gt;</span> <span class="kc">NaN</span>
-</span><span class='line'><span class="o">-</span><span class="p">(</span><span class="s1">&#39;...&#39;</span><span class="p">)</span>
-</span><span class='line'><span class="o">&gt;</span> <span class="kc">NaN</span>
-</span><span class='line'><span class="s1">&#39;1&#39;</span> <span class="o">+</span> <span class="o">+</span><span class="p">(</span><span class="s1">&#39;...&#39;</span><span class="p">)</span>
-</span><span class='line'><span class="o">&gt;</span> <span class="s2">&quot;1NaN&quot;</span>
-</span><span class='line'><span class="o">+</span><span class="p">(</span><span class="kc">NaN</span><span class="p">)</span>
-</span><span class='line'><span class="o">&gt;</span> <span class="kc">NaN</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>那个多出来的加号，被解释成取数字正值，就像减号在数字前是取数字的负值一样。</p>
 ]]></content>
   </entry>
   
