@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: file_lock | Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/blog/categories/file-lock/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2014-03-20T22:48:56+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[golang, windows和linux上的文件锁]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/03/20/go-file-lock/"/>
+    <updated>2014-03-20T22:43:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/03/20/go-file-lock</id>
+    <content type="html"><![CDATA[<p>直接上代码, <code>LockFile</code>可以获得一个文件的独占权, 或阻塞等待</p>
+
+<h4>linux</h4>
+
+<pre><code>func LockFile(file *os.File) error {
+    return syscall.Flock(int(file.Fd()), syscall.LOCK_EX)
+}
+</code></pre>
+
+<h4>windows</h4>
+
+<pre><code>func LockFile(file *os.File) error {
+    h, err := syscall.LoadLibrary("kernel32.dll")
+    if err != nil {
+        return err
+    }
+    defer syscall.FreeLibrary(h)
+
+    addr, err := syscall.GetProcAddress(h, "LockFile")
+    if err != nil {
+        return err
+    }
+    for {
+        r0, _, _ := syscall.Syscall6(addr, 5, file.Fd(), 0, 0, 0, 1, 0)
+        if 0 != int(r0) {
+            break
+        }
+        time.Sleep(100 * time.Millisecond)
+    }
+    return nil
+}
+</code></pre>
+]]></content>
+  </entry>
+  
+</feed>
