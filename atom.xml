@@ -4,7 +4,7 @@
   <title><![CDATA[Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-03-20T22:48:56+08:00</updated>
+  <updated>2014-03-25T22:41:06+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,52 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[golang, cmd会泄露文件句柄]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/03/25/go-leak-fd/"/>
+    <updated>2014-03-25T22:34:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/03/25/go-leak-fd</id>
+    <content type="html"><![CDATA[<p>在go中用<code>cmd</code>生成新的process时, 在某些os中(包括linux的某些版本), 父进程的文件句柄会泄露到子进程中, 参看代码</p>
+
+<pre><code>package main
+
+import (
+    "fmt"
+    "os"
+    "os/exec"
+)
+
+func main() {
+    a, _ := os.OpenFile("1", os.O_CREATE|os.O_RDWR, 0755)
+    defer a.Close()
+    cmd := exec.Command("sh", "-c", "lsof +D .; sleep 3")
+    output, _ := cmd.CombinedOutput()
+    fmt.Printf("%v\n", string(output))
+}
+</code></pre>
+
+<p>得到输出</p>
+
+<pre><code>[root@GroupH-HA-1 tmp]# uname -a
+Linux GroupH-HA-1 2.6.18-194.el5xen #1 SMP Tue Mar 16 22:01:26 EDT 2010 x86_64 x86_64 x86_64 GNU/Linux
+[root@GroupH-HA-1 tmp]# ./main
+COMMAND  PID USER   FD   TYPE DEVICE    SIZE    NODE NAME
+bash    4693 root  cwd    DIR  253,0   32768 3506177 .
+main    6184 root  cwd    DIR  253,0   32768 3506177 .
+main    6184 root  txt    REG  253,0 2250464 3506237 ./main
+main    6184 root    3u   REG  253,0       0 3506238 ./1
+sh      6189 root  cwd    DIR  253,0   32768 3506177 .
+sh      6189 root    3u   REG  253,0       0 3506238 ./1
+lsof    6190 root  cwd    DIR  253,0   32768 3506177 .
+lsof    6191 root  cwd    DIR  253,0   32768 3506177 .
+</code></pre>
+
+<p>可以看到<code>./1</code>的文件句柄泄漏到了<code>sh -c</code>中, 目前为止没有特别好的解决方案</p>
+
+<p>参看<a href="https://code.google.com/p/go/issues/detail?id=2603">此处bug描述</a></p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[golang, windows和linux上的文件锁]]></title>
@@ -1917,37 +1963,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 <h1>经验</h1>
 
 <p>jruby有坑，同时也提供了便捷的手段将现有的java项目改成比较爽的样子。这些坑是难以预料的，做好准备，然后一如既往踩过去。</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[mysql 5.6.15 replication中碰到的死锁]]></title>
-    <link href="http://ikarishinjieva.github.com/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/"/>
-    <updated>2013-10-11T21:21:00+08:00</updated>
-    <id>http://ikarishinjieva.github.com/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock</id>
-    <content type="html"><![CDATA[<p>简述下今天在mysql 5.6.15上碰到的土亢</p>
-
-<h1>现象</h1>
-
-<p>mysql开启主从复制时，用meb（MySQL Enterprise Backup）做备份会卡住。同时在slave上show slave status也会卡住。</p>
-
-<p>查看slave上show processlist，可以看到sql thread的状态为 &#8220;Waiting for commit lock&#8221;</p>
-
-<h1>猜测</h1>
-
-<p>无论是&#8221;SHOW ENGINE INNODB STATUS&#8221;还是&#8221;SHOW OPEN TABLES&#8221;都没有提供有用的信息，还是一切靠猜</p>
-
-<p>夜观天象猜到mysql存在bug <a href="http://bugs.mysql.com/bug.php?id=70307">&#8220;Another deadlock on FLUSH TABLES WITH READ LOCK + SHOW SLAVE STATUS&#8221;</a></p>
-
-<p>其中描述了sql thread开始执行了transaction，但是没有commit的间隙，在slave上FLUSH TABLES WITH READ LOCK，会出现死锁</p>
-
-<p>于是猜测，如果meb恰好在slave上某个transaction commit之前做了FLUSH TABLES WITH READ LOCK，然后调用了与&#8221;SHOW SLAVE STATUS&#8221;类似的机制获取slave info，那么就会如bug所述卡住。然后mysql由于TABLE LOCk的存在，sql thread也就会卡住。</p>
-
-<p>BTW：搜一下mysql bug库，会有一些描述类似的bug，其中70307描述最靠谱，且有详细的<a href="http://bugs.mysql.com/file.php?id=20542">重现步骤</a>，我也成功在mysql 5.6.15上重现了bug。</p>
-
-<h1>结果</h1>
-
-<p>实验后证明猜对了&#8230;</p>
 ]]></content>
   </entry>
   

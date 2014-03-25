@@ -9,8 +9,8 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="直接上代码, LockFile可以获得一个文件的独占权, 或阻塞等待 linux func LockFile(file *os.File) error { return syscall.Flock(int(file.Fd()), syscall.LOCK_EX)
-} windows func &hellip;">
+  <meta name="description" content="在go中用cmd生成新的process时, 在某些os中(包括linux的某些版本), 父进程的文件句柄会泄露到子进程中, 参看代码 package main import ( "fmt" "os" "os/exec"
+) func main() { a, _ := os.OpenFile("1 &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -62,6 +62,101 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2014/03/25/go-leak-fd/" style='font-size:20px'>Golang, Cmd会泄露文件句柄</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-03-25T22:34:00+08:00" pubdate data-updated="true">Mar 25<span>th</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2014/03/25/go-leak-fd/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"golang, cmd会泄露文件句柄", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>在go中用<code>cmd</code>生成新的process时, 在某些os中(包括linux的某些版本), 父进程的文件句柄会泄露到子进程中, 参看代码</p>
+
+<pre><code>package main
+
+import (
+    "fmt"
+    "os"
+    "os/exec"
+)
+
+func main() {
+    a, _ := os.OpenFile("1", os.O_CREATE|os.O_RDWR, 0755)
+    defer a.Close()
+    cmd := exec.Command("sh", "-c", "lsof +D .; sleep 3")
+    output, _ := cmd.CombinedOutput()
+    fmt.Printf("%v\n", string(output))
+}
+</code></pre>
+
+<p>得到输出</p>
+
+<pre><code>[root@GroupH-HA-1 tmp]# uname -a
+Linux GroupH-HA-1 2.6.18-194.el5xen #1 SMP Tue Mar 16 22:01:26 EDT 2010 x86_64 x86_64 x86_64 GNU/Linux
+[root@GroupH-HA-1 tmp]# ./main
+COMMAND  PID USER   FD   TYPE DEVICE    SIZE    NODE NAME
+bash    4693 root  cwd    DIR  253,0   32768 3506177 .
+main    6184 root  cwd    DIR  253,0   32768 3506177 .
+main    6184 root  txt    REG  253,0 2250464 3506237 ./main
+main    6184 root    3u   REG  253,0       0 3506238 ./1
+sh      6189 root  cwd    DIR  253,0   32768 3506177 .
+sh      6189 root    3u   REG  253,0       0 3506238 ./1
+lsof    6190 root  cwd    DIR  253,0   32768 3506177 .
+lsof    6191 root  cwd    DIR  253,0   32768 3506177 .
+</code></pre>
+
+<p>可以看到<code>./1</code>的文件句柄泄漏到了<code>sh -c</code>中, 目前为止没有特别好的解决方案</p>
+
+<p>参看<a href="https://code.google.com/p/go/issues/detail?id=2603">此处bug描述</a></p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -150,7 +245,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -249,7 +344,7 @@ signal.Notify(c, syscall.SIGTTIN)
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -386,7 +481,7 @@ if e := c.Wait(); nil != e {
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -626,7 +721,7 @@ void ha_reset_slave(THD *thd);
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -719,7 +814,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -911,7 +1006,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1023,7 +1118,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1261,7 +1356,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1487,7 +1582,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -1570,7 +1665,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -1697,7 +1792,7 @@ Software Developer’s Manual</a>，可知<code>dec</code>有多种形式</p>
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -1846,7 +1941,7 @@ func main() {
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1942,7 +2037,7 @@ The φ Accrual Failure Detector</a>：</p>
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -2105,7 +2200,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -2281,7 +2376,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -2463,7 +2558,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -2670,7 +2765,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -2813,7 +2908,7 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -2898,86 +2993,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
 
     </article>
   
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/" style='font-size:20px'>Mysql 5.6.15 Replication中碰到的死锁</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-10-11T21:21:00+08:00" pubdate data-updated="true">Oct 11<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"mysql 5.6.15 replication中碰到的死锁", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>简述下今天在mysql 5.6.15上碰到的土亢</p>
-
-<h1>现象</h1>
-
-<p>mysql开启主从复制时，用meb（MySQL Enterprise Backup）做备份会卡住。同时在slave上show slave status也会卡住。</p>
-
-<p>查看slave上show processlist，可以看到sql thread的状态为 &#8220;Waiting for commit lock&#8221;</p>
-
-<h1>猜测</h1>
-
-<p>无论是&#8221;SHOW ENGINE INNODB STATUS&#8221;还是&#8221;SHOW OPEN TABLES&#8221;都没有提供有用的信息，还是一切靠猜</p>
-
-<p>夜观天象猜到mysql存在bug <a href="http://bugs.mysql.com/bug.php?id=70307">&#8220;Another deadlock on FLUSH TABLES WITH READ LOCK + SHOW SLAVE STATUS&#8221;</a></p>
-
-<p>其中描述了sql thread开始执行了transaction，但是没有commit的间隙，在slave上FLUSH TABLES WITH READ LOCK，会出现死锁</p>
-
-<p>于是猜测，如果meb恰好在slave上某个transaction commit之前做了FLUSH TABLES WITH READ LOCK，然后调用了与&#8221;SHOW SLAVE STATUS&#8221;类似的机制获取slave info，那么就会如bug所述卡住。然后mysql由于TABLE LOCk的存在，sql thread也就会卡住。</p>
-
-<p>BTW：搜一下mysql bug库，会有一些描述类似的bug，其中70307描述最靠谱，且有详细的<a href="http://bugs.mysql.com/file.php?id=20542">重现步骤</a>，我也成功在mysql 5.6.15上重现了bug。</p>
-
-<h1>结果</h1>
-
-<p>实验后证明猜对了&#8230;</p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/2/">&larr; Older</a>
@@ -2991,6 +3006,10 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/25/go-leak-fd/">golang, cmd会泄露文件句柄</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2014/03/20/go-file-lock/">golang, windows和linux上的文件锁</a>
@@ -3066,10 +3085,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     
       <li class="post">
         <a href="/blog/blog/2013/10/11/jruby-175-jre-6-stdin-bug/">jruby backtick + jre 6 会卡住</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/">mysql 5.6.15 replication中碰到的死锁</a>
       </li>
     
   </ul>
