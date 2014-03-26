@@ -16,9 +16,12 @@ categories:  mysql replication binlog fake_master_server
 
 于是想办法将第二种方法进行改进, 即制造一个假的master, 实现简单的复制协议, 直接将binlog复制给目标mysqld实例. 与第二种方式相比, 好处在于只使用少量资源 (一个端口, 一点用来读文件的内存).
 
-**注意: 此实现仅适用于mysql 5.5.33, 其它版本未测试**
 
 ####实现
+
+实现参看我的[github](https://github.com/ikarishinjieva/mysql_binlog_utils/blob/master/fake_master_server.go)
+
+**注意: 此实现仅适用于mysql 5.5.33, 其它版本未测试**
 
 由于[mysql internals](http://dev.mysql.com/doc/internals/en/client-server-protocol.html) 已经将mysql的网络协议写的比较详细, 需要做的只是起一个tcp的server, 同目标mysqld实例进行交互即可.
 
