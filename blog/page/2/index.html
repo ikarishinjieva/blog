@@ -9,9 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="最近在jruby 1.7.5 + jre 6上碰到的土亢 现象 用backtick调用命令，比如 用backtick调用命令 1
-`./some_script` 在调用命令之前/同时在terminal输入一些回车，有一定概率backtick的调用会卡住不返回。
-此时再输入一个回车， &hellip;">
+  <meta name="description" content="读了两天rpl_master.cc:mysql_binlog_send的源码（Mysql 5.6.11），总结一下 函数的入口是rpl_master.cc:com_binlog_dump，当slave向master请求数据时，在master上调用 函数参数说明: &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -63,6 +61,356 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/" style='font-size:20px'>Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-10-16T22:50:00+08:00" pubdate data-updated="true">Oct 16<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/10/16/mysql-mysql_binlog_send-src/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>读了两天rpl_master.cc:mysql_binlog_send的源码（Mysql 5.6.11），总结一下</p>
+
+<p>函数的入口是rpl_master.cc:com_binlog_dump，当slave向master请求数据时，在master上调用</p>
+
+<p>函数参数说明: <br/>log_ident为slave请求的binlog文件名，如&#8221;mysql-bin.000001&#8221;<br/>pos为slave请求的binlog位置<br/>slave_gtid_executed为gtid相关，在此忽略</p>
+
+<p>在此吐槽：</p>
+
+<ol>
+<li>这个函数将近1k行，且缩进混乱，代码折叠困难。最后附的我的笔记中，有整理好的源码下载</li>
+<li>这个函数有两大段近百行的重复代码（1179 &amp; 1553）</li>
+</ol>
+
+
+<h1>源码的主体结构</h1>
+
+<figure class='code'><figcaption><span>源码的主体结构  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="n">mysql_binlog_send</span><span class="o">(</span><span class="err">…</span><span class="o">)</span>
+</span><span class='line'><span class="o">{</span>
+</span><span class='line'>     <span class="mi">0814</span> <span class="err">…</span> <span class="n">bla</span> <span class="n">bla</span>
+</span><span class='line'>     <span class="mi">1011</span> <span class="n">fake_rotate_event</span>
+</span><span class='line'>     <span class="mi">1028</span> <span class="n">max_alloed_packet</span><span class="o">=</span> <span class="n">MAX_MAX_ALLOWED_PACKET</span>
+</span><span class='line'>     <span class="mi">1038</span> <span class="k">if</span> <span class="o">(</span><span class="err">请求的</span><span class="n">POS</span><span class="err">不是从</span><span class="n">binlog</span><span class="err">开头开始</span><span class="o">)</span>
+</span><span class='line'>     <span class="mi">1039</span> <span class="o">{</span>
+</span><span class='line'>               <span class="err">从</span><span class="n">binlog</span><span class="err">开头中找到一个</span><span class="n">FD</span> <span class="n">event</span><span class="o">(</span><span class="n">FORMAT_DESCRIPTION_EVENT</span><span class="o">),</span> <span class="err">并发送给</span><span class="n">slave</span>
+</span><span class='line'>     <span class="mi">1123</span> <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1124</span> <span class="k">else</span>
+</span><span class='line'>     <span class="mi">1125</span> <span class="o">{</span>
+</span><span class='line'>               <span class="n">FD</span> <span class="n">event</span><span class="err">可以从正常的</span><span class="n">replication</span><span class="err">中传送给</span><span class="n">slave</span><span class="err">，此处不做操作</span>
+</span><span class='line'>     <span class="mi">1127</span> <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1132</span> <span class="k">while</span> <span class="o">(</span><span class="n">net</span><span class="err">和</span><span class="n">the</span><span class="err">都在运转</span><span class="o">)</span>
+</span><span class='line'>     <span class="mi">1133</span> <span class="o">{</span>
+</span><span class='line'>     <span class="mi">1143</span>      <span class="k">while</span> <span class="o">(</span><span class="err">从</span><span class="n">binlog</span><span class="err">中读取一个</span><span class="n">event</span><span class="o">)</span>
+</span><span class='line'>     <span class="mi">1144</span>      <span class="o">{</span>
+</span><span class='line'>     <span class="mi">1178</span>           <span class="k">switch</span> <span class="o">(</span><span class="n">event_type</span><span class="o">)</span>
+</span><span class='line'>     <span class="mi">1179</span>           <span class="o">{</span>
+</span><span class='line'>                         <span class="err">分类型处理</span><span class="n">event</span>
+</span><span class='line'>     <span class="mi">1281</span>           <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1283</span>           <span class="err">若</span><span class="n">event</span><span class="err">需跳转到下一个</span><span class="n">binlog</span><span class="o">(</span><span class="n">goto_next_binlog</span><span class="o">),</span> <span class="k">break</span>
+</span><span class='line'>     <span class="mi">1291</span>           <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">before_send_event</span>
+</span><span class='line'>     <span class="mi">1300</span>           <span class="err">记录</span><span class="n">skip_group</span>
+</span><span class='line'>     <span class="mi">1306</span>           <span class="o">{</span>
+</span><span class='line'>                         <span class="n">send</span> <span class="n">last</span> <span class="n">skip</span> <span class="n">group</span> <span class="n">heartbeat</span><span class="o">?</span>
+</span><span class='line'>     <span class="mi">1326</span>           <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1331</span>           <span class="err">向</span><span class="n">slave</span><span class="err">发送</span><span class="n">event</span>
+</span><span class='line'>     <span class="mi">1348</span>           <span class="o">{</span>
+</span><span class='line'>                         <span class="err">处理</span><span class="n">LOAD_EVENT</span>
+</span><span class='line'>     <span class="mi">1356</span>           <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1358</span>           <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">after_send_event</span>
+</span><span class='line'>     <span class="mi">1369</span>      <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1391</span>      <span class="k">if</span> <span class="o">(!</span><span class="n">goto_next_binlog</span><span class="o">)</span>
+</span><span class='line'>     <span class="mi">1392</span>      <span class="o">{</span>
+</span><span class='line'>                   <span class="err">发送完所有</span><span class="n">binlog</span><span class="err">，未发生</span><span class="n">binlog</span><span class="err">切换时</span>
+</span><span class='line'>     <span class="mi">1437</span>          <span class="err">加锁尝试再读取一个</span><span class="n">event</span><span class="err">（此时其他进程不能更新</span><span class="n">binlog</span><span class="err">），目的是试探之前处理过程中</span><span class="n">master</span><span class="err">上是否有更多的</span><span class="n">binlog</span><span class="err">写入，若有，则跳转</span><span class="mi">1553</span><span class="err">处理</span><span class="n">read_packet</span>
+</span><span class='line'>     <span class="mi">1451</span>          <span class="err">若没有更多的</span><span class="n">binlog</span>
+</span><span class='line'>                   <span class="o">{</span>
+</span><span class='line'>                        <span class="err">等待更多的</span><span class="n">binlog</span><span class="err">写入，等待时发送心跳</span>
+</span><span class='line'>     <span class="mi">1545</span>          <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1553</span>          <span class="err">处理</span><span class="n">read_packet</span>
+</span><span class='line'>                   <span class="o">{</span>
+</span><span class='line'>                        <span class="err">分类型处理</span><span class="n">event</span>
+</span><span class='line'>     <span class="mi">1682</span>          <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1683</span>      <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1685</span>      <span class="k">if</span> <span class="o">(</span><span class="n">goto_next_binlog</span><span class="o">)</span>
+</span><span class='line'>               <span class="o">{</span>
+</span><span class='line'>                    <span class="err">切换到下一个</span><span class="n">binlog</span>
+</span><span class='line'>               <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1733</span> <span class="o">}</span>
+</span><span class='line'>     <span class="mi">1735</span> <span class="err">之后是收尾处理</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>重点步骤</h1>
+
+<ol>
+<li>补发Format Description event。<br/>如果传送从binlog开头开始，那么FD event会正常随着binlog传送；<br/>若传送不从binlog开头开始，则需要补发一个FD event，才开始传送</li>
+<li>如何判断binlog读取完<br/>函数先不加锁读取binlog中的event，读完后，再加锁尝试读取一个event（加锁过程中，没有其他进程写进binlog），若有数据，则继续处理，若没有数据，则说明binlog读取完了，master会阻塞等待新的binlog写入。<br/>这样做主要为了：<br/>1. 不需要一直加锁读取binlog，保障性能；<br/>2. 无锁读取时会有其他进程写binlog，加锁可以保障这些新加的binlog得到妥善安置</li>
+<li>心跳<br/>仅在不传送binlog时（master穷尽了binlog，开始阻塞等待新的binlog写入时）才进行心跳</li>
+<li>Fake Rotate Event<br/>Fake Rotate Event在开始传送和切换binlog时发送到slave。主要作用是通知slave binlog filename，原因在源码comment里写的很清楚。但是很疑惑的是为什么在FD event里并没有binlog filename，这个问题发到了<a href="http://stackoverflow.com/questions/19375951/in-mysql-replication-why-format-description-event-doesnt-include-binlogs-name">StackoverFlow</a>，未有答案。（诶，看看我的stackoverflow的记录就知道，我的问题都是死题）</li>
+</ol>
+
+
+<h1>TODO</h1>
+
+<p>有一些东西还是没弄懂，得慢慢读懂其他机制才可以，比如</p>
+
+<ol>
+<li>max_alloed_packet是如何作用的</li>
+<li>send last skip group heartbeat的作用</li>
+<li>不同类型的event的具体处理，需要和slave端结合在一起</li>
+</ol>
+
+
+<h1>我的笔记</h1>
+
+<p>我的笔记<a href="https://app.yinxiang.com/shard/s11/sh/f23e9619-9c3d-47f5-a911-8945d0ee02a5/f4eb8539fb2f99e1481496c994b2c270">在此</a></p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/10/14/mha-failover/" style='font-size:20px'>MHA Failover时做了些啥</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-10-14T21:39:00+08:00" pubdate data-updated="true">Oct 14<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/10/14/mha-failover/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"MHA failover时做了些啥", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>读了MHA failover部分的源码整理一下</p>
+
+<p>代码位置注解的格式为file_name@function_name</p>
+
+<h1>设定场景</h1>
+
+<p>假设集群里有四个mysql实例分别是old_master和slave 0,1,2
+slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 New master</p>
+
+<p>如图
+<img src="/blog/images/2013-10-14-mha-failover-1.png"></p>
+
+<h1>Failover的步骤代码</h1>
+
+<p>(MasterFailover@do_master_failover)</p>
+
+<p> 1  check_settings</p>
+
+<p> 2  force_shutdown</p>
+
+<p> 3.1    check_set_latest_slaves</p>
+
+<p> 3.2    save_master_binlog</p>
+
+<p> 3.3    Determining New Master Phase</p>
+
+<pre><code>3.3.1 find_latest_base_slave
+
+3.3.2 select_new_master
+
+3.3.3 recover_master
+
+3.3.4 $new_master-&gt;{activated} = 1;
+</code></pre>
+
+<p> 4  Slaves Recovery Phase</p>
+
+<p>   4.1 Starting Parallel Slave Diff Log Generation Phase.</p>
+
+<p>   4.2 Starting Parallel Slave Log Apply Phase.</p>
+
+<p> 5  cleanup</p>
+
+<h1>Failover的一些步骤说明</h1>
+
+<p>2  force_shutdown</p>
+
+<pre><code>2.1  对所有slave, stop io thread.(MasterFailover@force_shutdown) 这里仅stop io thread, 而不是stop slave, 尽可能让sql thread运行。sql thread是在recover必要时（要生成差异数据时）才停下。 
+
+2.2  在Old master上回收动态ip, shutdown（并可选用power manager对Old master进行关机）. (MasterFailover@force_shutdown_internal)
+</code></pre>
+
+<p>3.1  check_set_latest_slaves, 确定latest_slave和oldest_slaves. latest_slave指的是slave中relay log最超前的slave, 相反oldest_slave指的是relay log最落后的slave</p>
+
+<p>3.2  save_master_binlog, 保存Latest slave到Old master的binlog差异数据, 如图中蓝色部分. 由于master可能是硬件故障等, 不一定能响应save_master_binlog, 所以蓝色部分不一定能保存下来. 若失败, 之后的步骤中用到蓝色部分的地方都可以忽略, 最终结果也是会有部分数据的丢失</p>
+
+<p>3.3.1  find_latest_base_slave, 这里最理想的状况是能从所有的latest slave中能找到一个relay log可以用于补齐oldest slave的 （如果oldest slave可以被补齐, 那其他的slave都可以被补齐）. 如场景图中所示，Slave 0可以作为latest_base_slave.</p>
+
+<p>另一种情况是不能用于补齐oldest slave, 比如下图的状况, 集群里最全最新的relay log也无法和oldest slave对接上. 这种情况的处理跟ignore_fail配置有关, 若所有努力都失败只好failover失败</p>
+
+<p>关于ignore_fail的处理逻辑，可参看源码或者文后我附的源码笔记
+<img src="/blog/images/2013-10-14-mha-failover-2.png"></p>
+
+<p>3.3.2  select_new_master, 选举new master.</p>
+
+<p>选举的策略是尽量在candidate slave列表中，尽量在latest slave列表中，不可以在bad列表中. 注意，new master可以不是latest slave, 场景图中列举的是这种情况（尽管应该比较少见）</p>
+
+<p>3.3.3  recover_master. 将差异数据补齐到new master, 让new master成为集群里数据最全最新的节点.</p>
+
+<p>生成old_master上exec relay_log到read relay_log的差异数据（原因是sql thread落后于io thread）, 源码中中称为diff_from_exec_to_read, 如图中绿色部分.</p>
+
+<p>生成old_master到latest_base_slave的差异数据(MasterFailover@recover_relay_logs), 如图中黄色部分.</p>
+
+<p>重放: 在old_master上重放绿色部分, 然后重放黄色部分(MasterFailover@send_binlog &amp; MasterFailover@recover_slave), 最后重放蓝色部分（MasterFailover@apply_diff）</p>
+
+<p>4  对所有的slave, 这里是以old_slave为例, 与recover_master类似：生成diff_from_exec_to_read（黑色部分）, 生成与latest_base_slave的差异数据（红色部分）. 然后重放黑色部分，红色部分和蓝色部分. (MasterFailover@recover_slaves)</p>
+
+<p>最后让所有slave连到新的master上</p>
+
+<h1>一点说明</h1>
+
+<ol>
+<li>只是简单记录了failover的基本操作, 仅在2.1里说明了stop io thread. 代码中其他操作如change master的操作可以直接翻代码翻到, 不穷举</li>
+<li>我阅读代码的原始笔记放在<a href="https://app.yinxiang.com/shard/s11/sh/565c2973-fae1-452c-9f3e-8418fbb04360/11b9fd4b99229f8599c8c96a7bc3c72e">evernote公开页面</a>, 里面有一些细节, 不再整理</li>
+</ol>
+
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b3">
       
   <header>
     
@@ -148,7 +496,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b4">
       
   <header>
     
@@ -228,7 +576,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b5">
       
   <header>
     
@@ -454,7 +802,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b6">
       
   <header>
     
@@ -549,7 +897,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b7">
       
   <header>
     
@@ -695,7 +1043,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b1">
       
   <header>
     
@@ -903,7 +1251,7 @@
     </article>
   
   
-    <article class="b7">
+    <article class="b2">
       
   <header>
     
@@ -1155,7 +1503,7 @@
     </article>
   
   
-    <article class="b1">
+    <article class="b3">
       
   <header>
     
@@ -1259,7 +1607,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b4">
       
   <header>
     
@@ -1382,7 +1730,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b5">
       
   <header>
     
@@ -1458,7 +1806,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b6">
       
   <header>
     
@@ -1559,7 +1907,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b7">
       
   <header>
     
@@ -1619,7 +1967,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b1">
       
   <header>
     
@@ -1933,7 +2281,7 @@
     </article>
   
   
-    <article class="b7">
+    <article class="b2">
       
   <header>
     
@@ -2185,7 +2533,7 @@
     </article>
   
   
-    <article class="b1">
+    <article class="b3">
       
   <header>
     
@@ -2313,7 +2661,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b4">
       
   <header>
     
@@ -2557,7 +2905,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b5">
       
   <header>
     
@@ -2630,7 +2978,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b6">
       
   <header>
     
@@ -2743,124 +3091,6 @@ http://localhost:7001/.../js/slickgrid C:\test
 
     </article>
   
-  
-    <article class="b5">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/02/28/lisp-book/" style='font-size:20px'>在读lisp入门</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-02-28T00:20:00+08:00" pubdate data-updated="true">Feb 28<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/02/28/lisp-book/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"在读lisp入门", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>花了几天时间在读<a href="http://book.douban.com/subject/11238123">lisp的入门</a>。</p>
-
-<p>是本写得十分中肯的语言书。冗长，事无巨细，配图和代码样例精准。就算不看冗长的英文只看代码样例，也能了解个大概。对lisp辅助工具的介绍非常详尽，就算是programming ruby也没达到这个程度。习题丰富。</p>
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/02/21/git-study/" style='font-size:20px'>Git入门</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-02-21T21:10:00+08:00" pubdate data-updated="true">Feb 21<span>st</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/02/21/git-study/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"Git入门", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>花了两天完成<a href="http://pcottle.github.com/learnGitBranching">这个教程</a>。作为git的入门非常好。</p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/3/">&larr; Older</a>
@@ -2876,6 +3106,14 @@ http://localhost:7001/.../js/slickgrid C:\test
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/04/MDL/">整理一下最近读的MDL源码</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/01/study-mysql-bug-70307-2/">对Mysql bug #70307 的再学习</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2014/03/26/mysql-fake-master-server/">mysql, 利用假master重放binlog</a>
@@ -2947,14 +3185,6 @@ http://localhost:7001/.../js/slickgrid C:\test
     
       <li class="post">
         <a href="/blog/blog/2013/10/20/mysql-handle_slave_io-src/">Mysql rpl_slave.cc:handle_slave_io 源码的一些个人分析</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/">Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/10/14/mha-failover/">MHA failover时做了些啥</a>
       </li>
     
   </ul>

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mysql | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/mysql/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-03-26T21:17:39+08:00</updated>
+  <updated>2014-04-04T19:31:26+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,311 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[整理一下最近读的MDL源码]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/04/04/MDL/"/>
+    <updated>2014-04-04T20:00:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/04/04/MDL</id>
+    <content type="html"><![CDATA[<p>以下都是个人理解, 如有疏漏请斧正
+另, 因为理解不深, 将忽略锁级别以及锁共享的细节</p>
+
+<h2>MDL</h2>
+
+<p>MDL (Metadata lock), 除了正常的Condition var提供的功能外, 还额外提供了
+1. 不同的锁级别. 在不冲突的情况下, 允许共享资源
+2. 死锁检查和处理
+3. 记录等待状态, 是死锁检查的基础</p>
+
+<h2>模型</h2>
+
+<p><code>MDL_lock</code> 表示Mysqld中的一个资源(库/表/...) 存储在全局结构 <code>mdl_locks (MDL_map)</code>中, <code>mdl_locks</code>内有<code>m_partitions</code> (锁的分区), 用来分散查找lock时的竞争</p>
+
+<p><code>MDL_context</code> 为MDL上下文接口, 表示一个资源竞争者, THD实现了这个接口, 即一个Mysqld的线程可以是<code>MDL_lock</code>的资源竞争者</p>
+
+<p><code>MDL_ticket</code> 表示<code>MDL_lock</code>的许可或请求, 会同时挂在两处:
+1. 挂在所属<code>MDL_Context</code>中, 通过<code>MDL_ticket.next_in_context/prev_in_context</code>组织链表
+2. 挂在<code>MDL_lock</code>的队列中, 通过<code>MDL_ticket.next_in_lock/prev_in_lock</code>组织链表. <code>MDL_lock</code>的队列分为两种, 一个<code>MDL_ticket</code>可能会挂在其中之一</p>
+
+<pre><code>* 挂在`MDL_lock`的等待队列(`MDL_lock.m_waiting`)中, 表示`MDL_ticket`的owner (`MDL_context`)正在等待该资源(`MDL_lock`)
+* 挂在`MDL_lock`的已许可队列(`MDL_lock.m_granted`)中, 表示`MDL_ticket`的owner (`MDL_context`)已经获得该资源(`MDL_lock`)
+</code></pre>
+
+<p>总结一下, <code>MDL_context</code>和<code>MDL_ticket</code>的关系是一对多, 一个竞争者可以同时申请/获得多个资源的许可; <code>MDL_ticket</code>和<code>MDL_lock</code>的关系是多对一, 可以同时有多个资源许可在竞争一个资源, 或者多个资源许可可以<em>有条件</em>地共享一个资源</p>
+
+<h2>如何获得锁</h2>
+
+<p>简单分析<code>MDL_context::acquire_lock</code>方法, 其主要流程是</p>
+
+<pre><code>bool MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout) {
+    ...
+
+    try_acquire_lock_impl(...) 
+    //尝试不等待立刻获得资源, 如果成功直接返回
+    //以下是等待资源的处理
+    ...
+    lock-&gt;m_waiting.add_ticket(ticket) 
+    //将一个资源申请`ticket`挂入资源`lock`的等待队列`m_waiting`
+    if (lock-&gt;needs_notification(ticket)) {
+        //如果等待资源时需要通知状态, 则不断轮询并通知
+        //将忽略此处的细节
+        ...
+    } else {
+        //等待资源
+        //结果可能是获得资源, 或者超时, 或者异常 (比如被死锁检测机制判定死亡)
+        //`timed_wait`中的实现是等待COND(条件变量)`m_wait.m_COND_wait_status`
+        wait_status= m_wait.timed_wait(...);
+    }
+    //收尾处理
+    m_tickets[mdl_request-&gt;duration].push_front(ticket)
+    //将资源申请`ticket`挂入`MDL_Context.m_tickets`
+    ...
+}
+</code></pre>
+
+<h3>记录等待状态</h3>
+
+<p>之前提到了记录等待状态, 在<code>MDL_context::acquire_lock</code>方法中可以看到如下代码 (上一节未列出)</p>
+
+<pre><code>bool MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout) {
+    m_wait.reset_status();
+    ...
+    will_wait_for(ticket); //其中设置了`m_waiting_for`
+    if (lock-&gt;needs_notification(ticket)) {
+        ...
+        //等待资源
+        wait_status= m_wait.timed_wait(m_owner, &amp;abs_timeout, TRUE,
+                                  mdl_request-&gt;key.get_wait_state_name());
+    } else {
+        //等待资源
+        wait_status= m_wait.timed_wait(m_owner, &amp;abs_timeout, TRUE,
+                                  mdl_request-&gt;key.get_wait_state_name());
+    }
+    done_waiting_for(); //其中清空了`m_waiting_for`
+    ...
+}
+</code></pre>
+
+<p>可以看到<code>MDL_context.m_wait</code>是用来等待资源的工具类, 其中进行等待处理, 并记录等待资源的状态/结果.</p>
+
+<p>还有一个<code>MDL_context.m_waiting_for</code>也在记录<code>MDL_context</code>正在进行的资源申请(<code>MDL_ticket</code>), 其正在等待某个资源. 实际上<code>m_waiting_for</code>是冗余的信息, 至于原因源代码中有解释, 此处不冗余说明...</p>
+
+<h2>如何释放锁</h2>
+
+<p>释放锁, 需要完成下面几个动作:
+1. 将<code>ticket</code>从<code>MDL_lock</code>的数据结构上卸下来
+2. 调度选择新的锁占有者
+3. 将<code>ticket</code>从<code>MDL_context</code>的数据结构上卸下并回收</p>
+
+<p>入口为<code>MDL_context::release_lock</code></p>
+
+<pre><code>void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket) 
+{
+    ...
+    lock-&gt;remove_ticket(&amp;MDL_lock::m_granted, ticket) {
+        //将`ticket`从`MDL_lock`的数据结构上卸下来
+        (this-&gt;*list).remove_ticket(ticket);
+        ...
+        //调度选择新的锁占有者
+        reschedule_waiters();
+    }()
+
+    //将`ticket`从`MDL_context`的数据结构上卸下并回收
+    m_tickets[duration].remove(ticket);
+    MDL_ticket::destroy(ticket);
+    ...
+}
+</code></pre>
+
+<p>下面说明调度的细节</p>
+
+<h3>释放锁时的调度</h3>
+
+<p>调度函数的入口是<code>MDL_lock::reschedule_waiters</code></p>
+
+<p>最简单的调度就是从<code>MDL_lock.m_waiting</code>队列中取出头元素, 直接将资源调度给头元素即可</p>
+
+<p>Mysqld在此基础上添加了一个退让条件:
+如果资源连续被<em>高优先级</em>(比如<code>SNW</code>/<code>SNRW</code>/<code>X</code>锁类型)的<code>ticket</code>获得, 那么退让一步, 允许资源间隔被调度给<em>低优先级</em>的<code>ticket</code>防止其饿死.</p>
+
+<p>用<code>MDL_lock::reschedule_waiters</code>的代码说就是, 如果<code>MDL_lock</code>被连续分配给<code>hog_lock_types_bitmap()</code>中定义的<em>高优先级</em>类型的<code>ticket</code>,连续的次数<code>m_hog_lock_count</code>超过<code>max_write_lock_count</code>, 那么开启退让条件, 批准第一个<em>非</em><em>高优先级</em>的<code>ticket</code>获得资源</p>
+
+<h2>死锁检测</h2>
+
+<p>死锁检测的入口是<code>MDL_context::find_deadlock</code>, 本身原理很简单, 但源码写的很复杂= =. 先说明原理, 再对应源码</p>
+
+<p>设当前<code>MDL_context</code>为图的一个节点<code>A</code>, 从节点<code>A</code>出发,  找到<code>A</code>的正在等待的资源<code>L</code>(<code>A.m_waiting_for.m_lock</code>)中的<code>m_granted</code>里的每一个<code>MDL_ticket</code>对应的<code>MDL_context</code> <code>B</code>, 表示<code>A</code>正在等待<code>B</code>释放资源<code>L</code>. 在图中<code>A</code> -> <code>B</code> 添加一条有向边</p>
+
+<p>死锁检查的工作就是遍历这张有向图, 检查其是否存在环路</p>
+
+<p>以<code>MDL_context::find_deadlock</code>入口, 展开一些调用来说明代码</p>
+
+<pre><code>(MDL_context::find_deadlock)
+while(1) {
+    visit_subgraph(visitor) {
+        m_waiting_for-&gt;accept_visitor(visitor) {
+            m_lock-&gt;visit_subgraph(this, visitor) {
+                ...
+            }()
+        }()
+    }()
+    break if no deadlock
+    set deadlock victim
+    break if deadlock victim is current context
+}
+</code></pre>
+
+<p>可以看到<code>find_deadlock</code>以<code>MDL_context.m_waiting_for.m_lock</code>为起始点, 不断遍历其有向图, 选出victim. 直到
+* 没有发现死锁
+* 或自己被选为victim</p>
+
+<p>其使用一个visitor (<code>MDL_wait_for_graph_visitor</code>) 贯穿遍历过程, 其记录了遍历的过程</p>
+
+<p>再来看<code>MDL_lock::visit_subgraph</code>, 此函数是以一个<code>MDL_lock</code>为起点, 来遍历依赖图</p>
+
+<pre><code>MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket, MDL_wait_for_graph_visitor *gvisitor) {
+
+    //此处是因为MDL_context.m_waiting_for是冗余信息, 但无法保证更新同步, 带来的额外操作. 忽略此处细节
+    if (src_ctx-&gt;m_wait.get_status() != MDL_wait::EMPTY) {...}
+
+    //visitor用来记录遍历层次
+    //当遍历层次大于MAX_SEARCH_DEPTH(32), 也认为发现死锁
+    if (gvisitor-&gt;enter_node(src_ctx)) {...}
+
+    //由于现在是以一个资源(`MDL_lock`)为视角, 之后的检查为了效率, 遍历会从两个方向同时进行, 即检查节点的出度方向(`MDL_lock.m_granted`)和节点的入度方向(`MDL_lock.m_waiting`). 
+
+
+    //为了效率, 死锁检测会先检测距离为1的临近节点, 而先不深度遍历图
+
+    while ((ticket= granted_it++))
+    {
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_granted(waiting_ticket-&gt;get_type()) &amp;&amp;
+          gvisitor-&gt;inspect_edge(ticket-&gt;get_ctx()))
+      {
+        goto end_leave_node;
+      }
+    }
+
+    while ((ticket= waiting_it++))
+    {
+      /* Filter out edges that point to the same node. */
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_waiting(waiting_ticket-&gt;get_type()) &amp;&amp;
+          gvisitor-&gt;inspect_edge(ticket-&gt;get_ctx()))
+      {
+        goto end_leave_node;
+      }
+    }
+
+    //此处开始, 深度遍历图
+
+    granted_it.rewind();
+    while ((ticket= granted_it++))
+    {
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_granted(waiting_ticket-&gt;get_type()) &amp;&amp;
+          ticket-&gt;get_ctx()-&gt;visit_subgraph(gvisitor))
+      {
+        goto end_leave_node;
+      }
+    }
+
+    waiting_it.rewind();
+    while ((ticket= waiting_it++))
+    {
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_waiting(waiting_ticket-&gt;get_type()) &amp;&amp;
+          ticket-&gt;get_ctx()-&gt;visit_subgraph(gvisitor))
+      {
+        goto end_leave_node;
+      }
+    }
+    ...
+
+    //visitor退栈
+    gvisitor-&gt;leave_node(src_ctx);
+    ...
+}
+</code></pre>
+
+<p>发现死锁后, 会调用<code>Deadlock_detection_visitor::opt_change_victim_to</code>, 其中进行<code>MDL_context</code>权重比较, 来选取一个作为victim, 此处忽略细节</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[对Mysql bug #70307 的再学习]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/04/01/study-mysql-bug-70307-2/"/>
+    <updated>2014-04-01T13:07:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/04/01/study-mysql-bug-70307-2</id>
+    <content type="html"><![CDATA[<p>之前对bug #70307有过<a href="http://ikarishinjieva.github.io/blog/blog/2013/10/25/study-mysql-bug-70307/">学习</a>, 苦于阿兹海默状态, 又花了半天在mysql 5.5.33上探查这个场景的原因...</p>
+
+<p>简单记录一下</p>
+
+<h4>现象</h4>
+
+<p>mysql进行主从复制, 从机上<code>FLUSH TABLES WITH READ LOCK</code>后, 进行<code>STOP SLAVE</code>, 一定概率下 <code>SHOW SLAVE STATUS</code>卡住</p>
+
+<h4>重现步骤</h4>
+
+<table>
+<thead>
+<tr>
+<th>master </th>
+<th> slave client 1 </th>
+<th> slave client 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> - </td>
+<td> STOP SLAVE IO_THREAD </td>
+<td> -</td>
+</tr>
+<tr>
+<td> CREATE TABLE TEST.TEST ... </td>
+<td> - </td>
+<td> -</td>
+</tr>
+<tr>
+<td> - </td>
+<td> FLUSH TABLES WITH READ LOCK </td>
+<td> -</td>
+</tr>
+<tr>
+<td> - </td>
+<td> START SLAVE IO_THREAD </td>
+<td> -</td>
+</tr>
+<tr>
+<td> - </td>
+<td> - </td>
+<td> STOP SLAVE</td>
+</tr>
+<tr>
+<td> - </td>
+<td> SHOW SLAVE STATUS </td>
+<td> -</td>
+</tr>
+</tbody>
+</table>
+
+
+<p>其中, <code>START/STOP SLAVE IO_THREAD</code>是为了在<code>FLUSH TABLES WITH READ LOCK</code>时造成slave io_thread有未提交数据</p>
+
+<h4>死锁原因</h4>
+
+<ol>
+<li><code>FLUSH TABLES WITH READ LOCK</code> 会阻塞IO_THREAD提交数据</li>
+<li><code>STOP SLAVE</code>会等待IO_THREAD结束 (<code>mi-&gt;stop_cond</code>), 即<code>STOP SLAVE</code>间接被<code>FLUSH TABLES WITH READ LOCK</code>阻塞</li>
+<li><code>STOP SLAVE</code>在被阻塞前, 持有了<code>LOCK_active_mi</code>, 独占了<code>master_info</code></li>
+<li><code>SHOW SLAVE STATUS</code>会申请锁<code>LOCK_active_mi</code>, 被<code>STOP SLAVE</code>阻塞</li>
+<li>如果<code>SHOW SLAVE STATUS</code>是由之前<code>FLUSH TABLES WITH READ LOCK</code>的<code>slave client 1</code>发出的, 那逻辑上相当于自己在等待自己释放资源</li>
+<li>从另外的client上<code>UNLOCK TABLES</code>也解不开</li>
+</ol>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[mysql, 利用假master重放binlog]]></title>
@@ -425,247 +730,6 @@ delta = 0x18F8
 
 
 <p>这几个选项会影响当使用mysqld内部数据结构的长度, 不排除还有其他</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[对Mysql bug #70307 的学习]]></title>
-    <link href="http://ikarishinjieva.github.com/blog/blog/2013/10/25/study-mysql-bug-70307/"/>
-    <updated>2013-10-25T22:00:00+08:00</updated>
-    <id>http://ikarishinjieva.github.com/blog/blog/2013/10/25/study-mysql-bug-70307</id>
-    <content type="html"><![CDATA[<p>之前描述<a href="http://ikarishinjieva.github.io/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/">Mysql 5.6.15 Replication中碰到的死锁</a>的情况，这次尝试debug下原因。</p>
-
-<h2>debug的过程</h2>
-
-<p>用参数--gdb启动mysql，按照<a href="http://bugs.mysql.com/file.php?id=20542">步骤</a>重现bug（让slave "show slave status"时卡住）。然后用gdb attach到slave mysql实例上。</p>
-
-<pre><code>(gdb) thread apply all bt
-</code></pre>
-
-<p>输出所有线程的backtrace，找到show slave status卡住的线程和位置</p>
-
-<pre><code>Thread 2 (Thread 0x7f583c166700 (LWP 2440)):
-#0  0x00007f583f484054 in __lll_lock_wait () from /lib64/libpthread.so.0
-#1  0x00007f583f47f3be in _L_lock_995 () from /lib64/libpthread.so.0
-#2  0x00007f583f47f326 in pthread_mutex_lock () from /lib64/libpthread.so.0
-#3  0x0000000000aa3cde in safe_mutex_lock (mp=0x3516ae8, try_lock=0 '\000', file=0xfb8e58 "/home/vagrant/mysql-5.6.12/sql/rpl_slave.cc", line=2611) at /home/vagrant/mysql-5.6.12/mysys/thr_mutex.c:152
-#4  0x0000000000a4b993 in inline_mysql_mutex_lock (that=0x3516ae8, src_file=0xfb8e58 "/home/vagrant/mysql-5.6.12/sql/rpl_slave.cc", src_line=2611) at /home/vagrant/mysql-5.6.12/include/mysql/psi/mysql_thread.h:686
-#5  0x0000000000a53cb3 in show_slave_status (thd=0x352e3d0, mi=0x34b4f20) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:2611
-#6  0x00000000007d45f4 in mysql_execute_command (thd=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:2766
-#7  0x00000000007ddc46 in mysql_parse (thd=0x352e3d0, rawbuf=0x7f57ec005010 "show slave status", length=17, parser_state=0x7f583c165660) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:6187
-#8  0x00000000007d1019 in dispatch_command (command=COM_QUERY, thd=0x352e3d0, packet=0x3534e51 "", packet_length=17) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1334
-#9  0x00000000007d017b in do_command (thd=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1036
-#10 0x0000000000797a08 in do_handle_one_connection (thd_arg=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:977
-#11 0x00000000007974e4 in handle_one_connection (arg=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:893
-#12 0x0000000000aea87a in pfs_spawn_thread (arg=0x351b510) at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
-#13 0x00007f583f47d851 in start_thread () from /lib64/libpthread.so.0
-#14 0x00007f583e3e890d in clone () from /lib64/libc.so.6
-</code></pre>
-
-<p>可以看到show slave status卡在</p>
-
-<pre><code>#5  0x0000000000a53cb3 in show_slave_status (thd=0x352e3d0, mi=0x34b4f20) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:2611
-</code></pre>
-
-<p>查找源码可以看到show slave status卡在获取锁mi->rli->data_lock上<br/>(科普下缩写: mi=master info, rli=relay log info</p>
-
-<p>在gdb中运行命令</p>
-
-<pre><code>(gdb) thread 2
-(gdb) f 5
-(gdb) print mi-&gt;rli-&gt;data_lock
-</code></pre>
-
-<p>切换到thread 2堆栈第5层的上下文，打印出mi->rli->data_lock变量，输出如下</p>
-
-<pre><code>$1 = {m_mutex = {global = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 2, __spins = 0,
-    __list = {__prev = 0x0, __next = 0x0}},
-  __size = '\000' &lt;repeats 16 times&gt;, "\002", '\000' &lt;repeats 22 times&gt;, __align = 0}, mutex = {__data = {
-    __lock = 2, __count = 0, __owner = 2435, __nusers = 1, __kind = 3, __spins = 0, __list = {__prev = 0x0,
-      __next = 0x0}},
-  __size = "\002\000\000\000\000\000\000\000\203\t\000\000\001\000\000\000\003", '\000' &lt;repeats 22 times&gt;,
-  __align = 2}, file = 0xfa4520 "/home/vagrant/mysql-5.6.12/sql/log_event.cc", line = 7259, count = 1,
-thread = 140016942216960}, m_psi = 0x0}
-</code></pre>
-
-<p>看到锁的owner是线程(LWP 2435)，为Thread 3</p>
-
-<p>Thread 3的backtrace如下</p>
-
-<pre><code>Thread 3 (Thread 0x7f583c1a7700 (LWP 2435)):
-#0  0x00007f583f4817bb in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
-#1  0x0000000000aa429d in safe_cond_timedwait (cond=0x7f57f4000ba8, mp=0x7f57f4000b38, abstime=0x7f583c1a60f0, file=0xedc960 "/home/vagrant/mysql-5.6.12/include/mysql/psi/mysql_thread.h", line=1199) at /home/vagrant/mysql-5.6.12/mysys/thr_mutex.c:278
-#2  0x00000000007121f4 in inline_mysql_cond_timedwait (that=0x7f57f4000ba8, mutex=0x7f57f4000b38, abstime=0x7f583c1a60f0, src_file=0xedcb98 "/home/vagrant/mysql-5.6.12/sql/mdl.cc", src_line=1306) at /home/vagrant/mysql-5.6.12/include/mysql/psi/mysql_thread.h:1199
-#3  0x0000000000713111 in MDL_wait::timed_wait (this=0x7f57f4000b38, owner=0x7f57f4000a50, abs_timeout=0x7f583c1a60f0, set_status_on_timeout=true, wait_state_name=0x14d0488) at /home/vagrant/mysql-5.6.12/sql/mdl.cc:1306
-#4  0x0000000000714811 in MDL_context::acquire_lock (this=0x7f57f4000b38, mdl_request=0x7f583c1a6180, lock_wait_timeout=31536000) at /home/vagrant/mysql-5.6.12/sql/mdl.cc:2241
-#5  0x000000000063656a in ha_commit_trans (thd=0x7f57f4000a50, all=true) at /home/vagrant/mysql-5.6.12/sql/handler.cc:1396 (COMMIT LOCK)
-#6  0x00000000008a010b in trans_commit (thd=0x7f57f4000a50) at /home/vagrant/mysql-5.6.12/sql/transaction.cc:228
-#7  0x0000000000a081bb in Xid_log_event::do_commit (this=0x7f57f4004730, thd=0x7f57f4000a50) at /home/vagrant/mysql-5.6.12/sql/log_event.cc:7174
-#8  0x0000000000a0886e in Xid_log_event::do_apply_event (this=0x7f57f4004730, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/log_event.cc:7310 (rli-&gt;data_lock)
-#9  0x00000000009fd956 in Log_event::apply_event (this=0x7f57f4004730, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/log_event.cc:3049
-#10 0x0000000000a55e31 in apply_event_and_update_pos (ptr_ev=0x7f583c1a68a0, thd=0x7f57f4000a50, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:3374
-#11 0x0000000000a56e45 in exec_relay_log_event (thd=0x7f57f4000a50, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:3742
-#12 0x0000000000a5c334 in handle_slave_sql (arg=0x34b4f20) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:5552
-#13 0x0000000000aea87a in pfs_spawn_thread (arg=0x350a800) at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
-#14 0x00007f583f47d851 in start_thread () from /lib64/libpthread.so.0
-#15 0x00007f583e3e890d in clone () from /lib64/libc.so.6
-</code></pre>
-
-<p>可以看到Thread 3卡在commit lock上，同时查源码看到Thread 3同时占有了rli->data_lock (log_event.cc:7259)</p>
-
-<h2>锁的状态</h2>
-
-<p>按照bug的描述，</p>
-
-<ol>
-<li>flush tables with read lock; 会持有commit lock</li>
-<li>IO thread (Thread 3)会持有rli->data_lock，并等待commit lock</li>
-<li>show slave status; 会等待rli->data_lock</li>
-</ol>
-
-
-<p>结果导致show slave status卡住不可用</p>
-
-<h2>臆测一下解决方法</h2>
-
-<p>鉴于功底不深，只能臆测一下</p>
-
-<ol>
-<li>IO thread持有锁rli->data_lock的原因是要更新relay log的状态，然后进行commit(Xid_log_event::do_apply_event (log_event.cc:7248))。在commit的时候不会更新rli的数据。</li>
-<li>show slave status不会更新rli的数据，需要锁rli->data_lock的原因是要一致性数据。</li>
-</ol>
-
-
-<p>因此可能的解决方案是IO thread持有读写锁，进行commit时转为持有读锁。show slave status只使用读锁。</p>
-
-<p>只是臆测下解决方法，待<a href="http://bugs.mysql.com/bug.php?id=70307">bug #70307</a>修掉时再学习。</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Mysql 5.6.12 master上flush logs在slave上产生两个relay-log]]></title>
-    <link href="http://ikarishinjieva.github.com/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/"/>
-    <updated>2013-10-22T21:42:00+08:00</updated>
-    <id>http://ikarishinjieva.github.com/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file</id>
-    <content type="html"><![CDATA[<h2>现象</h2>
-
-<p>一个碰巧观察到的有趣的现象：mysql 5.6.12 在master上flush logs，在slave上会观察到两个新的relay-log file</p>
-
-<p>举例：</p>
-
-<p>slave-relay-bin.000092</p>
-
-<pre><code> FD event
- Rotate to mysql-bin.000056
- Rotate to slave-relay-bin.000093
-</code></pre>
-
-<p>slave-relay-bin.000093</p>
-
-<pre><code> FD event slave
- Rotate to mysql-bin.000056
- FD event master
- bla bla…
-</code></pre>
-
-<p>可以看到000092这个relay log相当多余。这个现象并不会影响replication的正确性，只是让有强迫症的人有点狂躁</p>
-
-<h2>探索</h2>
-
-<p>在master上net_serv.cc:my_net_write打断点，可以观察到master的确发出了以下三个事件</p>
-
-<ul>
-<li>ROTATE_EVENT</li>
-</ul>
-
-
-<p>backtrace</p>
-
-<pre><code>#0  my_net_write (net=0x1ea2858, packet=0x7fffa4002b70 "", len=48)
-    at /home/vagrant/mysql-5.6.12/sql/net_serv.cc:284
-#1  0x0000000000a48b05 in mysql_binlog_send (thd=0x1ea2600, log_ident=0x7fffa4004c60 "mysql-bin.000052", pos=167,
-    slave_gtid_executed=0x0) at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:1336
-#2  0x0000000000a46ad2 in com_binlog_dump (thd=0x1ea2600, packet=0x1ea5d21 "", packet_length=26)
-    at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:746
-#3  0x00000000007d1ab9 in dispatch_command (command=COM_BINLOG_DUMP, thd=0x1ea2600, packet=0x1ea5d21 "",
-    packet_length=26) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1534
-#4  0x00000000007d017b in do_command (thd=0x1ea2600) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1036
-#5  0x0000000000797a08 in do_handle_one_connection (thd_arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:977
-#6  0x00000000007974e4 in handle_one_connection (arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:893
-#7  0x0000000000aea87a in pfs_spawn_thread (arg=0x1e7aa80)
-    at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
-#8  0x00007ffff7bc7851 in start_thread () from /lib64/libpthread.so.0
-#9  0x00007ffff6b3290d in clone () from /lib64/libc.so.6
-</code></pre>
-
-<ul>
-<li>第二个ROTATE_EVENT</li>
-</ul>
-
-
-<p>backtrace</p>
-
-<pre><code>#0  my_net_write (net=0x1ea2858, packet=0x7fffa4002ab0 "", len=48)
-    at /home/vagrant/mysql-5.6.12/sql/net_serv.cc:284
-#1  0x0000000000a45f04 in fake_rotate_event (net=0x1ea2858, packet=0x1ea2be8,
-    log_file_name=0x7fffc94ff270 "./mysql-bin.000056", position=4, errmsg=0x7fffc94ffdb0,
-    checksum_alg_arg=1 '\001') at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:395
-#2  0x0000000000a4a33d in mysql_binlog_send (thd=0x1ea2600, log_ident=0x7fffa4004c60 "mysql-bin.000052", pos=167,
-    slave_gtid_executed=0x0) at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:1728
-#3  0x0000000000a46ad2 in com_binlog_dump (thd=0x1ea2600, packet=0x1ea5d21 "", packet_length=26)
-    at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:746
-#4  0x00000000007d1ab9 in dispatch_command (command=COM_BINLOG_DUMP, thd=0x1ea2600, packet=0x1ea5d21 "",
-    packet_length=26) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1534
-#5  0x00000000007d017b in do_command (thd=0x1ea2600) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1036
-#6  0x0000000000797a08 in do_handle_one_connection (thd_arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:977
-#7  0x00000000007974e4 in handle_one_connection (arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:893
-#8  0x0000000000aea87a in pfs_spawn_thread (arg=0x1e7aa80)
-    at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
-#9  0x00007ffff7bc7851 in start_thread () from /lib64/libpthread.so.0
-#10 0x00007ffff6b3290d in clone () from /lib64/libc.so.6
-</code></pre>
-
-<ul>
-<li>FORMAT_DESCRIPTION_EVENT</li>
-</ul>
-
-
-<p>可以看到第一个ROTATE_EVENT是由flush logs发出的，第二个ROTATE_EVENT是fake_rotate_event</p>
-
-<h2>关于fake_rotate_event</h2>
-
-<p>以前也<a href="http://ikarishinjieva.github.io/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/">吐槽</a>过fake_rotate_event</p>
-
-<p>master在binlog切换时（不一定是手工flush，也可能是重启，或者容量达到限制）一定要多发一个rotate event，原因如源码rpl_master.cc:mysql_binlog_send中的注释</p>
-
-<pre><code>  /*
-    Call fake_rotate_event() in case the previous log (the one which
-    we have just finished reading) did not contain a Rotate event.
-    There are at least two cases when this can happen:
-
-    - The previous binary log was the last one before the master was
-      shutdown and restarted.
-
-    - The previous binary log was GTID-free (did not contain a
-      Previous_gtids_log_event) and the slave is connecting using
-      the GTID protocol.
-
-    This way we tell the slave about the new log's name and
-    position.  If the binlog is 5.0 or later, the next event we
-    are going to read and send is Format_description_log_event.
-  */
-  if ((file=open_binlog_file(&amp;log, log_file_name, &amp;errmsg)) &lt; 0 ||
-      fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE,
-                        &amp;errmsg, current_checksum_alg))
-</code></pre>
-
-<p>主要是解决之前没有rotate event发送的场景</p>
-
-<p>虽然非常想吐槽，但是我也想不出更好的办法</p>
 ]]></content>
   </entry>
   

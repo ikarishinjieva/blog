@@ -9,7 +9,11 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="场景 这次想解决的场景是想在一个mysqld实例上重放一些来自于其他实例的binlog, 传统的方法是mysqlbinlog. 但是mysqlbinlog会带来一些问题, 比如这个bug 后同事转给我一种利用复制重放binlog的方法, 其中提到两种方式: 第一种是修改relay log的信息, &hellip;">
+  <meta name="description" content="以下都是个人理解, 如有疏漏请斧正
+另, 因为理解不深, 将忽略锁级别以及锁共享的细节 MDL MDL (Metadata lock), 除了正常的Condition var提供的功能外, 还额外提供了
+1. 不同的锁级别. 在不冲突的情况下, 允许共享资源
+2. 死锁检查和处理
+3. &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -61,6 +65,409 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2014/04/04/MDL/" style='font-size:20px'>整理一下最近读的MDL源码</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-04-04T20:00:00+08:00" pubdate data-updated="true">Apr 4<span>th</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2014/04/04/MDL/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"整理一下最近读的MDL源码", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>以下都是个人理解, 如有疏漏请斧正
+另, 因为理解不深, 将忽略锁级别以及锁共享的细节</p>
+
+<h2>MDL</h2>
+
+<p>MDL (Metadata lock), 除了正常的Condition var提供的功能外, 还额外提供了
+1. 不同的锁级别. 在不冲突的情况下, 允许共享资源
+2. 死锁检查和处理
+3. 记录等待状态, 是死锁检查的基础</p>
+
+<h2>模型</h2>
+
+<p><code>MDL_lock</code> 表示Mysqld中的一个资源(库/表/&#8230;) 存储在全局结构 <code>mdl_locks (MDL_map)</code>中, <code>mdl_locks</code>内有<code>m_partitions</code> (锁的分区), 用来分散查找lock时的竞争</p>
+
+<p><code>MDL_context</code> 为MDL上下文接口, 表示一个资源竞争者, THD实现了这个接口, 即一个Mysqld的线程可以是<code>MDL_lock</code>的资源竞争者</p>
+
+<p><code>MDL_ticket</code> 表示<code>MDL_lock</code>的许可或请求, 会同时挂在两处:
+1. 挂在所属<code>MDL_Context</code>中, 通过<code>MDL_ticket.next_in_context/prev_in_context</code>组织链表
+2. 挂在<code>MDL_lock</code>的队列中, 通过<code>MDL_ticket.next_in_lock/prev_in_lock</code>组织链表. <code>MDL_lock</code>的队列分为两种, 一个<code>MDL_ticket</code>可能会挂在其中之一</p>
+
+<pre><code>* 挂在`MDL_lock`的等待队列(`MDL_lock.m_waiting`)中, 表示`MDL_ticket`的owner (`MDL_context`)正在等待该资源(`MDL_lock`)
+* 挂在`MDL_lock`的已许可队列(`MDL_lock.m_granted`)中, 表示`MDL_ticket`的owner (`MDL_context`)已经获得该资源(`MDL_lock`)
+</code></pre>
+
+<p>总结一下, <code>MDL_context</code>和<code>MDL_ticket</code>的关系是一对多, 一个竞争者可以同时申请/获得多个资源的许可; <code>MDL_ticket</code>和<code>MDL_lock</code>的关系是多对一, 可以同时有多个资源许可在竞争一个资源, 或者多个资源许可可以<em>有条件</em>地共享一个资源</p>
+
+<h2>如何获得锁</h2>
+
+<p>简单分析<code>MDL_context::acquire_lock</code>方法, 其主要流程是</p>
+
+<pre><code>bool MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout) {
+    ...
+
+    try_acquire_lock_impl(...) 
+    //尝试不等待立刻获得资源, 如果成功直接返回
+    //以下是等待资源的处理
+    ...
+    lock-&gt;m_waiting.add_ticket(ticket) 
+    //将一个资源申请`ticket`挂入资源`lock`的等待队列`m_waiting`
+    if (lock-&gt;needs_notification(ticket)) {
+        //如果等待资源时需要通知状态, 则不断轮询并通知
+        //将忽略此处的细节
+        ...
+    } else {
+        //等待资源
+        //结果可能是获得资源, 或者超时, 或者异常 (比如被死锁检测机制判定死亡)
+        //`timed_wait`中的实现是等待COND(条件变量)`m_wait.m_COND_wait_status`
+        wait_status= m_wait.timed_wait(...);
+    }
+    //收尾处理
+    m_tickets[mdl_request-&gt;duration].push_front(ticket)
+    //将资源申请`ticket`挂入`MDL_Context.m_tickets`
+    ...
+}
+</code></pre>
+
+<h3>记录等待状态</h3>
+
+<p>之前提到了记录等待状态, 在<code>MDL_context::acquire_lock</code>方法中可以看到如下代码 (上一节未列出)</p>
+
+<pre><code>bool MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout) {
+    m_wait.reset_status();
+    ...
+    will_wait_for(ticket); //其中设置了`m_waiting_for`
+    if (lock-&gt;needs_notification(ticket)) {
+        ...
+        //等待资源
+        wait_status= m_wait.timed_wait(m_owner, &amp;abs_timeout, TRUE,
+                                  mdl_request-&gt;key.get_wait_state_name());
+    } else {
+        //等待资源
+        wait_status= m_wait.timed_wait(m_owner, &amp;abs_timeout, TRUE,
+                                  mdl_request-&gt;key.get_wait_state_name());
+    }
+    done_waiting_for(); //其中清空了`m_waiting_for`
+    ...
+}
+</code></pre>
+
+<p>可以看到<code>MDL_context.m_wait</code>是用来等待资源的工具类, 其中进行等待处理, 并记录等待资源的状态/结果.</p>
+
+<p>还有一个<code>MDL_context.m_waiting_for</code>也在记录<code>MDL_context</code>正在进行的资源申请(<code>MDL_ticket</code>), 其正在等待某个资源. 实际上<code>m_waiting_for</code>是冗余的信息, 至于原因源代码中有解释, 此处不冗余说明&#8230;</p>
+
+<h2>如何释放锁</h2>
+
+<p>释放锁, 需要完成下面几个动作:
+1. 将<code>ticket</code>从<code>MDL_lock</code>的数据结构上卸下来
+2. 调度选择新的锁占有者
+3. 将<code>ticket</code>从<code>MDL_context</code>的数据结构上卸下并回收</p>
+
+<p>入口为<code>MDL_context::release_lock</code></p>
+
+<pre><code>void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket) 
+{
+    ...
+    lock-&gt;remove_ticket(&amp;MDL_lock::m_granted, ticket) {
+        //将`ticket`从`MDL_lock`的数据结构上卸下来
+        (this-&gt;*list).remove_ticket(ticket);
+        ...
+        //调度选择新的锁占有者
+        reschedule_waiters();
+    }()
+
+    //将`ticket`从`MDL_context`的数据结构上卸下并回收
+    m_tickets[duration].remove(ticket);
+    MDL_ticket::destroy(ticket);
+    ...
+}
+</code></pre>
+
+<p>下面说明调度的细节</p>
+
+<h3>释放锁时的调度</h3>
+
+<p>调度函数的入口是<code>MDL_lock::reschedule_waiters</code></p>
+
+<p>最简单的调度就是从<code>MDL_lock.m_waiting</code>队列中取出头元素, 直接将资源调度给头元素即可</p>
+
+<p>Mysqld在此基础上添加了一个退让条件:
+如果资源连续被<em>高优先级</em>(比如<code>SNW</code>/<code>SNRW</code>/<code>X</code>锁类型)的<code>ticket</code>获得, 那么退让一步, 允许资源间隔被调度给<em>低优先级</em>的<code>ticket</code>防止其饿死.</p>
+
+<p>用<code>MDL_lock::reschedule_waiters</code>的代码说就是, 如果<code>MDL_lock</code>被连续分配给<code>hog_lock_types_bitmap()</code>中定义的<em>高优先级</em>类型的<code>ticket</code>,连续的次数<code>m_hog_lock_count</code>超过<code>max_write_lock_count</code>, 那么开启退让条件, 批准第一个<em>非</em><em>高优先级</em>的<code>ticket</code>获得资源</p>
+
+<h2>死锁检测</h2>
+
+<p>死锁检测的入口是<code>MDL_context::find_deadlock</code>, 本身原理很简单, 但源码写的很复杂= =. 先说明原理, 再对应源码</p>
+
+<p>设当前<code>MDL_context</code>为图的一个节点<code>A</code>, 从节点<code>A</code>出发,  找到<code>A</code>的正在等待的资源<code>L</code>(<code>A.m_waiting_for.m_lock</code>)中的<code>m_granted</code>里的每一个<code>MDL_ticket</code>对应的<code>MDL_context</code> <code>B</code>, 表示<code>A</code>正在等待<code>B</code>释放资源<code>L</code>. 在图中<code>A</code> -> <code>B</code> 添加一条有向边</p>
+
+<p>死锁检查的工作就是遍历这张有向图, 检查其是否存在环路</p>
+
+<p>以<code>MDL_context::find_deadlock</code>入口, 展开一些调用来说明代码</p>
+
+<pre><code>(MDL_context::find_deadlock)
+while(1) {
+    visit_subgraph(visitor) {
+        m_waiting_for-&gt;accept_visitor(visitor) {
+            m_lock-&gt;visit_subgraph(this, visitor) {
+                ...
+            }()
+        }()
+    }()
+    break if no deadlock
+    set deadlock victim
+    break if deadlock victim is current context
+}
+</code></pre>
+
+<p>可以看到<code>find_deadlock</code>以<code>MDL_context.m_waiting_for.m_lock</code>为起始点, 不断遍历其有向图, 选出victim. 直到
+* 没有发现死锁
+* 或自己被选为victim</p>
+
+<p>其使用一个visitor (<code>MDL_wait_for_graph_visitor</code>) 贯穿遍历过程, 其记录了遍历的过程</p>
+
+<p>再来看<code>MDL_lock::visit_subgraph</code>, 此函数是以一个<code>MDL_lock</code>为起点, 来遍历依赖图</p>
+
+<pre><code>MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket, MDL_wait_for_graph_visitor *gvisitor) {
+
+    //此处是因为MDL_context.m_waiting_for是冗余信息, 但无法保证更新同步, 带来的额外操作. 忽略此处细节
+    if (src_ctx-&gt;m_wait.get_status() != MDL_wait::EMPTY) {...}
+
+    //visitor用来记录遍历层次
+    //当遍历层次大于MAX_SEARCH_DEPTH(32), 也认为发现死锁
+    if (gvisitor-&gt;enter_node(src_ctx)) {...}
+
+    //由于现在是以一个资源(`MDL_lock`)为视角, 之后的检查为了效率, 遍历会从两个方向同时进行, 即检查节点的出度方向(`MDL_lock.m_granted`)和节点的入度方向(`MDL_lock.m_waiting`). 
+
+
+    //为了效率, 死锁检测会先检测距离为1的临近节点, 而先不深度遍历图
+
+    while ((ticket= granted_it++))
+    {
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_granted(waiting_ticket-&gt;get_type()) &amp;&amp;
+          gvisitor-&gt;inspect_edge(ticket-&gt;get_ctx()))
+      {
+        goto end_leave_node;
+      }
+    }
+
+    while ((ticket= waiting_it++))
+    {
+      /* Filter out edges that point to the same node. */
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_waiting(waiting_ticket-&gt;get_type()) &amp;&amp;
+          gvisitor-&gt;inspect_edge(ticket-&gt;get_ctx()))
+      {
+        goto end_leave_node;
+      }
+    }
+
+    //此处开始, 深度遍历图
+
+    granted_it.rewind();
+    while ((ticket= granted_it++))
+    {
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_granted(waiting_ticket-&gt;get_type()) &amp;&amp;
+          ticket-&gt;get_ctx()-&gt;visit_subgraph(gvisitor))
+      {
+        goto end_leave_node;
+      }
+    }
+
+    waiting_it.rewind();
+    while ((ticket= waiting_it++))
+    {
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_waiting(waiting_ticket-&gt;get_type()) &amp;&amp;
+          ticket-&gt;get_ctx()-&gt;visit_subgraph(gvisitor))
+      {
+        goto end_leave_node;
+      }
+    }
+    ...
+
+    //visitor退栈
+    gvisitor-&gt;leave_node(src_ctx);
+    ...
+}
+</code></pre>
+
+<p>发现死锁后, 会调用<code>Deadlock_detection_visitor::opt_change_victim_to</code>, 其中进行<code>MDL_context</code>权重比较, 来选取一个作为victim, 此处忽略细节</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2014/04/01/study-mysql-bug-70307-2/" style='font-size:20px'>对Mysql Bug #70307 的再学习</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-04-01T13:07:00+08:00" pubdate data-updated="true">Apr 1<span>st</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2014/04/01/study-mysql-bug-70307-2/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"对Mysql bug #70307 的再学习", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>之前对bug #70307有过<a href="http://ikarishinjieva.github.io/blog/blog/2013/10/25/study-mysql-bug-70307/">学习</a>, 苦于阿兹海默状态, 又花了半天在mysql 5.5.33上探查这个场景的原因&#8230;</p>
+
+<p>简单记录一下</p>
+
+<h4>现象</h4>
+
+<p>mysql进行主从复制, 从机上<code>FLUSH TABLES WITH READ LOCK</code>后, 进行<code>STOP SLAVE</code>, 一定概率下 <code>SHOW SLAVE STATUS</code>卡住</p>
+
+<h4>重现步骤</h4>
+
+<table>
+<thead>
+<tr>
+<th>master </th>
+<th> slave client 1 </th>
+<th> slave client 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> - </td>
+<td> STOP SLAVE IO_THREAD </td>
+<td> -</td>
+</tr>
+<tr>
+<td> CREATE TABLE TEST.TEST &#8230; </td>
+<td> - </td>
+<td> -</td>
+</tr>
+<tr>
+<td> - </td>
+<td> FLUSH TABLES WITH READ LOCK </td>
+<td> -</td>
+</tr>
+<tr>
+<td> - </td>
+<td> START SLAVE IO_THREAD </td>
+<td> -</td>
+</tr>
+<tr>
+<td> - </td>
+<td> - </td>
+<td> STOP SLAVE</td>
+</tr>
+<tr>
+<td> - </td>
+<td> SHOW SLAVE STATUS </td>
+<td> -</td>
+</tr>
+</tbody>
+</table>
+
+
+<p>其中, <code>START/STOP SLAVE IO_THREAD</code>是为了在<code>FLUSH TABLES WITH READ LOCK</code>时造成slave io_thread有未提交数据</p>
+
+<h4>死锁原因</h4>
+
+<ol>
+<li><code>FLUSH TABLES WITH READ LOCK</code> 会阻塞IO_THREAD提交数据</li>
+<li><code>STOP SLAVE</code>会等待IO_THREAD结束 (<code>mi-&gt;stop_cond</code>), 即<code>STOP SLAVE</code>间接被<code>FLUSH TABLES WITH READ LOCK</code>阻塞</li>
+<li><code>STOP SLAVE</code>在被阻塞前, 持有了<code>LOCK_active_mi</code>, 独占了<code>master_info</code></li>
+<li><code>SHOW SLAVE STATUS</code>会申请锁<code>LOCK_active_mi</code>, 被<code>STOP SLAVE</code>阻塞</li>
+<li>如果<code>SHOW SLAVE STATUS</code>是由之前<code>FLUSH TABLES WITH READ LOCK</code>的<code>slave client 1</code>发出的, 那逻辑上相当于自己在等待自己释放资源</li>
+<li>从另外的client上<code>UNLOCK TABLES</code>也解不开</li>
+</ol>
+
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b3">
       
   <header>
     
@@ -289,7 +696,7 @@ packet 2
     </article>
   
   
-    <article class="b2">
+    <article class="b4">
       
   <header>
     
@@ -384,7 +791,7 @@ lsof    6191 root  cwd    DIR  253,0   32768 3506177 .
     </article>
   
   
-    <article class="b3">
+    <article class="b5">
       
   <header>
     
@@ -473,7 +880,7 @@ lsof    6191 root  cwd    DIR  253,0   32768 3506177 .
     </article>
   
   
-    <article class="b4">
+    <article class="b6">
       
   <header>
     
@@ -572,7 +979,7 @@ signal.Notify(c, syscall.SIGTTIN)
     </article>
   
   
-    <article class="b5">
+    <article class="b7">
       
   <header>
     
@@ -709,7 +1116,7 @@ if e := c.Wait(); nil != e {
     </article>
   
   
-    <article class="b6">
+    <article class="b1">
       
   <header>
     
@@ -949,7 +1356,7 @@ void ha_reset_slave(THD *thd);
     </article>
   
   
-    <article class="b7">
+    <article class="b2">
       
   <header>
     
@@ -1042,7 +1449,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b1">
+    <article class="b3">
       
   <header>
     
@@ -1234,7 +1641,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b2">
+    <article class="b4">
       
   <header>
     
@@ -1346,7 +1753,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b3">
+    <article class="b5">
       
   <header>
     
@@ -1584,7 +1991,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b4">
+    <article class="b6">
       
   <header>
     
@@ -1810,7 +2217,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b5">
+    <article class="b7">
       
   <header>
     
@@ -1893,7 +2300,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b6">
+    <article class="b1">
       
   <header>
     
@@ -2020,7 +2427,7 @@ Software Developer’s Manual</a>，可知<code>dec</code>有多种形式</p>
     </article>
   
   
-    <article class="b7">
+    <article class="b2">
       
   <header>
     
@@ -2169,7 +2576,7 @@ func main() {
     </article>
   
   
-    <article class="b1">
+    <article class="b3">
       
   <header>
     
@@ -2265,7 +2672,7 @@ The φ Accrual Failure Detector</a>：</p>
     </article>
   
   
-    <article class="b2">
+    <article class="b4">
       
   <header>
     
@@ -2428,7 +2835,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b3">
+    <article class="b5">
       
   <header>
     
@@ -2604,7 +3011,7 @@ thread = 140016942216960}, m_psi = 0x0}
     </article>
   
   
-    <article class="b4">
+    <article class="b6">
       
   <header>
     
@@ -2785,356 +3192,6 @@ thread = 140016942216960}, m_psi = 0x0}
 
     </article>
   
-  
-    <article class="b5">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/" style='font-size:20px'>Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-10-16T22:50:00+08:00" pubdate data-updated="true">Oct 16<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/10/16/mysql-mysql_binlog_send-src/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>读了两天rpl_master.cc:mysql_binlog_send的源码（Mysql 5.6.11），总结一下</p>
-
-<p>函数的入口是rpl_master.cc:com_binlog_dump，当slave向master请求数据时，在master上调用</p>
-
-<p>函数参数说明: <br/>log_ident为slave请求的binlog文件名，如&#8221;mysql-bin.000001&#8221;<br/>pos为slave请求的binlog位置<br/>slave_gtid_executed为gtid相关，在此忽略</p>
-
-<p>在此吐槽：</p>
-
-<ol>
-<li>这个函数将近1k行，且缩进混乱，代码折叠困难。最后附的我的笔记中，有整理好的源码下载</li>
-<li>这个函数有两大段近百行的重复代码（1179 &amp; 1553）</li>
-</ol>
-
-
-<h1>源码的主体结构</h1>
-
-<figure class='code'><figcaption><span>源码的主体结构  </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-<span class='line-number'>41</span>
-<span class='line-number'>42</span>
-<span class='line-number'>43</span>
-<span class='line-number'>44</span>
-<span class='line-number'>45</span>
-<span class='line-number'>46</span>
-<span class='line-number'>47</span>
-<span class='line-number'>48</span>
-<span class='line-number'>49</span>
-<span class='line-number'>50</span>
-<span class='line-number'>51</span>
-<span class='line-number'>52</span>
-<span class='line-number'>53</span>
-</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="n">mysql_binlog_send</span><span class="o">(</span><span class="err">…</span><span class="o">)</span>
-</span><span class='line'><span class="o">{</span>
-</span><span class='line'>     <span class="mi">0814</span> <span class="err">…</span> <span class="n">bla</span> <span class="n">bla</span>
-</span><span class='line'>     <span class="mi">1011</span> <span class="n">fake_rotate_event</span>
-</span><span class='line'>     <span class="mi">1028</span> <span class="n">max_alloed_packet</span><span class="o">=</span> <span class="n">MAX_MAX_ALLOWED_PACKET</span>
-</span><span class='line'>     <span class="mi">1038</span> <span class="k">if</span> <span class="o">(</span><span class="err">请求的</span><span class="n">POS</span><span class="err">不是从</span><span class="n">binlog</span><span class="err">开头开始</span><span class="o">)</span>
-</span><span class='line'>     <span class="mi">1039</span> <span class="o">{</span>
-</span><span class='line'>               <span class="err">从</span><span class="n">binlog</span><span class="err">开头中找到一个</span><span class="n">FD</span> <span class="n">event</span><span class="o">(</span><span class="n">FORMAT_DESCRIPTION_EVENT</span><span class="o">),</span> <span class="err">并发送给</span><span class="n">slave</span>
-</span><span class='line'>     <span class="mi">1123</span> <span class="o">}</span>
-</span><span class='line'>     <span class="mi">1124</span> <span class="k">else</span>
-</span><span class='line'>     <span class="mi">1125</span> <span class="o">{</span>
-</span><span class='line'>               <span class="n">FD</span> <span class="n">event</span><span class="err">可以从正常的</span><span class="n">replication</span><span class="err">中传送给</span><span class="n">slave</span><span class="err">，此处不做操作</span>
-</span><span class='line'>     <span class="mi">1127</span> <span class="o">}</span>
-</span><span class='line'>     <span class="mi">1132</span> <span class="k">while</span> <span class="o">(</span><span class="n">net</span><span class="err">和</span><span class="n">the</span><span class="err">都在运转</span><span class="o">)</span>
-</span><span class='line'>     <span class="mi">1133</span> <span class="o">{</span>
-</span><span class='line'>     <span class="mi">1143</span>      <span class="k">while</span> <span class="o">(</span><span class="err">从</span><span class="n">binlog</span><span class="err">中读取一个</span><span class="n">event</span><span class="o">)</span>
-</span><span class='line'>     <span class="mi">1144</span>      <span class="o">{</span>
-</span><span class='line'>     <span class="mi">1178</span>           <span class="k">switch</span> <span class="o">(</span><span class="n">event_type</span><span class="o">)</span>
-</span><span class='line'>     <span class="mi">1179</span>           <span class="o">{</span>
-</span><span class='line'>                         <span class="err">分类型处理</span><span class="n">event</span>
-</span><span class='line'>     <span class="mi">1281</span>           <span class="o">}</span>
-</span><span class='line'>     <span class="mi">1283</span>           <span class="err">若</span><span class="n">event</span><span class="err">需跳转到下一个</span><span class="n">binlog</span><span class="o">(</span><span class="n">goto_next_binlog</span><span class="o">),</span> <span class="k">break</span>
-</span><span class='line'>     <span class="mi">1291</span>           <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">before_send_event</span>
-</span><span class='line'>     <span class="mi">1300</span>           <span class="err">记录</span><span class="n">skip_group</span>
-</span><span class='line'>     <span class="mi">1306</span>           <span class="o">{</span>
-</span><span class='line'>                         <span class="n">send</span> <span class="n">last</span> <span class="n">skip</span> <span class="n">group</span> <span class="n">heartbeat</span><span class="o">?</span>
-</span><span class='line'>     <span class="mi">1326</span>           <span class="o">}</span>
-</span><span class='line'>     <span class="mi">1331</span>           <span class="err">向</span><span class="n">slave</span><span class="err">发送</span><span class="n">event</span>
-</span><span class='line'>     <span class="mi">1348</span>           <span class="o">{</span>
-</span><span class='line'>                         <span class="err">处理</span><span class="n">LOAD_EVENT</span>
-</span><span class='line'>     <span class="mi">1356</span>           <span class="o">}</span>
-</span><span class='line'>     <span class="mi">1358</span>           <span class="n">fire</span> <span class="n">HOOK</span> <span class="n">after_send_event</span>
-</span><span class='line'>     <span class="mi">1369</span>      <span class="o">}</span>
-</span><span class='line'>     <span class="mi">1391</span>      <span class="k">if</span> <span class="o">(!</span><span class="n">goto_next_binlog</span><span class="o">)</span>
-</span><span class='line'>     <span class="mi">1392</span>      <span class="o">{</span>
-</span><span class='line'>                   <span class="err">发送完所有</span><span class="n">binlog</span><span class="err">，未发生</span><span class="n">binlog</span><span class="err">切换时</span>
-</span><span class='line'>     <span class="mi">1437</span>          <span class="err">加锁尝试再读取一个</span><span class="n">event</span><span class="err">（此时其他进程不能更新</span><span class="n">binlog</span><span class="err">），目的是试探之前处理过程中</span><span class="n">master</span><span class="err">上是否有更多的</span><span class="n">binlog</span><span class="err">写入，若有，则跳转</span><span class="mi">1553</span><span class="err">处理</span><span class="n">read_packet</span>
-</span><span class='line'>     <span class="mi">1451</span>          <span class="err">若没有更多的</span><span class="n">binlog</span>
-</span><span class='line'>                   <span class="o">{</span>
-</span><span class='line'>                        <span class="err">等待更多的</span><span class="n">binlog</span><span class="err">写入，等待时发送心跳</span>
-</span><span class='line'>     <span class="mi">1545</span>          <span class="o">}</span>
-</span><span class='line'>     <span class="mi">1553</span>          <span class="err">处理</span><span class="n">read_packet</span>
-</span><span class='line'>                   <span class="o">{</span>
-</span><span class='line'>                        <span class="err">分类型处理</span><span class="n">event</span>
-</span><span class='line'>     <span class="mi">1682</span>          <span class="o">}</span>
-</span><span class='line'>     <span class="mi">1683</span>      <span class="o">}</span>
-</span><span class='line'>     <span class="mi">1685</span>      <span class="k">if</span> <span class="o">(</span><span class="n">goto_next_binlog</span><span class="o">)</span>
-</span><span class='line'>               <span class="o">{</span>
-</span><span class='line'>                    <span class="err">切换到下一个</span><span class="n">binlog</span>
-</span><span class='line'>               <span class="o">}</span>
-</span><span class='line'>     <span class="mi">1733</span> <span class="o">}</span>
-</span><span class='line'>     <span class="mi">1735</span> <span class="err">之后是收尾处理</span>
-</span><span class='line'><span class="o">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h1>重点步骤</h1>
-
-<ol>
-<li>补发Format Description event。<br/>如果传送从binlog开头开始，那么FD event会正常随着binlog传送；<br/>若传送不从binlog开头开始，则需要补发一个FD event，才开始传送</li>
-<li>如何判断binlog读取完<br/>函数先不加锁读取binlog中的event，读完后，再加锁尝试读取一个event（加锁过程中，没有其他进程写进binlog），若有数据，则继续处理，若没有数据，则说明binlog读取完了，master会阻塞等待新的binlog写入。<br/>这样做主要为了：<br/>1. 不需要一直加锁读取binlog，保障性能；<br/>2. 无锁读取时会有其他进程写binlog，加锁可以保障这些新加的binlog得到妥善安置</li>
-<li>心跳<br/>仅在不传送binlog时（master穷尽了binlog，开始阻塞等待新的binlog写入时）才进行心跳</li>
-<li>Fake Rotate Event<br/>Fake Rotate Event在开始传送和切换binlog时发送到slave。主要作用是通知slave binlog filename，原因在源码comment里写的很清楚。但是很疑惑的是为什么在FD event里并没有binlog filename，这个问题发到了<a href="http://stackoverflow.com/questions/19375951/in-mysql-replication-why-format-description-event-doesnt-include-binlogs-name">StackoverFlow</a>，未有答案。（诶，看看我的stackoverflow的记录就知道，我的问题都是死题）</li>
-</ol>
-
-
-<h1>TODO</h1>
-
-<p>有一些东西还是没弄懂，得慢慢读懂其他机制才可以，比如</p>
-
-<ol>
-<li>max_alloed_packet是如何作用的</li>
-<li>send last skip group heartbeat的作用</li>
-<li>不同类型的event的具体处理，需要和slave端结合在一起</li>
-</ol>
-
-
-<h1>我的笔记</h1>
-
-<p>我的笔记<a href="https://app.yinxiang.com/shard/s11/sh/f23e9619-9c3d-47f5-a911-8945d0ee02a5/f4eb8539fb2f99e1481496c994b2c270">在此</a></p>
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/10/14/mha-failover/" style='font-size:20px'>MHA Failover时做了些啥</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-10-14T21:39:00+08:00" pubdate data-updated="true">Oct 14<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/10/14/mha-failover/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"MHA failover时做了些啥", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>读了MHA failover部分的源码整理一下</p>
-
-<p>代码位置注解的格式为file_name@function_name</p>
-
-<h1>设定场景</h1>
-
-<p>假设集群里有四个mysql实例分别是old_master和slave 0,1,2
-slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 New master</p>
-
-<p>如图
-<img src="/blog/images/2013-10-14-mha-failover-1.png"></p>
-
-<h1>Failover的步骤代码</h1>
-
-<p>(MasterFailover@do_master_failover)</p>
-
-<p> 1  check_settings</p>
-
-<p> 2  force_shutdown</p>
-
-<p> 3.1    check_set_latest_slaves</p>
-
-<p> 3.2    save_master_binlog</p>
-
-<p> 3.3    Determining New Master Phase</p>
-
-<pre><code>3.3.1 find_latest_base_slave
-
-3.3.2 select_new_master
-
-3.3.3 recover_master
-
-3.3.4 $new_master-&gt;{activated} = 1;
-</code></pre>
-
-<p> 4  Slaves Recovery Phase</p>
-
-<p>   4.1 Starting Parallel Slave Diff Log Generation Phase.</p>
-
-<p>   4.2 Starting Parallel Slave Log Apply Phase.</p>
-
-<p> 5  cleanup</p>
-
-<h1>Failover的一些步骤说明</h1>
-
-<p>2  force_shutdown</p>
-
-<pre><code>2.1  对所有slave, stop io thread.(MasterFailover@force_shutdown) 这里仅stop io thread, 而不是stop slave, 尽可能让sql thread运行。sql thread是在recover必要时（要生成差异数据时）才停下。 
-
-2.2  在Old master上回收动态ip, shutdown（并可选用power manager对Old master进行关机）. (MasterFailover@force_shutdown_internal)
-</code></pre>
-
-<p>3.1  check_set_latest_slaves, 确定latest_slave和oldest_slaves. latest_slave指的是slave中relay log最超前的slave, 相反oldest_slave指的是relay log最落后的slave</p>
-
-<p>3.2  save_master_binlog, 保存Latest slave到Old master的binlog差异数据, 如图中蓝色部分. 由于master可能是硬件故障等, 不一定能响应save_master_binlog, 所以蓝色部分不一定能保存下来. 若失败, 之后的步骤中用到蓝色部分的地方都可以忽略, 最终结果也是会有部分数据的丢失</p>
-
-<p>3.3.1  find_latest_base_slave, 这里最理想的状况是能从所有的latest slave中能找到一个relay log可以用于补齐oldest slave的 （如果oldest slave可以被补齐, 那其他的slave都可以被补齐）. 如场景图中所示，Slave 0可以作为latest_base_slave.</p>
-
-<p>另一种情况是不能用于补齐oldest slave, 比如下图的状况, 集群里最全最新的relay log也无法和oldest slave对接上. 这种情况的处理跟ignore_fail配置有关, 若所有努力都失败只好failover失败</p>
-
-<p>关于ignore_fail的处理逻辑，可参看源码或者文后我附的源码笔记
-<img src="/blog/images/2013-10-14-mha-failover-2.png"></p>
-
-<p>3.3.2  select_new_master, 选举new master.</p>
-
-<p>选举的策略是尽量在candidate slave列表中，尽量在latest slave列表中，不可以在bad列表中. 注意，new master可以不是latest slave, 场景图中列举的是这种情况（尽管应该比较少见）</p>
-
-<p>3.3.3  recover_master. 将差异数据补齐到new master, 让new master成为集群里数据最全最新的节点.</p>
-
-<p>生成old_master上exec relay_log到read relay_log的差异数据（原因是sql thread落后于io thread）, 源码中中称为diff_from_exec_to_read, 如图中绿色部分.</p>
-
-<p>生成old_master到latest_base_slave的差异数据(MasterFailover@recover_relay_logs), 如图中黄色部分.</p>
-
-<p>重放: 在old_master上重放绿色部分, 然后重放黄色部分(MasterFailover@send_binlog &amp; MasterFailover@recover_slave), 最后重放蓝色部分（MasterFailover@apply_diff）</p>
-
-<p>4  对所有的slave, 这里是以old_slave为例, 与recover_master类似：生成diff_from_exec_to_read（黑色部分）, 生成与latest_base_slave的差异数据（红色部分）. 然后重放黑色部分，红色部分和蓝色部分. (MasterFailover@recover_slaves)</p>
-
-<p>最后让所有slave连到新的master上</p>
-
-<h1>一点说明</h1>
-
-<ol>
-<li>只是简单记录了failover的基本操作, 仅在2.1里说明了stop io thread. 代码中其他操作如change master的操作可以直接翻代码翻到, 不穷举</li>
-<li>我阅读代码的原始笔记放在<a href="https://app.yinxiang.com/shard/s11/sh/565c2973-fae1-452c-9f3e-8418fbb04360/11b9fd4b99229f8599c8c96a7bc3c72e">evernote公开页面</a>, 里面有一些细节, 不再整理</li>
-</ol>
-
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/2/">&larr; Older</a>
@@ -3148,6 +3205,14 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/04/MDL/">整理一下最近读的MDL源码</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/01/study-mysql-bug-70307-2/">对Mysql bug #70307 的再学习</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2014/03/26/mysql-fake-master-server/">mysql, 利用假master重放binlog</a>
@@ -3219,14 +3284,6 @@ slave 0,1,2 执行failover中的角色分别为 Latest slave, Oldest slave 和 N
     
       <li class="post">
         <a href="/blog/blog/2013/10/20/mysql-handle_slave_io-src/">Mysql rpl_slave.cc:handle_slave_io 源码的一些个人分析</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/">Mysql rpl_master.cc:mysql_binlog_send 源码的一些个人分析和吐槽</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/10/14/mha-failover/">MHA failover时做了些啥</a>
       </li>
     
   </ul>

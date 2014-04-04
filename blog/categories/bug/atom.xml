@@ -4,7 +4,7 @@
   <title><![CDATA[Category: bug | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/bug/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-03-26T21:17:39+08:00</updated>
+  <updated>2014-04-04T19:31:26+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,80 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[对Mysql bug #70307 的再学习]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/04/01/study-mysql-bug-70307-2/"/>
+    <updated>2014-04-01T13:07:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/04/01/study-mysql-bug-70307-2</id>
+    <content type="html"><![CDATA[<p>之前对bug #70307有过<a href="http://ikarishinjieva.github.io/blog/blog/2013/10/25/study-mysql-bug-70307/">学习</a>, 苦于阿兹海默状态, 又花了半天在mysql 5.5.33上探查这个场景的原因...</p>
+
+<p>简单记录一下</p>
+
+<h4>现象</h4>
+
+<p>mysql进行主从复制, 从机上<code>FLUSH TABLES WITH READ LOCK</code>后, 进行<code>STOP SLAVE</code>, 一定概率下 <code>SHOW SLAVE STATUS</code>卡住</p>
+
+<h4>重现步骤</h4>
+
+<table>
+<thead>
+<tr>
+<th>master </th>
+<th> slave client 1 </th>
+<th> slave client 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> - </td>
+<td> STOP SLAVE IO_THREAD </td>
+<td> -</td>
+</tr>
+<tr>
+<td> CREATE TABLE TEST.TEST ... </td>
+<td> - </td>
+<td> -</td>
+</tr>
+<tr>
+<td> - </td>
+<td> FLUSH TABLES WITH READ LOCK </td>
+<td> -</td>
+</tr>
+<tr>
+<td> - </td>
+<td> START SLAVE IO_THREAD </td>
+<td> -</td>
+</tr>
+<tr>
+<td> - </td>
+<td> - </td>
+<td> STOP SLAVE</td>
+</tr>
+<tr>
+<td> - </td>
+<td> SHOW SLAVE STATUS </td>
+<td> -</td>
+</tr>
+</tbody>
+</table>
+
+
+<p>其中, <code>START/STOP SLAVE IO_THREAD</code>是为了在<code>FLUSH TABLES WITH READ LOCK</code>时造成slave io_thread有未提交数据</p>
+
+<h4>死锁原因</h4>
+
+<ol>
+<li><code>FLUSH TABLES WITH READ LOCK</code> 会阻塞IO_THREAD提交数据</li>
+<li><code>STOP SLAVE</code>会等待IO_THREAD结束 (<code>mi-&gt;stop_cond</code>), 即<code>STOP SLAVE</code>间接被<code>FLUSH TABLES WITH READ LOCK</code>阻塞</li>
+<li><code>STOP SLAVE</code>在被阻塞前, 持有了<code>LOCK_active_mi</code>, 独占了<code>master_info</code></li>
+<li><code>SHOW SLAVE STATUS</code>会申请锁<code>LOCK_active_mi</code>, 被<code>STOP SLAVE</code>阻塞</li>
+<li>如果<code>SHOW SLAVE STATUS</code>是由之前<code>FLUSH TABLES WITH READ LOCK</code>的<code>slave client 1</code>发出的, 那逻辑上相当于自己在等待自己释放资源</li>
+<li>从另外的client上<code>UNLOCK TABLES</code>也解不开</li>
+</ol>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[jruby中tcp阻塞时Timeout::timeout失效]]></title>

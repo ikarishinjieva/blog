@@ -1,0 +1,561 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>整理一下最近读的MDL源码 - Tac say</title>
+  <meta name="author" content="Tac Huang (ikari_shinji@github)">
+
+  
+  <meta name="description" content="以下都是个人理解, 如有疏漏请斧正
+另, 因为理解不深, 将忽略锁级别以及锁共享的细节 MDL MDL (Metadata lock), 除了正常的Condition var提供的功能外, 还额外提供了
+1. 不同的锁级别. 在不冲突的情况下, 允许共享资源
+2. 死锁检查和处理
+3. &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2014/04/04/MDL/">
+  <link href="/blog/favicon.png" rel="icon">
+  <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/blog/javascripts/modernizr-2.0.js"></script>
+  <script src="/blog/javascripts/ender.js"></script>
+  <script src="/blog/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/blog/atom.xml" rel="alternate" title="Tac say" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/blog/">Tac say</a></h1>
+  
+    <h2>只想做个程序演奏家</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/blog/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<ul class="main-navigation">
+  <li><a href="/blog/">Blog</a></li>
+  <li><a href="/blog/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">整理一下最近读的MDL源码</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-04-04T20:00:00+08:00" pubdate data-updated="true">Apr 4<span>th</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+<div class="entry-content"><p>以下都是个人理解, 如有疏漏请斧正
+另, 因为理解不深, 将忽略锁级别以及锁共享的细节</p>
+
+<h2>MDL</h2>
+
+<p>MDL (Metadata lock), 除了正常的Condition var提供的功能外, 还额外提供了
+1. 不同的锁级别. 在不冲突的情况下, 允许共享资源
+2. 死锁检查和处理
+3. 记录等待状态, 是死锁检查的基础</p>
+
+<h2>模型</h2>
+
+<p><code>MDL_lock</code> 表示Mysqld中的一个资源(库/表/&#8230;) 存储在全局结构 <code>mdl_locks (MDL_map)</code>中, <code>mdl_locks</code>内有<code>m_partitions</code> (锁的分区), 用来分散查找lock时的竞争</p>
+
+<p><code>MDL_context</code> 为MDL上下文接口, 表示一个资源竞争者, THD实现了这个接口, 即一个Mysqld的线程可以是<code>MDL_lock</code>的资源竞争者</p>
+
+<p><code>MDL_ticket</code> 表示<code>MDL_lock</code>的许可或请求, 会同时挂在两处:
+1. 挂在所属<code>MDL_Context</code>中, 通过<code>MDL_ticket.next_in_context/prev_in_context</code>组织链表
+2. 挂在<code>MDL_lock</code>的队列中, 通过<code>MDL_ticket.next_in_lock/prev_in_lock</code>组织链表. <code>MDL_lock</code>的队列分为两种, 一个<code>MDL_ticket</code>可能会挂在其中之一</p>
+
+<pre><code>* 挂在`MDL_lock`的等待队列(`MDL_lock.m_waiting`)中, 表示`MDL_ticket`的owner (`MDL_context`)正在等待该资源(`MDL_lock`)
+* 挂在`MDL_lock`的已许可队列(`MDL_lock.m_granted`)中, 表示`MDL_ticket`的owner (`MDL_context`)已经获得该资源(`MDL_lock`)
+</code></pre>
+
+<p>总结一下, <code>MDL_context</code>和<code>MDL_ticket</code>的关系是一对多, 一个竞争者可以同时申请/获得多个资源的许可; <code>MDL_ticket</code>和<code>MDL_lock</code>的关系是多对一, 可以同时有多个资源许可在竞争一个资源, 或者多个资源许可可以<em>有条件</em>地共享一个资源</p>
+
+<h2>如何获得锁</h2>
+
+<p>简单分析<code>MDL_context::acquire_lock</code>方法, 其主要流程是</p>
+
+<pre><code>bool MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout) {
+    ...
+
+    try_acquire_lock_impl(...) 
+    //尝试不等待立刻获得资源, 如果成功直接返回
+    //以下是等待资源的处理
+    ...
+    lock-&gt;m_waiting.add_ticket(ticket) 
+    //将一个资源申请`ticket`挂入资源`lock`的等待队列`m_waiting`
+    if (lock-&gt;needs_notification(ticket)) {
+        //如果等待资源时需要通知状态, 则不断轮询并通知
+        //将忽略此处的细节
+        ...
+    } else {
+        //等待资源
+        //结果可能是获得资源, 或者超时, 或者异常 (比如被死锁检测机制判定死亡)
+        //`timed_wait`中的实现是等待COND(条件变量)`m_wait.m_COND_wait_status`
+        wait_status= m_wait.timed_wait(...);
+    }
+    //收尾处理
+    m_tickets[mdl_request-&gt;duration].push_front(ticket)
+    //将资源申请`ticket`挂入`MDL_Context.m_tickets`
+    ...
+}
+</code></pre>
+
+<h3>记录等待状态</h3>
+
+<p>之前提到了记录等待状态, 在<code>MDL_context::acquire_lock</code>方法中可以看到如下代码 (上一节未列出)</p>
+
+<pre><code>bool MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout) {
+    m_wait.reset_status();
+    ...
+    will_wait_for(ticket); //其中设置了`m_waiting_for`
+    if (lock-&gt;needs_notification(ticket)) {
+        ...
+        //等待资源
+        wait_status= m_wait.timed_wait(m_owner, &amp;abs_timeout, TRUE,
+                                  mdl_request-&gt;key.get_wait_state_name());
+    } else {
+        //等待资源
+        wait_status= m_wait.timed_wait(m_owner, &amp;abs_timeout, TRUE,
+                                  mdl_request-&gt;key.get_wait_state_name());
+    }
+    done_waiting_for(); //其中清空了`m_waiting_for`
+    ...
+}
+</code></pre>
+
+<p>可以看到<code>MDL_context.m_wait</code>是用来等待资源的工具类, 其中进行等待处理, 并记录等待资源的状态/结果.</p>
+
+<p>还有一个<code>MDL_context.m_waiting_for</code>也在记录<code>MDL_context</code>正在进行的资源申请(<code>MDL_ticket</code>), 其正在等待某个资源. 实际上<code>m_waiting_for</code>是冗余的信息, 至于原因源代码中有解释, 此处不冗余说明&#8230;</p>
+
+<h2>如何释放锁</h2>
+
+<p>释放锁, 需要完成下面几个动作:
+1. 将<code>ticket</code>从<code>MDL_lock</code>的数据结构上卸下来
+2. 调度选择新的锁占有者
+3. 将<code>ticket</code>从<code>MDL_context</code>的数据结构上卸下并回收</p>
+
+<p>入口为<code>MDL_context::release_lock</code></p>
+
+<pre><code>void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket) 
+{
+    ...
+    lock-&gt;remove_ticket(&amp;MDL_lock::m_granted, ticket) {
+        //将`ticket`从`MDL_lock`的数据结构上卸下来
+        (this-&gt;*list).remove_ticket(ticket);
+        ...
+        //调度选择新的锁占有者
+        reschedule_waiters();
+    }()
+
+    //将`ticket`从`MDL_context`的数据结构上卸下并回收
+    m_tickets[duration].remove(ticket);
+    MDL_ticket::destroy(ticket);
+    ...
+}
+</code></pre>
+
+<p>下面说明调度的细节</p>
+
+<h3>释放锁时的调度</h3>
+
+<p>调度函数的入口是<code>MDL_lock::reschedule_waiters</code></p>
+
+<p>最简单的调度就是从<code>MDL_lock.m_waiting</code>队列中取出头元素, 直接将资源调度给头元素即可</p>
+
+<p>Mysqld在此基础上添加了一个退让条件:
+如果资源连续被<em>高优先级</em>(比如<code>SNW</code>/<code>SNRW</code>/<code>X</code>锁类型)的<code>ticket</code>获得, 那么退让一步, 允许资源间隔被调度给<em>低优先级</em>的<code>ticket</code>防止其饿死.</p>
+
+<p>用<code>MDL_lock::reschedule_waiters</code>的代码说就是, 如果<code>MDL_lock</code>被连续分配给<code>hog_lock_types_bitmap()</code>中定义的<em>高优先级</em>类型的<code>ticket</code>,连续的次数<code>m_hog_lock_count</code>超过<code>max_write_lock_count</code>, 那么开启退让条件, 批准第一个<em>非</em><em>高优先级</em>的<code>ticket</code>获得资源</p>
+
+<h2>死锁检测</h2>
+
+<p>死锁检测的入口是<code>MDL_context::find_deadlock</code>, 本身原理很简单, 但源码写的很复杂= =. 先说明原理, 再对应源码</p>
+
+<p>设当前<code>MDL_context</code>为图的一个节点<code>A</code>, 从节点<code>A</code>出发,  找到<code>A</code>的正在等待的资源<code>L</code>(<code>A.m_waiting_for.m_lock</code>)中的<code>m_granted</code>里的每一个<code>MDL_ticket</code>对应的<code>MDL_context</code> <code>B</code>, 表示<code>A</code>正在等待<code>B</code>释放资源<code>L</code>. 在图中<code>A</code> -> <code>B</code> 添加一条有向边</p>
+
+<p>死锁检查的工作就是遍历这张有向图, 检查其是否存在环路</p>
+
+<p>以<code>MDL_context::find_deadlock</code>入口, 展开一些调用来说明代码</p>
+
+<pre><code>(MDL_context::find_deadlock)
+while(1) {
+    visit_subgraph(visitor) {
+        m_waiting_for-&gt;accept_visitor(visitor) {
+            m_lock-&gt;visit_subgraph(this, visitor) {
+                ...
+            }()
+        }()
+    }()
+    break if no deadlock
+    set deadlock victim
+    break if deadlock victim is current context
+}
+</code></pre>
+
+<p>可以看到<code>find_deadlock</code>以<code>MDL_context.m_waiting_for.m_lock</code>为起始点, 不断遍历其有向图, 选出victim. 直到
+* 没有发现死锁
+* 或自己被选为victim</p>
+
+<p>其使用一个visitor (<code>MDL_wait_for_graph_visitor</code>) 贯穿遍历过程, 其记录了遍历的过程</p>
+
+<p>再来看<code>MDL_lock::visit_subgraph</code>, 此函数是以一个<code>MDL_lock</code>为起点, 来遍历依赖图</p>
+
+<pre><code>MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket, MDL_wait_for_graph_visitor *gvisitor) {
+
+    //此处是因为MDL_context.m_waiting_for是冗余信息, 但无法保证更新同步, 带来的额外操作. 忽略此处细节
+    if (src_ctx-&gt;m_wait.get_status() != MDL_wait::EMPTY) {...}
+
+    //visitor用来记录遍历层次
+    //当遍历层次大于MAX_SEARCH_DEPTH(32), 也认为发现死锁
+    if (gvisitor-&gt;enter_node(src_ctx)) {...}
+
+    //由于现在是以一个资源(`MDL_lock`)为视角, 之后的检查为了效率, 遍历会从两个方向同时进行, 即检查节点的出度方向(`MDL_lock.m_granted`)和节点的入度方向(`MDL_lock.m_waiting`). 
+
+
+    //为了效率, 死锁检测会先检测距离为1的临近节点, 而先不深度遍历图
+
+    while ((ticket= granted_it++))
+    {
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_granted(waiting_ticket-&gt;get_type()) &amp;&amp;
+          gvisitor-&gt;inspect_edge(ticket-&gt;get_ctx()))
+      {
+        goto end_leave_node;
+      }
+    }
+
+    while ((ticket= waiting_it++))
+    {
+      /* Filter out edges that point to the same node. */
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_waiting(waiting_ticket-&gt;get_type()) &amp;&amp;
+          gvisitor-&gt;inspect_edge(ticket-&gt;get_ctx()))
+      {
+        goto end_leave_node;
+      }
+    }
+
+    //此处开始, 深度遍历图
+
+    granted_it.rewind();
+    while ((ticket= granted_it++))
+    {
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_granted(waiting_ticket-&gt;get_type()) &amp;&amp;
+          ticket-&gt;get_ctx()-&gt;visit_subgraph(gvisitor))
+      {
+        goto end_leave_node;
+      }
+    }
+
+    waiting_it.rewind();
+    while ((ticket= waiting_it++))
+    {
+      if (ticket-&gt;get_ctx() != src_ctx &amp;&amp;
+          ticket-&gt;is_incompatible_when_waiting(waiting_ticket-&gt;get_type()) &amp;&amp;
+          ticket-&gt;get_ctx()-&gt;visit_subgraph(gvisitor))
+      {
+        goto end_leave_node;
+      }
+    }
+    ...
+
+    //visitor退栈
+    gvisitor-&gt;leave_node(src_ctx);
+    ...
+}
+</code></pre>
+
+<p>发现死锁后, 会调用<code>Deadlock_detection_visitor::opt_change_victim_to</code>, 其中进行<code>MDL_context</code>权重比较, 来选取一个作为victim, 此处忽略细节</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Tac Huang (ikari_shinji@github)</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-04-04T20:00:00+08:00" pubdate data-updated="true">Apr 4<span>th</span>, 2014</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/blog/categories/mdl/'>MDL</a>, <a class='category' href='/blog/blog/categories/mysql/'>mysql</a>, <a class='category' href='/blog/blog/categories/source-code/'>source_code</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/blog/2014/04/01/study-mysql-bug-70307-2/" title="Previous Post: 对Mysql bug #70307 的再学习">&laquo; 对Mysql bug #70307 的再学习</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/04/MDL/">整理一下最近读的MDL源码</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/01/study-mysql-bug-70307-2/">对Mysql bug #70307 的再学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/26/mysql-fake-master-server/">mysql, 利用假master重放binlog</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/25/go-leak-fd/">golang, cmd会泄露文件句柄</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/20/go-file-lock/">golang, windows和linux上的文件锁</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/02/gen/">推荐下我修改的gen</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/02/22/go-exec-command-block-when-redirect-stdout/">GO exec.command.Wait 执行后台程序,在重定向输出时卡住</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin/">尝试使用mysql plugin将RESET SLAVE后的节点重新恢复成slave</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/01/28/compile-mysql-plugin/">编译mysql插件的碰到的问题</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/01/08/jruby-bug-tcp-timeout/">jruby中tcp阻塞时Timeout::timeout失效</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/26/go-iterate-variable/">栽在Go中for的变量</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/19/paxos-lease-2/">对于PaxosLease的个人理解 2</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/19/paxos-lease/">对于PaxosLease的个人理解 1</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/09/test-framework-exp/">关于DEV测试的一些经验总结</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/11/11/study-memory-reorder-cont/">对Memory Reordering Caught in the Act的学习 续 - 关于go的部分</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/11/07/study-memory-reorder/">对Memory Reordering Caught in the Act的学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/11/05/accrual-failure-detector/">对heartbeat φ累积失败检测算法的学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/25/study-mysql-bug-70307/">对Mysql bug #70307 的学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/">Mysql 5.6.12 master上flush logs在slave上产生两个relay-log</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/10/20/mysql-handle_slave_io-src/">Mysql rpl_slave.cc:handle_slave_io 源码的一些个人分析</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Weibo</h1>
+  <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=10&isTitle=1&noborder=0&isWeibo=1&isFans=0&uid=1460219211&verifier=4d7daebc&dpc=1"></iframe>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/ikarishinjieva">@ikarishinjieva</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'ikarishinjieva',
+            count: 5,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/blog/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 - Tac Huang (ikari_shinji@github) -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'tacsay';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2014/04/04/MDL/';
+        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2014/04/04/MDL/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fa62a96d9f5c956ea3ddb6cca8ad83aa3' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
