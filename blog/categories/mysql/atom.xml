@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mysql | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/mysql/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-04-04T19:31:26+08:00</updated>
+  <updated>2014-04-04T20:38:37+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -34,13 +34,19 @@
 
 <p><code>MDL_context</code> 为MDL上下文接口, 表示一个资源竞争者, THD实现了这个接口, 即一个Mysqld的线程可以是<code>MDL_lock</code>的资源竞争者</p>
 
-<p><code>MDL_ticket</code> 表示<code>MDL_lock</code>的许可或请求, 会同时挂在两处:
-1. 挂在所属<code>MDL_Context</code>中, 通过<code>MDL_ticket.next_in_context/prev_in_context</code>组织链表
-2. 挂在<code>MDL_lock</code>的队列中, 通过<code>MDL_ticket.next_in_lock/prev_in_lock</code>组织链表. <code>MDL_lock</code>的队列分为两种, 一个<code>MDL_ticket</code>可能会挂在其中之一</p>
+<p><code>MDL_ticket</code> 表示<code>MDL_lock</code>的许可或请求, 会同时挂在两处:</p>
 
-<pre><code>* 挂在`MDL_lock`的等待队列(`MDL_lock.m_waiting`)中, 表示`MDL_ticket`的owner (`MDL_context`)正在等待该资源(`MDL_lock`)
-* 挂在`MDL_lock`的已许可队列(`MDL_lock.m_granted`)中, 表示`MDL_ticket`的owner (`MDL_context`)已经获得该资源(`MDL_lock`)
-</code></pre>
+<ol>
+<li>挂在所属<code>MDL_Context</code>中, 通过<code>MDL_ticket.next_in_context/prev_in_context</code>组织链表</li>
+<li>挂在<code>MDL_lock</code>的队列中, 通过<code>MDL_ticket.next_in_lock/prev_in_lock</code>组织链表. <code>MDL_lock</code>的队列分为两种, 一个<code>MDL_ticket</code>可能会挂在其中之一
+
+<ul>
+<li>挂在<code>MDL_lock</code>的等待队列(<code>MDL_lock.m_waiting</code>)中, 表示<code>MDL_ticket</code>的owner (<code>MDL_context</code>)正在等待该资源(<code>MDL_lock</code>)</li>
+<li>挂在<code>MDL_lock</code>的已许可队列(<code>MDL_lock.m_granted</code>)中, 表示<code>MDL_ticket</code>的owner (<code>MDL_context</code>)已经获得该资源(<code>MDL_lock</code>)</li>
+</ul>
+</li>
+</ol>
+
 
 <p>总结一下, <code>MDL_context</code>和<code>MDL_ticket</code>的关系是一对多, 一个竞争者可以同时申请/获得多个资源的许可; <code>MDL_ticket</code>和<code>MDL_lock</code>的关系是多对一, 可以同时有多个资源许可在竞争一个资源, 或者多个资源许可可以<em>有条件</em>地共享一个资源</p>
 
@@ -103,10 +109,14 @@
 
 <h2>如何释放锁</h2>
 
-<p>释放锁, 需要完成下面几个动作:
-1. 将<code>ticket</code>从<code>MDL_lock</code>的数据结构上卸下来
-2. 调度选择新的锁占有者
-3. 将<code>ticket</code>从<code>MDL_context</code>的数据结构上卸下并回收</p>
+<p>释放锁, 需要完成下面几个动作:</p>
+
+<ol>
+<li>将<code>ticket</code>从<code>MDL_lock</code>的数据结构上卸下来</li>
+<li>调度选择新的锁占有者</li>
+<li>将<code>ticket</code>从<code>MDL_context</code>的数据结构上卸下并回收</li>
+</ol>
+
 
 <p>入口为<code>MDL_context::release_lock</code></p>
 
