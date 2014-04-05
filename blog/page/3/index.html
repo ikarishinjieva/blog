@@ -9,8 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="花了几天时间在读lisp的入门。 是本写得十分中肯的语言书。冗长，事无巨细，配图和代码样例精准。就算不看冗长的英文只看代码样例，也能了解个大概。对lisp辅助工具的介绍非常详尽，就算是programming ruby也没达到这个程度。习题丰富。
-">
+  <meta name="description" content="前几天微博上一直在转Chrome browser引进了workspace的功能，可以在developer tools里直接进行源码编辑。 但是迄今为止搜索到的文档都没有详细描述使用步骤和限制，36kr上的这篇guide也没有关于mapping的描述，更没有一些坑描述。 &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -62,6 +61,120 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2013/03/05/chrome-workspace/" style='font-size:20px'>Chrome Workspace和File Mapping的使用方法</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-05T22:21:00+08:00" pubdate data-updated="true">Mar 5<span>th</span>, 2013</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2013/03/05/chrome-workspace/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"Chrome Workspace和File Mapping的使用方法", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>前几天微博上一直在转Chrome browser引进了workspace的功能，可以在developer tools里直接进行源码编辑。</p>
+
+<p>但是迄今为止搜索到的文档都没有详细描述使用步骤和限制，36kr上的<a href="http://www.36kr.com/p/201304.html">这篇guide</a>也没有关于mapping的描述，更没有一些坑描述。</p>
+
+<p>翻看了Chromium的源代码，将使用步骤和在Windows下的坑描述一下。(截止20130305，这个步骤还是很新的)。</p>
+
+<h2>浏览器版本</h2>
+
+<p>如果是Chrome(谷歌浏览器)，只有开发者分支上有这个功能，地址<a href="https://www.google.com/intl/en/chrome/browser/index.html?extra=devchannel#eula">在此</a></p>
+
+<p>如果是Canary或者Chromium，都有这个功能。</p>
+
+<h2>使用步骤</h2>
+
+<ol>
+<li><p>开启&#8221;开发者工具实验&#8221;(这翻译真心烂&#8230;): 在browser输入chrome://flags/，启用&#8221;开发者工具实验&#8221;
+<img src="/blog/images/2013-03-05-chrome-workspace-1.png" title="启用&#34;开发者工具实验&#34;" alt="启用&#34;开发者工具实验&#34;"></p></li>
+<li><p>重启chrome</p></li>
+<li><p>打开要调试的site，进入Developer tools的setting
+<img src="/blog/images/2013-03-05-chrome-workspace-2.png" title="进入Developer tools的setting" ></p></li>
+<li><p>启用Workspace功能 (Developer tools -> setting -> Experiments -> File system folders in Sources Panel)
+<img src="/blog/images/2013-03-05-chrome-workspace-3.png" title="启用Workspace功能" ></p></li>
+<li><p>重启Developer Tools, 可以看到Settings里Workspace页
+<img src="/blog/images/2013-03-05-chrome-workspace-4.png" title="Settings里Workspace页" ></p></li>
+<li><p>假设源js的目录为c:\test, 需要现在这个目录下创建空文件.allow-devtools-edit, browser才会认可这个为源文件夹
+<img src="/blog/images/2013-03-05-chrome-workspace-5.png" title="创建空文件.allow-devtools-edit" ></p></li>
+<li><p>在Developer tool -> setting ->Workspace -> File system里，添加源js的目录
+<img src="/blog/images/2013-03-05-chrome-workspace-6.png" title="创建空文件.allow-devtools-edit" ></p></li>
+<li><p>重启Developer Tools, 可以在Sources页里看到本地folder
+<img src="/blog/images/2013-03-05-chrome-workspace-7.png" title="可以在Sources页里看到本地folder" ></p></li>
+<li><p>此时在Chrome用Ctrl + O打开文件列表，可以看到两个相同的文件，一个是远端，一个是本地。在本地文件上打断点没有作用
+<img src="/blog/images/2013-03-05-chrome-workspace-8.png" title="Ctrl + O打开文件列表，可以看到两个相同的文件" ></p></li>
+<li><p>在Developer tool -> setting ->Workspace -> Mappings里，添加mapping：
+<code>
+http://localhost:7001/.../js/slickgrid C:\test
+</code></p></li>
+</ol>
+
+
+<p><em>URL是以http开头的完整路径，url和path都万万不要以/结尾，虽然添加后会自动显示为以/结尾。千万注意大小写会坑爹，要保持mapping和folder的大小写一致</em>
+<img src="/blog/images/2013-03-05-chrome-workspace-9.png" title="添加mapping" ></p>
+
+<ol>
+<li>此时，用Ctrl + O打开文件列表，只能看到一个文件，在本地文件上可以打断点(此处有坑，请阅读坑部分)，对本地文件的修改也会灵验的(直接反应在C:\test中)。</li>
+</ol>
+
+
+<h2>坑</h2>
+
+<ol>
+<li>千万别在mapping的路径后加&#8217;/&#8217;（保存时会自动加上去），否则可能mapping不上。</li>
+<li>大小写会坑爹，千万保持mapping和folder的大小写一致。</li>
+<li>如果你的远端文件路径带参数，比如http://xxx/js/1.js?d=1，断点不会触发。已经<a href="https://code.google.com/p/chromium/issues/detail?id=180202">报了个bug</a></li>
+</ol>
+
+
+<p>应该说workspace是挺有用的功能，不过由于坑3，在项目中的运用不畅。本想自己修修，发现这个bug涉及c++代码，表示放弃。</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -121,7 +234,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -179,7 +292,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -237,7 +350,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -322,7 +435,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -459,7 +572,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -519,7 +632,7 @@
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -631,7 +744,7 @@
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -704,7 +817,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -769,7 +882,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -864,7 +977,7 @@
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -928,7 +1041,7 @@
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -1025,7 +1138,7 @@
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1101,6 +1214,10 @@ Hello world @20130126
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/blog/2014/04/05/MDL_map_partition-lock-split/">MDL_map_partition中对锁的过渡</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/blog/2014/04/04/MDL/">整理一下最近读的MDL源码</a>
       </li>
     
@@ -1174,10 +1291,6 @@ Hello world @20130126
     
       <li class="post">
         <a href="/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/">Mysql 5.6.12 master上flush logs在slave上产生两个relay-log</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/10/20/mysql-handle_slave_io-src/">Mysql rpl_slave.cc:handle_slave_io 源码的一些个人分析</a>
       </li>
     
   </ul>
