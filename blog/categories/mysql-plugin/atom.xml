@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mysql_plugin | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/mysql-plugin/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-04-05T11:48:51+08:00</updated>
+  <updated>2014-04-10T22:48:55+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,48 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[structure alignment 对 mysql plugin 的影响]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/04/10/structure-alignment-on-mysql-plugin/"/>
+    <updated>2014-04-10T20:48:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/04/10/structure-alignment-on-mysql-plugin</id>
+    <content type="html"><![CDATA[<p>先推荐下同事 <a href="http://weibo.com/xiezhenye">@神仙</a> 做的 <a href="https://github.com/xiezhenye/mysql-plugin-mdl-locks">mysql插件</a>, 来观察MDL的详细信息</p>
+
+<p>在使用时, 发现在 非自己编译 的较旧版本的mysql(比如mysql 5.5.33)上, 插件会失效</p>
+
+<p>由于以前有过被坑的<a href="http://ikarishinjieva.github.io/blog/blog/2014/01/28/compile-mysql-plugin/">经历</a>, 确定是mysqld编译时和插件编译时的结构体长度不同, 比如 <code>MDL_wait</code>, 在mysqld编译时长度是120, 在插件编译时是112</p>
+
+<p>本以为和之前一样是编译选项不对, 但经过检查并没有问题</p>
+
+<p>在gdb中打印出<code>MDL_wait</code>结构</p>
+
+<pre><code>(gdb) ptype MDL_wait
+type = class MDL_wait {
+  private:
+    mysql_mutex_t m_LOCK_wait_status;
+    mysql_cond_t m_COND_wait_status;
+    MDL_wait::enum_wait_status m_wait_status;
+
+  public:
+    MDL_wait();
+    ~MDL_wait(int);
+    bool set_status(MDL_wait::enum_wait_status);
+    MDL_wait::enum_wait_status get_status();
+    void reset_status();
+    MDL_wait::enum_wait_status timed_wait(THD *, timespec *, bool, const char *);
+}
+</code></pre>
+
+<p>经过计算, <code>sizeof(m_LOCK_wait_status)</code> + <code>sizeof(m_COND_wait_status)</code> + <code>sizeof(m_wait_status)</code> = 108, 且在mysqld编译时和插件编译时长度不变</p>
+
+<p>整个结构体里面没有其他数据成员, 也没有继承, 那只剩下<strong>structure alignment</strong> (参看<a href="http://www.cprogramming.com/tutorial/size_of_class_object.html">这里</a>). 即在插件编译时, structure alignment补充了4个字节, 但在mysqld编译时补充了8个字节</p>
+
+<p>怀疑和编译环境有关(可能与gcc版本相关), 尝试用相同环境编译mysql 5.5.33, 得到的<code>sizeof(MDL_wait)</code>变为112</p>
+
+<p>结论是尽量把mysql和插件放在同一个环境下编译</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[尝试使用mysql plugin将RESET SLAVE后的节点重新恢复成slave]]></title>

@@ -9,7 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="在MDL源码中有一段MDL_map_partition中对锁的过渡有点意思, 拿出来分析一下 场景 MDL_map_partition是容纳MDL_lock的一个容器, MDL_lock可以简单的理解为一种锁. 那么场景问题是现在我要从锁容器C中查找一个锁L并加锁L, 怎样做到多线程安全 &hellip;">
+  <meta name="description" content="先推荐下同事 @神仙 做的 mysql插件, 来观察MDL的详细信息 在使用时, 发现在 非自己编译 的较旧版本的mysql(比如mysql 5.5.33)上, 插件会失效 由于以前有过被坑的经历, 确定是mysqld编译时和插件编译时的结构体长度不同, 比如 MDL_wait, &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -61,6 +61,97 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2014/04/10/structure-alignment-on-mysql-plugin/" style='font-size:20px'>Structure Alignment 对 Mysql Plugin 的影响</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-04-10T20:48:00+08:00" pubdate data-updated="true">Apr 10<span>th</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2014/04/10/structure-alignment-on-mysql-plugin/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"structure alignment 对 mysql plugin 的影响", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>先推荐下同事 <a href="http://weibo.com/xiezhenye">@神仙</a> 做的 <a href="https://github.com/xiezhenye/mysql-plugin-mdl-locks">mysql插件</a>, 来观察MDL的详细信息</p>
+
+<p>在使用时, 发现在 非自己编译 的较旧版本的mysql(比如mysql 5.5.33)上, 插件会失效</p>
+
+<p>由于以前有过被坑的<a href="http://ikarishinjieva.github.io/blog/blog/2014/01/28/compile-mysql-plugin/">经历</a>, 确定是mysqld编译时和插件编译时的结构体长度不同, 比如 <code>MDL_wait</code>, 在mysqld编译时长度是120, 在插件编译时是112</p>
+
+<p>本以为和之前一样是编译选项不对, 但经过检查并没有问题</p>
+
+<p>在gdb中打印出<code>MDL_wait</code>结构</p>
+
+<pre><code>(gdb) ptype MDL_wait
+type = class MDL_wait {
+  private:
+    mysql_mutex_t m_LOCK_wait_status;
+    mysql_cond_t m_COND_wait_status;
+    MDL_wait::enum_wait_status m_wait_status;
+
+  public:
+    MDL_wait();
+    ~MDL_wait(int);
+    bool set_status(MDL_wait::enum_wait_status);
+    MDL_wait::enum_wait_status get_status();
+    void reset_status();
+    MDL_wait::enum_wait_status timed_wait(THD *, timespec *, bool, const char *);
+}
+</code></pre>
+
+<p>经过计算, <code>sizeof(m_LOCK_wait_status)</code> + <code>sizeof(m_COND_wait_status)</code> + <code>sizeof(m_wait_status)</code> = 108, 且在mysqld编译时和插件编译时长度不变</p>
+
+<p>整个结构体里面没有其他数据成员, 也没有继承, 那只剩下<strong>structure alignment</strong> (参看<a href="http://www.cprogramming.com/tutorial/size_of_class_object.html">这里</a>). 即在插件编译时, structure alignment补充了4个字节, 但在mysqld编译时补充了8个字节</p>
+
+<p>怀疑和编译环境有关(可能与gcc版本相关), 尝试用相同环境编译mysql 5.5.33, 得到的<code>sizeof(MDL_wait)</code>变为112</p>
+
+<p>结论是尽量把mysql和插件放在同一个环境下编译</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
       
   <header>
     
@@ -225,7 +316,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -515,7 +606,7 @@ while(1) {
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -638,7 +729,7 @@ while(1) {
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -867,7 +958,7 @@ packet 2
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -962,7 +1053,7 @@ lsof    6191 root  cwd    DIR  253,0   32768 3506177 .
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -1051,7 +1142,7 @@ lsof    6191 root  cwd    DIR  253,0   32768 3506177 .
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -1150,7 +1241,7 @@ signal.Notify(c, syscall.SIGTTIN)
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -1287,7 +1378,7 @@ if e := c.Wait(); nil != e {
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -1527,7 +1618,7 @@ void ha_reset_slave(THD *thd);
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -1620,7 +1711,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -1812,7 +1903,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -1924,7 +2015,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b6">
+    <article class="b7">
       
   <header>
     
@@ -2162,7 +2253,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b7">
+    <article class="b1">
       
   <header>
     
@@ -2388,7 +2479,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b1">
+    <article class="b2">
       
   <header>
     
@@ -2471,7 +2562,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b2">
+    <article class="b3">
       
   <header>
     
@@ -2598,7 +2689,7 @@ Software Developer’s Manual</a>，可知<code>dec</code>有多种形式</p>
     </article>
   
   
-    <article class="b3">
+    <article class="b4">
       
   <header>
     
@@ -2747,7 +2838,7 @@ func main() {
     </article>
   
   
-    <article class="b4">
+    <article class="b5">
       
   <header>
     
@@ -2843,7 +2934,7 @@ The φ Accrual Failure Detector</a>：</p>
     </article>
   
   
-    <article class="b5">
+    <article class="b6">
       
   <header>
     
@@ -3005,182 +3096,6 @@ thread = 140016942216960}, m_psi = 0x0}
 
     </article>
   
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/" style='font-size:20px'>Mysql 5.6.12 Master上flush Logs在slave上产生两个relay-log</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-10-22T21:42:00+08:00" pubdate data-updated="true">Oct 22<span>nd</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"Mysql 5.6.12 master上flush logs在slave上产生两个relay-log", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><h2>现象</h2>
-
-<p>一个碰巧观察到的有趣的现象：mysql 5.6.12 在master上flush logs，在slave上会观察到两个新的relay-log file</p>
-
-<p>举例：</p>
-
-<p>slave-relay-bin.000092</p>
-
-<pre><code> FD event
- Rotate to mysql-bin.000056
- Rotate to slave-relay-bin.000093
-</code></pre>
-
-<p>slave-relay-bin.000093</p>
-
-<pre><code> FD event slave
- Rotate to mysql-bin.000056
- FD event master
- bla bla…
-</code></pre>
-
-<p>可以看到000092这个relay log相当多余。这个现象并不会影响replication的正确性，只是让有强迫症的人有点狂躁</p>
-
-<h2>探索</h2>
-
-<p>在master上net_serv.cc:my_net_write打断点，可以观察到master的确发出了以下三个事件</p>
-
-<ul>
-<li>ROTATE_EVENT</li>
-</ul>
-
-
-<p>backtrace</p>
-
-<pre><code>#0  my_net_write (net=0x1ea2858, packet=0x7fffa4002b70 "", len=48)
-    at /home/vagrant/mysql-5.6.12/sql/net_serv.cc:284
-#1  0x0000000000a48b05 in mysql_binlog_send (thd=0x1ea2600, log_ident=0x7fffa4004c60 "mysql-bin.000052", pos=167,
-    slave_gtid_executed=0x0) at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:1336
-#2  0x0000000000a46ad2 in com_binlog_dump (thd=0x1ea2600, packet=0x1ea5d21 "", packet_length=26)
-    at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:746
-#3  0x00000000007d1ab9 in dispatch_command (command=COM_BINLOG_DUMP, thd=0x1ea2600, packet=0x1ea5d21 "",
-    packet_length=26) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1534
-#4  0x00000000007d017b in do_command (thd=0x1ea2600) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1036
-#5  0x0000000000797a08 in do_handle_one_connection (thd_arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:977
-#6  0x00000000007974e4 in handle_one_connection (arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:893
-#7  0x0000000000aea87a in pfs_spawn_thread (arg=0x1e7aa80)
-    at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
-#8  0x00007ffff7bc7851 in start_thread () from /lib64/libpthread.so.0
-#9  0x00007ffff6b3290d in clone () from /lib64/libc.so.6
-</code></pre>
-
-<ul>
-<li>第二个ROTATE_EVENT</li>
-</ul>
-
-
-<p>backtrace</p>
-
-<pre><code>#0  my_net_write (net=0x1ea2858, packet=0x7fffa4002ab0 "", len=48)
-    at /home/vagrant/mysql-5.6.12/sql/net_serv.cc:284
-#1  0x0000000000a45f04 in fake_rotate_event (net=0x1ea2858, packet=0x1ea2be8,
-    log_file_name=0x7fffc94ff270 "./mysql-bin.000056", position=4, errmsg=0x7fffc94ffdb0,
-    checksum_alg_arg=1 '\001') at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:395
-#2  0x0000000000a4a33d in mysql_binlog_send (thd=0x1ea2600, log_ident=0x7fffa4004c60 "mysql-bin.000052", pos=167,
-    slave_gtid_executed=0x0) at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:1728
-#3  0x0000000000a46ad2 in com_binlog_dump (thd=0x1ea2600, packet=0x1ea5d21 "", packet_length=26)
-    at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:746
-#4  0x00000000007d1ab9 in dispatch_command (command=COM_BINLOG_DUMP, thd=0x1ea2600, packet=0x1ea5d21 "",
-    packet_length=26) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1534
-#5  0x00000000007d017b in do_command (thd=0x1ea2600) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1036
-#6  0x0000000000797a08 in do_handle_one_connection (thd_arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:977
-#7  0x00000000007974e4 in handle_one_connection (arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:893
-#8  0x0000000000aea87a in pfs_spawn_thread (arg=0x1e7aa80)
-    at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
-#9  0x00007ffff7bc7851 in start_thread () from /lib64/libpthread.so.0
-#10 0x00007ffff6b3290d in clone () from /lib64/libc.so.6
-</code></pre>
-
-<ul>
-<li>FORMAT_DESCRIPTION_EVENT</li>
-</ul>
-
-
-<p>可以看到第一个ROTATE_EVENT是由flush logs发出的，第二个ROTATE_EVENT是fake_rotate_event</p>
-
-<h2>关于fake_rotate_event</h2>
-
-<p>以前也<a href="http://ikarishinjieva.github.io/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/">吐槽</a>过fake_rotate_event</p>
-
-<p>master在binlog切换时（不一定是手工flush，也可能是重启，或者容量达到限制）一定要多发一个rotate event，原因如源码rpl_master.cc:mysql_binlog_send中的注释</p>
-
-<pre><code>  /*
-    Call fake_rotate_event() in case the previous log (the one which
-    we have just finished reading) did not contain a Rotate event.
-    There are at least two cases when this can happen:
-
-    - The previous binary log was the last one before the master was
-      shutdown and restarted.
-
-    - The previous binary log was GTID-free (did not contain a
-      Previous_gtids_log_event) and the slave is connecting using
-      the GTID protocol.
-
-    This way we tell the slave about the new log's name and
-    position.  If the binlog is 5.0 or later, the next event we
-    are going to read and send is Format_description_log_event.
-  */
-  if ((file=open_binlog_file(&amp;log, log_file_name, &amp;errmsg)) &lt; 0 ||
-      fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE,
-                        &amp;errmsg, current_checksum_alg))
-</code></pre>
-
-<p>主要是解决之前没有rotate event发送的场景</p>
-
-<p>虽然非常想吐槽，但是我也想不出更好的办法</p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/2/">&larr; Older</a>
@@ -3194,6 +3109,10 @@ thread = 140016942216960}, m_psi = 0x0}
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/10/structure-alignment-on-mysql-plugin/">structure alignment 对 mysql plugin 的影响</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2014/04/05/MDL_map_partition-lock-split/">MDL_map_partition中对锁的过渡</a>
@@ -3269,10 +3188,6 @@ thread = 140016942216960}, m_psi = 0x0}
     
       <li class="post">
         <a href="/blog/blog/2013/10/25/study-mysql-bug-70307/">对Mysql bug #70307 的学习</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/">Mysql 5.6.12 master上flush logs在slave上产生两个relay-log</a>
       </li>
     
   </ul>
