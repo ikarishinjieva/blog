@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mysql | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/mysql/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-04-10T22:48:55+08:00</updated>
+  <updated>2014-04-11T00:55:59+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,48 +12,6 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
-  
-  <entry>
-    <title type="html"><![CDATA[structure alignment 对 mysql plugin 的影响]]></title>
-    <link href="http://ikarishinjieva.github.com/blog/blog/2014/04/10/structure-alignment-on-mysql-plugin/"/>
-    <updated>2014-04-10T20:48:00+08:00</updated>
-    <id>http://ikarishinjieva.github.com/blog/blog/2014/04/10/structure-alignment-on-mysql-plugin</id>
-    <content type="html"><![CDATA[<p>先推荐下同事 <a href="http://weibo.com/xiezhenye">@神仙</a> 做的 <a href="https://github.com/xiezhenye/mysql-plugin-mdl-locks">mysql插件</a>, 来观察MDL的详细信息</p>
-
-<p>在使用时, 发现在 非自己编译 的较旧版本的mysql(比如mysql 5.5.33)上, 插件会失效</p>
-
-<p>由于以前有过被坑的<a href="http://ikarishinjieva.github.io/blog/blog/2014/01/28/compile-mysql-plugin/">经历</a>, 确定是mysqld编译时和插件编译时的结构体长度不同, 比如 <code>MDL_wait</code>, 在mysqld编译时长度是120, 在插件编译时是112</p>
-
-<p>本以为和之前一样是编译选项不对, 但经过检查并没有问题</p>
-
-<p>在gdb中打印出<code>MDL_wait</code>结构</p>
-
-<pre><code>(gdb) ptype MDL_wait
-type = class MDL_wait {
-  private:
-    mysql_mutex_t m_LOCK_wait_status;
-    mysql_cond_t m_COND_wait_status;
-    MDL_wait::enum_wait_status m_wait_status;
-
-  public:
-    MDL_wait();
-    ~MDL_wait(int);
-    bool set_status(MDL_wait::enum_wait_status);
-    MDL_wait::enum_wait_status get_status();
-    void reset_status();
-    MDL_wait::enum_wait_status timed_wait(THD *, timespec *, bool, const char *);
-}
-</code></pre>
-
-<p>经过计算, <code>sizeof(m_LOCK_wait_status)</code> + <code>sizeof(m_COND_wait_status)</code> + <code>sizeof(m_wait_status)</code> = 108, 且在mysqld编译时和插件编译时长度不变</p>
-
-<p>整个结构体里面没有其他数据成员, 也没有继承, 那只剩下<strong>structure alignment</strong> (参看<a href="http://www.cprogramming.com/tutorial/size_of_class_object.html">这里</a>). 即在插件编译时, structure alignment补充了4个字节, 但在mysqld编译时补充了8个字节</p>
-
-<p>怀疑和编译环境有关(可能与gcc版本相关), 尝试用相同环境编译mysql 5.5.33, 得到的<code>sizeof(MDL_wait)</code>变为112</p>
-
-<p>结论是尽量把mysql和插件放在同一个环境下编译</p>
-]]></content>
-  </entry>
   
   <entry>
     <title type="html"><![CDATA[MDL_map_partition中对锁的过渡]]></title>
@@ -663,6 +621,197 @@ packet 2
 #2  0x00007f3620c66851 in start_thread () from /lib64/libpthread.so.0
 #3  0x00007f361f9bb90d in clone () from /lib64/libc.so.6
 </code></pre>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[尝试使用mysql plugin将RESET SLAVE后的节点重新恢复成slave]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin/"/>
+    <updated>2014-02-11T22:31:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin</id>
+    <content type="html"><![CDATA[<p>这几天在尝试为以下场景制作一个mysql plugin, 但是是一个失败的尝试, 在此记录</p>
+
+<pre><code>一对mysql主从节点 M-S, 节点S执行了RESET SLAVE
+后来后悔了
+在没有数据通过非replication的渠道写入S的条件下, 想让S和M重新恢复成一对主从
+</code></pre>
+
+<p>关键点是S能将<code>RESET SLAVE</code>时S的<code>Exec_Master_Log_Pos</code>和<code>S binlog pos</code>记录下来</p>
+
+<p>尝试了以下几种方案:</p>
+
+<h5>1. 调用者在<code>RESET SLAVE</code>时手工记录, 不需要制作插件</h5>
+
+<hr />
+
+<h5>2. Audit plugin.</h5>
+
+<p>Mysql的Audit plugin可以审计大部分mysqld经手的SQL, 包括<code>RESET SLAVE</code>.</p>
+
+<p>但Audit plugin是在每个SQL之后才会调用. 在<code>RESET SLAVE</code>时S上master_info会被清理, 即<code>Exec_Master_Log_Pos</code>的信息在调用Audit plugin已经丢失</p>
+
+<hr />
+
+<h5>3. Replication plugin (<code>after_reset_slave</code>)</h5>
+
+<p>Replication plugin (参看mysql semisync的源码), 在slave端提供了<code>Binlog_relay_IO_observer</code>, 贴个Mysql源码方便理解</p>
+
+<pre><code>/**
+    Observes and extends the service of slave IO thread.
+ */
+ typedef struct Binlog_relay_IO_observer {
+   uint32 len;
+
+   /**
+      This callback is called when slave IO thread starts
+
+      @param param Observer common parameter
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*thread_start)(Binlog_relay_IO_param *param);
+
+   /**
+      This callback is called when slave IO thread stops
+
+      @param param Observer common parameter
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*thread_stop)(Binlog_relay_IO_param *param);
+
+   /**
+      This callback is called before slave requesting binlog transmission from master
+
+      This is called before slave issuing BINLOG_DUMP command to master
+      to request binlog.
+
+      @param param Observer common parameter
+      @param flags binlog dump flags
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*before_request_transmit)(Binlog_relay_IO_param *param, uint32 flags);
+
+   /**
+      This callback is called after read an event packet from master
+
+      @param param Observer common parameter
+      @param packet The event packet read from master
+      @param len Length of the event packet read from master
+      @param event_buf The event packet return after process
+      @param event_len The length of event packet return after process
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*after_read_event)(Binlog_relay_IO_param *param,
+                           const char *packet, unsigned long len,
+                           const char **event_buf, unsigned long *event_len);
+
+   /**
+      This callback is called after written an event packet to relay log
+
+      @param param Observer common parameter
+      @param event_buf Event packet written to relay log
+      @param event_len Length of the event packet written to relay log
+      @param flags flags for relay log
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*after_queue_event)(Binlog_relay_IO_param *param,
+                            const char *event_buf, unsigned long event_len,
+                            uint32 flags);
+
+   /**
+      This callback is called after reset slave relay log IO status
+
+      @param param Observer common parameter
+
+      @retval 0 Sucess
+      @retval 1 Failure
+   */
+   int (*after_reset_slave)(Binlog_relay_IO_param *param);
+ } Binlog_relay_IO_observer;
+</code></pre>
+
+<p>首先尝试用<code>after_reset_slave</code>, 从函数名字就可以看到会遇到和Audit Plugin相同的问题: 即<code>Exec_Master_Log_Pos</code>的信息在调用时已经丢失</p>
+
+<hr />
+
+<h5>4. Replication plugin (<code>after_reset_slave</code>再尝试, <code>future_group_master_log_pos</code>)</h5>
+
+<p>还不死心, <code>Exec_Master_Log_Pos</code>的数据结构是<code>Relay_log_info.group_master_log_pos</code>, 尽管这个信息在<code>after_reset_slave</code>时已经丢失, 但发现<code>Relay_log_info.future_group_master_log_pos</code>可能是个方向</p>
+
+<p>先解释<code>Relay_log_info.future_group_master_log_pos</code>, 可以参看<code>log_event.cc</code>的这段注释</p>
+
+<pre><code>  /*
+    InnoDB internally stores the master log position it has executed so far,
+    i.e. the position just after the COMMIT event.
+    When InnoDB will want to store, the positions in rli won't have
+    been updated yet, so group_master_log_* will point to old BEGIN
+    and event_master_log* will point to the beginning of current COMMIT.
+    But log_pos of the COMMIT Query event is what we want, i.e. the pos of the
+    END of the current log event (COMMIT). We save it in rli so that InnoDB can
+    access it.
+  */
+  const_cast&lt;Relay_log_info*&gt;(rli)-&gt;future_group_master_log_pos= log_pos;
+</code></pre>
+
+<p><code>future_group_master_log_pos</code>指向了execute的最后一个transaction的COMMIT event之前, 即<code>future_group_master_log_pos</code> 大部分时间等于 <code>group_master_log_pos - 27</code> (27是COMMIT event的长度)</p>
+
+<p>但仍有例外情况: 如果M执行了<code>FLUSH LOGS</code>, 将log从0001递增到了0002, 此时S上的<code>future_group_master_log_pos</code>会指向0001的最后一个transaction的COMMIT event之前. 但S上的<code>group_master_log_name</code>已经到了0002, 与<code>future_group_master_log_pos</code>不匹配, 会引起异常</p>
+
+<p>(其实此时S上的<code>group_master_log_name</code>也已经置空了, 但可以从内存残片中恢复出文件名)</p>
+
+<p>设想如果对于log_name也有<code>future_group_master_log_name</code>, 那么S可以直接<code>change master</code>到M的<code>future_group_master_log_name</code>和<code>future_group_master_log_pos</code>位置, 可以恢复起M-S主从结构</p>
+
+<hr />
+
+<h5>5. Replication plugin (<code>thread_stop</code>)</h5>
+
+<p>Replication plugin的<code>thread_stop</code>是指Slave IO thread停止时调用, 此时可以拿到<code>Exec_Master_Log_Pos</code>和<code>S binlog pos</code>, 但拿到的<code>S binlog pos</code>没有意义, 因为不能保证Slave SQL thread也停下来了</p>
+
+<hr />
+
+<h5>6. Storage Engine plugin</h5>
+
+<p>这是我最后一根救命稻草, 阅读Mysql源码时注意到以下片段(做了缩减)</p>
+
+<pre><code>int reset_slave(THD *thd, Master_info* mi)
+{
+    ...
+    ha_reset_slave(thd);
+    ... //clean memory data
+}
+</code></pre>
+
+<p><code>reset_slave</code>在清理内存数据前通知了storage engine插件, 这个插件可以获得所有必要信息</p>
+
+<p>但存在一个问题, 即<code>ha_reset_slave</code>仅在Mysql NDB版本中存在, 不具备通用性, 参看宏定义(做了缩减)</p>
+
+<pre><code>#ifdef HAVE_NDB_BINLOG
+...
+void ha_reset_slave(THD *thd);
+...
+#else
+...
+#define ha_reset_slave(a) do {} while (0)
+...
+#endif
+</code></pre>
+
+<hr />
+
+<h4>吐槽和总结</h4>
+
+<p>可以看到Mysql plugin不<strong>太</strong>预留接口, 是仅仅为已知应用场景提供必要接口, 比如<code>Binlog_relay_IO_observer</code>中有<code>after</code>不一定有<code>before</code>. 比较容易控制插件质量, 但插件能做到的非常局限.</p>
+
+<p>以上各种尝试, 归根到底, 只要修改Mysql的一点源码编译一下就可以达到很好的效果, 不需要用插件的方式在Mysql中到处找功能插槽, 但通用性变差.</p>
 ]]></content>
   </entry>
   
