@@ -4,7 +4,7 @@
   <title><![CDATA[Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-06-12T23:57:38+08:00</updated>
+  <updated>2014-06-13T00:03:23+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -633,58 +633,60 @@
 
 <h3>测试用例</h3>
 
+<p>(现在用的jekyll对table显示有点问题, 请意会&#8230;)</p>
+
 <table>
 <thead>
 <tr>
 <th></th>
-<th align="left">用例</th>
-<th align="center">row</th>
-<th align="center">statement</th>
-<th align="center">mixed</th>
+<th>用例</th>
+<th>row</th>
+<th>statement</th>
+<th>mixed</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td></td>
-<td align="left"><code>create temporary table</code> 产生的binlog</td>
-<td align="center">1.1</td>
-<td align="center">1.2</td>
-<td align="center">1.3|</td>
+<td><code>create temporary table</code> 产生的binlog</td>
+<td>1.1</td>
+<td>1.2</td>
+<td>1.3|</td>
 </tr>
 <tr>
 <td></td>
-<td align="left"><code>create temporary table</code> 产生的binlog (<code>mysqlbinlog</code>)</td>
-<td align="center">2.1</td>
-<td align="center">2.2</td>
-<td align="center">-|</td>
+<td><code>create temporary table</code> 产生的binlog (<code>mysqlbinlog</code>)</td>
+<td>2.1</td>
+<td>2.2</td>
+<td>-|</td>
 </tr>
 <tr>
 <td></td>
-<td align="left">临时表对非临时表数据产生影响时, 产生的binlog</td>
-<td align="center">3.1</td>
-<td align="center">3.2</td>
-<td align="center">-|</td>
+<td>临时表对非临时表数据产生影响时, 产生的binlog</td>
+<td>3.1</td>
+<td>3.2</td>
+<td>-|</td>
 </tr>
 <tr>
 <td></td>
-<td align="left">临时表对非临时表数据产生影响, 并rollback时, 产生的binlog</td>
-<td align="center">4.1</td>
-<td align="center">4.2</td>
-<td align="center">-|</td>
+<td>临时表对非临时表数据产生影响, 并rollback时, 产生的binlog</td>
+<td>4.1</td>
+<td>4.2</td>
+<td>-|</td>
 </tr>
 <tr>
 <td></td>
-<td align="left">多session同时创建临时表, 产生的binlog</td>
-<td align="center">-</td>
-<td align="center">5.1</td>
-<td align="center">-|</td>
+<td>多session同时创建临时表, 产生的binlog</td>
+<td>-</td>
+<td>5.1</td>
+<td>-|</td>
 </tr>
 <tr>
 <td></td>
-<td align="left">开启<code>enforce-gtid-consistency</code>时, <code>create temporary table</code></td>
-<td align="center">-</td>
-<td align="center">6.1</td>
-<td align="center">-|</td>
+<td>开启<code>enforce-gtid-consistency</code>时, <code>create temporary table</code></td>
+<td>-</td>
+<td>6.1</td>
+<td>-|</td>
 </tr>
 </tbody>
 </table>
