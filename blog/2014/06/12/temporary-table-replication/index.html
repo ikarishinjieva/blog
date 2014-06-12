@@ -1,0 +1,937 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>测试Mysql临时表的复制 - Tac say</title>
+  <meta name="author" content="Tac Huang (ikari_shinji@github)">
+
+  
+  <meta name="description" content="测试一下Mysql 5.6.17对临时表的复制 参考资料 Percona这篇08年的blog Can MySQL temporary tables be made safe for statement-based replication?, 是对于Mysql 5.1这方面的测试. &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2014/06/12/temporary-table-replication/">
+  <link href="/blog/favicon.png" rel="icon">
+  <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/blog/javascripts/modernizr-2.0.js"></script>
+  <script src="/blog/javascripts/ender.js"></script>
+  <script src="/blog/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/blog/atom.xml" rel="alternate" title="Tac say" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/blog/">Tac say</a></h1>
+  
+    <h2>只想做个程序演奏家</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/blog/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<ul class="main-navigation">
+  <li><a href="/blog/">Blog</a></li>
+  <li><a href="/blog/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">测试Mysql临时表的复制</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-06-12T22:32:00+08:00" pubdate data-updated="true">Jun 12<span>th</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+<div class="entry-content"><p>测试一下Mysql 5.6.17对临时表的复制</p>
+
+<h4>参考资料</h4>
+
+<ol>
+<li>Percona这篇08年的blog <a href="http://www.mysqlperformanceblog.com/2008/05/26/mysql-temporary-tables-safe-for-statement-based-replication/">Can MySQL temporary tables be made safe for statement-based replication?</a>, 是对于Mysql 5.1这方面的测试. 但根据对Mysql 5.6的相关测试, 其结论已经不适用. 其方法可供参考</li>
+<li><p>Mysql Manual 对于临时表复制的<a href="http://dev.mysql.com/doc/refman/5.6/en/replication-features-temptables.html">讨论</a>, 其中一些重要的描述列在下面:</p></li>
+<li><p>Safe slave shutdown when using temporary tables</p></li>
+<li>By default, all temporary tables are replicated; this happens whether or not there are any matching <code>--replicate-do-db</code>, <code>--replicate-do-table</code>, or <code>--replicate-wild-do-table</code> options in effect</li>
+<li>the <code>--replicate-ignore-table</code> and <code>--replicate-wild-ignore-table</code> options are honored for temporary tables</li>
+</ol>
+
+
+<h4>概述</h4>
+
+<p>总共做了两个测试:</p>
+
+<ol>
+<li>Mysql Manual中&#8221;Safe slave shutdown when using temporary tables&#8221;一节, 验证为何需要如此安全关闭slave</li>
+<li>验证在复制临时表时, master意外crash, 是否会造成slave上的资源泄露</li>
+</ol>
+
+
+<p>每个测试后都有结论</p>
+
+<h4>测试一</h4>
+
+<p>针对Mysql Manual提到的&#8221;Safe slave shutdown when using temporary tables&#8221;, 重现一下:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#准备环境, 断开复制
+</span><span class='line'>mysql-master&gt; select @@binlog_format;
+</span><span class='line'>+-----------------+
+</span><span class='line'>| @@binlog_format |
+</span><span class='line'>+-----------------+
+</span><span class='line'>| MIXED           |
+</span><span class='line'>+-----------------+
+</span><span class='line'>1 row in set (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; stop slave;
+</span><span class='line'>Query OK, 0 rows affected (0.03 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#在master上构造使用临时表的两个transaction
+</span><span class='line'>mysql-master&gt; flush logs;
+</span><span class='line'>Query OK, 0 rows affected (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; create temporary table test.t(t int);
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; commit;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; insert into test.a select t from test.t;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>Records: 0  Duplicates: 0  Warnings: 0
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; commit;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#查看master的binlog
+</span><span class='line'>mysql-master&gt; show binlog events in "mysql-bin.000036" \G
+</span><span class='line'>*************************** 1. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 4
+</span><span class='line'> Event_type: Format_desc
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 120
+</span><span class='line'>       Info: Server ver: 5.6.17-debug-log, Binlog ver: 4
+</span><span class='line'>*************************** 2. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 120
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 195
+</span><span class='line'>       Info: BEGIN
+</span><span class='line'>*************************** 3. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 195
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 301
+</span><span class='line'>       Info: create temporary table test.t(t int)
+</span><span class='line'>*************************** 4. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 301
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 370
+</span><span class='line'>       Info: COMMIT
+</span><span class='line'>*************************** 5. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 370
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 445
+</span><span class='line'>       Info: BEGIN
+</span><span class='line'>*************************** 6. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 445
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 554
+</span><span class='line'>       Info: insert into test.a select t from test.t
+</span><span class='line'>*************************** 7. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 554
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 623
+</span><span class='line'>       Info: COMMIT
+</span><span class='line'>7 rows in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#开启复制,让复制在两个transaction之间中断
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; start slave until master_log_file='mysql-bin.000036', master_log_pos=370;
+</span><span class='line'>Query OK, 0 rows affected, 1 warning (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; show slave status\G
+</span><span class='line'>*************************** 1. row ***************************
+</span><span class='line'>               Slave_IO_State: Waiting for master to send event
+</span><span class='line'>...
+</span><span class='line'>              Master_Log_File: mysql-bin.000036
+</span><span class='line'>          Read_Master_Log_Pos: 623
+</span><span class='line'>...
+</span><span class='line'>        Relay_Master_Log_File: mysql-bin.000036
+</span><span class='line'>             Slave_IO_Running: Yes
+</span><span class='line'>            Slave_SQL_Running: No
+</span><span class='line'>...
+</span><span class='line'>          Exec_Master_Log_Pos: 370
+</span><span class='line'>...
+</span><span class='line'>1 row in set (0.00 sec)
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#查看slave正在使用的临时表, 并重启slave
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; show status like '%temp%';                      
+</span><span class='line'>+------------------------+-------+
+</span><span class='line'>| Variable_name          | Value |
+</span><span class='line'>+------------------------+-------+
+</span><span class='line'>| Slave_open_temp_tables | 1     |
+</span><span class='line'>+------------------------+-------+
+</span><span class='line'>1 row in set (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>slave&gt; service mysqld restart</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#验证slave status
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; show slave status\G
+</span><span class='line'>*************************** 1. row ***************************
+</span><span class='line'>...
+</span><span class='line'>              Master_Log_File: mysql-bin.000036
+</span><span class='line'>          Read_Master_Log_Pos: 623
+</span><span class='line'>...
+</span><span class='line'>        Relay_Master_Log_File: mysql-bin.000036
+</span><span class='line'>             Slave_IO_Running: Yes
+</span><span class='line'>            Slave_SQL_Running: No
+</span><span class='line'>...
+</span><span class='line'>                   Last_Errno: 1146
+</span><span class='line'>                   Last_Error: Error 'Table 'test.t' doesn't exist' on query. Default database: ''. Query: 'insert into test.a select t from test.t'
+</span><span class='line'>...
+</span><span class='line'>          Exec_Master_Log_Pos: 370
+</span><span class='line'>...
+</span><span class='line'>               Last_SQL_Errno: 1146
+</span><span class='line'>               Last_SQL_Error: Error 'Table 'test.t' doesn't exist' on query. Default database: ''. Query: 'insert into test.a select t from test.t'
+</span><span class='line'>  Replicate_Ignore_Server_Ids:
+</span><span class='line'>...
+</span><span class='line'>1 row in set (0.00 sec)
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>结论</strong>: 使用临时表时, slave并不保证crash-safe, 而且若在连续的transaction中复用同一个临时表, 完全没办法安全修复.</p>
+
+<h4>测试2</h4>
+
+<p>对于一个<code>create temporary table</code>, 已知<code>drop temporary table</code>会在session结束时写进binlog. 那么如果master意外退出, 是不是会对slave造成资源泄露? 比如不释放文件句柄</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#准备master环境
+</span><span class='line'>mysql-master&gt; select @@binlog_format;
+</span><span class='line'>+-----------------+
+</span><span class='line'>| @@binlog_format |
+</span><span class='line'>+-----------------+
+</span><span class='line'>| MIXED           |
+</span><span class='line'>+-----------------+
+</span><span class='line'>1 row in set (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; select @@gtid_mode;
+</span><span class='line'>+-------------+
+</span><span class='line'>| @@gtid_mode |
+</span><span class='line'>+-------------+
+</span><span class='line'>| OFF         |
+</span><span class='line'>+-------------+
+</span><span class='line'>1 row in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#检查slave上的资源
+</span><span class='line'>mysql-slave&gt; show status like '%open%';
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>| Variable_name              | Value |
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>...
+</span><span class='line'>| Innodb_num_open_files      | 6     |
+</span><span class='line'>| Open_files                 | 22    |
+</span><span class='line'>| Open_streams               | 0     |
+</span><span class='line'>| Open_table_definitions     | 70    |
+</span><span class='line'>| Open_tables                | 63    |
+</span><span class='line'>| Opened_files               | 164   |
+</span><span class='line'>| Opened_table_definitions   | 0     |
+</span><span class='line'>| Opened_tables              | 0     |
+</span><span class='line'>| Slave_open_temp_tables     | 0     |
+</span><span class='line'>...
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>14 rows in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#在master上创建5张临时表
+</span><span class='line'>mysql-master&gt; create temporary table test.t1 (t int);create temporary table test.t2 (t int);create temporary table test.t3 (t int);create temporary table test.t4 (t int);create temporary table test.t5 (t int);
+</span><span class='line'>Query OK, 0 rows affected (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#检查slave上的资源
+</span><span class='line'>mysql-slave&gt; show status like '%open%';
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>| Variable_name              | Value |
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>...
+</span><span class='line'>| Innodb_num_open_files      | 11    |
+</span><span class='line'>| Open_files                 | 22    |
+</span><span class='line'>| Open_streams               | 0     |
+</span><span class='line'>| Open_table_definitions     | 70    |
+</span><span class='line'>| Open_tables                | 63    |
+</span><span class='line'>| Opened_files               | 179   |
+</span><span class='line'>| Opened_table_definitions   | 0     |
+</span><span class='line'>| Opened_tables              | 0     |
+</span><span class='line'>| Slave_open_temp_tables     | 5     |
+</span><span class='line'>...
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>14 rows in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#引发master故障, 重启master库
+</span><span class='line'>master&gt; pkill -9 mysqld
+</span><span class='line'>master&gt; /opt/mysql/bin/mysqld_safe &</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#重启slave复制, 检查slave上的资源
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; stop slave io_thread;
+</span><span class='line'>Query OK, 0 rows affected (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; start slave io_thread;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; show status like '%open%';
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>| Variable_name              | Value |
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>...
+</span><span class='line'>| Innodb_num_open_files      | 6     |
+</span><span class='line'>| Open_files                 | 22    |
+</span><span class='line'>| Open_streams               | 0     |
+</span><span class='line'>| Open_table_definitions     | 70    |
+</span><span class='line'>| Open_tables                | 63    |
+</span><span class='line'>| Opened_files               | 209   |
+</span><span class='line'>| Opened_table_definitions   | 0     |
+</span><span class='line'>| Opened_tables              | 0     |
+</span><span class='line'>| Slave_open_temp_tables     | 5     |
+</span><span class='line'>...
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>14 rows in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#在master上再次创建5张临时表, 检查slave上的资源
+</span><span class='line'>mysql-master&gt; create temporary table test.t1 (t int);create temporary table test.t2 (t int);create temporary table test.t3 (t int);create temporary table test.t4 (t int);create temporary table test.t5 (t int);
+</span><span class='line'>Query OK, 0 rows affected (0.09 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; show status like '%open%';
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>| Variable_name              | Value |
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>...
+</span><span class='line'>| Innodb_num_open_files      | 11    |
+</span><span class='line'>| Open_files                 | 22    |
+</span><span class='line'>| Open_streams               | 0     |
+</span><span class='line'>| Open_table_definitions     | 70    |
+</span><span class='line'>| Open_tables                | 63    |
+</span><span class='line'>| Opened_files               | 224   |
+</span><span class='line'>| Opened_table_definitions   | 0     |
+</span><span class='line'>| Opened_tables              | 0     |
+</span><span class='line'>| Slave_open_temp_tables     | 10    |
+</span><span class='line'>...
+</span><span class='line'>+----------------------------+-------+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>结论</strong>: 复制临时表时,slave上消耗的资源, <code>Innodb_num_open_files</code>会及时回收,也就是说实际消耗的系统资源被及时回收. 但<code>Slave_open_temp_tables</code>会虚高不下,按照Mysql Manual中&#8221;Safe slave shutdown when using temporary tables&#8221;的叙述, 用<code>Slave_open_temp_tables</code>来判断关闭server的时机时, 会出现判断失误.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Tac Huang (ikari_shinji@github)</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-06-12T22:32:00+08:00" pubdate data-updated="true">Jun 12<span>th</span>, 2014</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/blog/categories/mysql/'>mysql</a>, <a class='category' href='/blog/blog/categories/replication/'>replication</a>, <a class='category' href='/blog/blog/categories/temporary-table/'>temporary_table</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/blog/2014/06/12/temporary-table-binlog/" title="Previous Post: 测试Mysql临时表的binlog">&laquo; 测试Mysql临时表的binlog</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/06/12/temporary-table-replication/">测试Mysql临时表的复制</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/06/12/temporary-table-binlog/">测试Mysql临时表的binlog</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/05/15/mysql-table-cache/">对mysql table_cache的理解</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/17/PREVIOUS_GTIDS_LOG_EVENT/">PREVIOUS_GTIDS_LOG_EVENT的格式</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/05/MDL_map_partition-lock-split/">MDL_map_partition中对锁的过渡</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/04/MDL/">整理一下最近读的MDL源码</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/01/study-mysql-bug-70307-2/">对Mysql bug #70307 的再学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/26/mysql-fake-master-server/">mysql, 利用假master重放binlog</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/25/go-leak-fd/">golang, cmd会泄露文件句柄</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/20/go-file-lock/">golang, windows和linux上的文件锁</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/02/gen/">推荐下我修改的gen</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/02/22/go-exec-command-block-when-redirect-stdout/">GO exec.command.Wait 执行后台程序,在重定向输出时卡住</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin/">尝试使用mysql plugin将RESET SLAVE后的节点重新恢复成slave</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/01/28/compile-mysql-plugin/">编译mysql插件的碰到的问题</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/01/08/jruby-bug-tcp-timeout/">jruby中tcp阻塞时Timeout::timeout失效</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/26/go-iterate-variable/">栽在Go中for的变量</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/19/paxos-lease-2/">对于PaxosLease的个人理解 2</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/19/paxos-lease/">对于PaxosLease的个人理解 1</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/09/test-framework-exp/">关于DEV测试的一些经验总结</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/11/11/study-memory-reorder-cont/">对Memory Reordering Caught in the Act的学习 续 - 关于go的部分</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Weibo</h1>
+  <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=10&isTitle=1&noborder=0&isWeibo=1&isFans=0&uid=1460219211&verifier=4d7daebc&dpc=1"></iframe>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/ikarishinjieva">@ikarishinjieva</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'ikarishinjieva',
+            count: 5,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/blog/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 - Tac Huang (ikari_shinji@github) -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'tacsay';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2014/06/12/temporary-table-replication/';
+        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2014/06/12/temporary-table-replication/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fa62a96d9f5c956ea3ddb6cca8ad83aa3' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

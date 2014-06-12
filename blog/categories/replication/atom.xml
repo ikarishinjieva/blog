@@ -4,7 +4,7 @@
   <title><![CDATA[Category: replication | Tac say]]></title>
   <link href="http://ikarishinjieva.github.com/blog/blog/categories/replication/atom.xml" rel="self"/>
   <link href="http://ikarishinjieva.github.com/blog/"/>
-  <updated>2014-04-17T22:47:06+08:00</updated>
+  <updated>2014-06-12T23:57:38+08:00</updated>
   <id>http://ikarishinjieva.github.com/blog/</id>
   <author>
     <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
@@ -12,6 +12,439 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[测试Mysql临时表的复制]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/06/12/temporary-table-replication/"/>
+    <updated>2014-06-12T22:32:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/06/12/temporary-table-replication</id>
+    <content type="html"><![CDATA[<p>测试一下Mysql 5.6.17对临时表的复制</p>
+
+<h4>参考资料</h4>
+
+<ol>
+<li>Percona这篇08年的blog <a href="http://www.mysqlperformanceblog.com/2008/05/26/mysql-temporary-tables-safe-for-statement-based-replication/">Can MySQL temporary tables be made safe for statement-based replication?</a>, 是对于Mysql 5.1这方面的测试. 但根据对Mysql 5.6的相关测试, 其结论已经不适用. 其方法可供参考</li>
+<li><p>Mysql Manual 对于临时表复制的<a href="http://dev.mysql.com/doc/refman/5.6/en/replication-features-temptables.html">讨论</a>, 其中一些重要的描述列在下面:</p></li>
+<li><p>Safe slave shutdown when using temporary tables</p></li>
+<li>By default, all temporary tables are replicated; this happens whether or not there are any matching <code>--replicate-do-db</code>, <code>--replicate-do-table</code>, or <code>--replicate-wild-do-table</code> options in effect</li>
+<li>the <code>--replicate-ignore-table</code> and <code>--replicate-wild-ignore-table</code> options are honored for temporary tables</li>
+</ol>
+
+
+<h4>概述</h4>
+
+<p>总共做了两个测试:</p>
+
+<ol>
+<li>Mysql Manual中"Safe slave shutdown when using temporary tables"一节, 验证为何需要如此安全关闭slave</li>
+<li>验证在复制临时表时, master意外crash, 是否会造成slave上的资源泄露</li>
+</ol>
+
+
+<p>每个测试后都有结论</p>
+
+<h4>测试一</h4>
+
+<p>针对Mysql Manual提到的"Safe slave shutdown when using temporary tables", 重现一下:</p>
+
+<p>```</p>
+
+<h1>准备环境, 断开复制</h1>
+
+<p>mysql-master> select @@binlog_format;
++-----------------+
+| @@binlog_format |
++-----------------+
+| MIXED           |
++-----------------+
+1 row in set (0.02 sec)</p>
+
+<p>mysql-slave> stop slave;
+Query OK, 0 rows affected (0.03 sec)
+```</p>
+
+<p>```</p>
+
+<h1>在master上构造使用临时表的两个transaction</h1>
+
+<p>mysql-master> flush logs;
+Query OK, 0 rows affected (0.02 sec)</p>
+
+<p>mysql-master> begin;
+Query OK, 0 rows affected (0.00 sec)</p>
+
+<p>mysql-master> create temporary table test.t(t int);
+Query OK, 0 rows affected (0.01 sec)</p>
+
+<p>mysql-master> commit;
+Query OK, 0 rows affected (0.00 sec)</p>
+
+<p>mysql-master> begin;
+Query OK, 0 rows affected (0.00 sec)</p>
+
+<p>mysql-master> insert into test.a select t from test.t;
+Query OK, 0 rows affected (0.00 sec)
+Records: 0  Duplicates: 0  Warnings: 0</p>
+
+<p>mysql-master> commit;
+Query OK, 0 rows affected (0.00 sec)
+```</p>
+
+<p>```</p>
+
+<h1>查看master的binlog</h1>
+
+<p>mysql-master> show binlog events in "mysql-bin.000036" \G
+<strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><em> 1. row </em></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong>
+   Log_name: mysql-bin.000036</p>
+
+<pre><code>    Pos: 4
+</code></pre>
+
+<p> Event_type: Format_desc
+  Server_id: 1
+End_log_pos: 120</p>
+
+<pre><code>   Info: Server ver: 5.6.17-debug-log, Binlog ver: 4
+</code></pre>
+
+<p><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><em> 2. row </em></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong>
+   Log_name: mysql-bin.000036</p>
+
+<pre><code>    Pos: 120
+</code></pre>
+
+<p> Event_type: Query
+  Server_id: 1
+End_log_pos: 195</p>
+
+<pre><code>   Info: BEGIN
+</code></pre>
+
+<p><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><em> 3. row </em></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong>
+   Log_name: mysql-bin.000036</p>
+
+<pre><code>    Pos: 195
+</code></pre>
+
+<p> Event_type: Query
+  Server_id: 1
+End_log_pos: 301</p>
+
+<pre><code>   Info: create temporary table test.t(t int)
+</code></pre>
+
+<p><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><em> 4. row </em></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong>
+   Log_name: mysql-bin.000036</p>
+
+<pre><code>    Pos: 301
+</code></pre>
+
+<p> Event_type: Query
+  Server_id: 1
+End_log_pos: 370</p>
+
+<pre><code>   Info: COMMIT
+</code></pre>
+
+<p><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><em> 5. row </em></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong>
+   Log_name: mysql-bin.000036</p>
+
+<pre><code>    Pos: 370
+</code></pre>
+
+<p> Event_type: Query
+  Server_id: 1
+End_log_pos: 445</p>
+
+<pre><code>   Info: BEGIN
+</code></pre>
+
+<p><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><em> 6. row </em></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong>
+   Log_name: mysql-bin.000036</p>
+
+<pre><code>    Pos: 445
+</code></pre>
+
+<p> Event_type: Query
+  Server_id: 1
+End_log_pos: 554</p>
+
+<pre><code>   Info: insert into test.a select t from test.t
+</code></pre>
+
+<p><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><em> 7. row </em></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong>
+   Log_name: mysql-bin.000036</p>
+
+<pre><code>    Pos: 554
+</code></pre>
+
+<p> Event_type: Query
+  Server_id: 1
+End_log_pos: 623</p>
+
+<pre><code>   Info: COMMIT
+</code></pre>
+
+<p>7 rows in set (0.00 sec)
+```</p>
+
+<p>```</p>
+
+<h1>开启复制,让复制在两个transaction之间中断</h1>
+
+<p>mysql-slave> start slave until master_log_file='mysql-bin.000036', master_log_pos=370;
+Query OK, 0 rows affected, 1 warning (0.02 sec)</p>
+
+<p>mysql-slave> show slave status\G
+<strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><em> 1. row </em></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></p>
+
+<pre><code>           Slave_IO_State: Waiting for master to send event
+</code></pre>
+
+<p>...</p>
+
+<pre><code>          Master_Log_File: mysql-bin.000036
+      Read_Master_Log_Pos: 623
+</code></pre>
+
+<p>...</p>
+
+<pre><code>    Relay_Master_Log_File: mysql-bin.000036
+         Slave_IO_Running: Yes
+        Slave_SQL_Running: No
+</code></pre>
+
+<p>...</p>
+
+<pre><code>      Exec_Master_Log_Pos: 370
+</code></pre>
+
+<p>...
+1 row in set (0.00 sec)</p>
+
+<p>```</p>
+
+<p>```</p>
+
+<h1>查看slave正在使用的临时表, 并重启slave</h1>
+
+<p>mysql-slave> show status like '%temp%';                    <br/>
++------------------------+-------+
+| Variable_name          | Value |
++------------------------+-------+
+| Slave_open_temp_tables | 1     |
++------------------------+-------+
+1 row in set (0.01 sec)</p>
+
+<p>slave> service mysqld restart
+```</p>
+
+<p>```</p>
+
+<h1>验证slave status</h1>
+
+<p>mysql-slave> show slave status\G
+<strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong><em> 1. row </em></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></strong>
+...</p>
+
+<pre><code>          Master_Log_File: mysql-bin.000036
+      Read_Master_Log_Pos: 623
+</code></pre>
+
+<p>...</p>
+
+<pre><code>    Relay_Master_Log_File: mysql-bin.000036
+         Slave_IO_Running: Yes
+        Slave_SQL_Running: No
+</code></pre>
+
+<p>...</p>
+
+<pre><code>               Last_Errno: 1146
+               Last_Error: Error 'Table 'test.t' doesn't exist' on query. Default database: ''. Query: 'insert into test.a select t from test.t'
+</code></pre>
+
+<p>...</p>
+
+<pre><code>      Exec_Master_Log_Pos: 370
+</code></pre>
+
+<p>...</p>
+
+<pre><code>           Last_SQL_Errno: 1146
+           Last_SQL_Error: Error 'Table 'test.t' doesn't exist' on query. Default database: ''. Query: 'insert into test.a select t from test.t'
+</code></pre>
+
+<p>  Replicate_Ignore_Server_Ids:
+...
+1 row in set (0.00 sec)</p>
+
+<p>```</p>
+
+<p><strong>结论</strong>: 使用临时表时, slave并不保证crash-safe, 而且若在连续的transaction中复用同一个临时表, 完全没办法安全修复.</p>
+
+<h4>测试2</h4>
+
+<p>对于一个<code>create temporary table</code>, 已知<code>drop temporary table</code>会在session结束时写进binlog. 那么如果master意外退出, 是不是会对slave造成资源泄露? 比如不释放文件句柄</p>
+
+<p>```</p>
+
+<h1>准备master环境</h1>
+
+<p>mysql-master> select @@binlog_format;
++-----------------+
+| @@binlog_format |
++-----------------+
+| MIXED           |
++-----------------+
+1 row in set (0.00 sec)</p>
+
+<p>mysql-master> select @@gtid_mode;
++-------------+
+| @@gtid_mode |
++-------------+
+| OFF         |
++-------------+
+1 row in set (0.00 sec)
+```</p>
+
+<p>```</p>
+
+<h1>检查slave上的资源</h1>
+
+<p>mysql-slave> show status like '%open%';
++----------------------------+-------+
+| Variable_name              | Value |
++----------------------------+-------+
+...
+| Innodb_num_open_files      | 6     |
+| Open_files                 | 22    |
+| Open_streams               | 0     |
+| Open_table_definitions     | 70    |
+| Open_tables                | 63    |
+| Opened_files               | 164   |
+| Opened_table_definitions   | 0     |
+| Opened_tables              | 0     |
+| Slave_open_temp_tables     | 0     |
+...
++----------------------------+-------+
+14 rows in set (0.00 sec)
+```</p>
+
+<p>```</p>
+
+<h1>在master上创建5张临时表</h1>
+
+<p>mysql-master> create temporary table test.t1 (t int);create temporary table test.t2 (t int);create temporary table test.t3 (t int);create temporary table test.t4 (t int);create temporary table test.t5 (t int);
+Query OK, 0 rows affected (0.02 sec)</p>
+
+<p>Query OK, 0 rows affected (0.00 sec)</p>
+
+<p>Query OK, 0 rows affected (0.01 sec)</p>
+
+<p>Query OK, 0 rows affected (0.01 sec)</p>
+
+<p>Query OK, 0 rows affected (0.01 sec)</p>
+
+<p>```</p>
+
+<p>```</p>
+
+<h1>检查slave上的资源</h1>
+
+<p>mysql-slave> show status like '%open%';
++----------------------------+-------+
+| Variable_name              | Value |
++----------------------------+-------+
+...
+| Innodb_num_open_files      | 11    |
+| Open_files                 | 22    |
+| Open_streams               | 0     |
+| Open_table_definitions     | 70    |
+| Open_tables                | 63    |
+| Opened_files               | 179   |
+| Opened_table_definitions   | 0     |
+| Opened_tables              | 0     |
+| Slave_open_temp_tables     | 5     |
+...
++----------------------------+-------+
+14 rows in set (0.00 sec)
+```</p>
+
+<p>```</p>
+
+<h1>引发master故障, 重启master库</h1>
+
+<p>master> pkill -9 mysqld
+master> /opt/mysql/bin/mysqld_safe &amp;
+```</p>
+
+<p>```</p>
+
+<h1>重启slave复制, 检查slave上的资源</h1>
+
+<p>mysql-slave> stop slave io_thread;
+Query OK, 0 rows affected (0.02 sec)</p>
+
+<p>mysql-slave> start slave io_thread;
+Query OK, 0 rows affected (0.00 sec)</p>
+
+<p>mysql-slave> show status like '%open%';
++----------------------------+-------+
+| Variable_name              | Value |
++----------------------------+-------+
+...
+| Innodb_num_open_files      | 6     |
+| Open_files                 | 22    |
+| Open_streams               | 0     |
+| Open_table_definitions     | 70    |
+| Open_tables                | 63    |
+| Opened_files               | 209   |
+| Opened_table_definitions   | 0     |
+| Opened_tables              | 0     |
+| Slave_open_temp_tables     | 5     |
+...
++----------------------------+-------+
+14 rows in set (0.00 sec)
+```</p>
+
+<p>```</p>
+
+<h1>在master上再次创建5张临时表, 检查slave上的资源</h1>
+
+<p>mysql-master> create temporary table test.t1 (t int);create temporary table test.t2 (t int);create temporary table test.t3 (t int);create temporary table test.t4 (t int);create temporary table test.t5 (t int);
+Query OK, 0 rows affected (0.09 sec)</p>
+
+<p>Query OK, 0 rows affected (0.00 sec)</p>
+
+<p>Query OK, 0 rows affected (0.02 sec)</p>
+
+<p>Query OK, 0 rows affected (0.00 sec)</p>
+
+<p>Query OK, 0 rows affected (0.00 sec)</p>
+
+<p>mysql-slave> show status like '%open%';
++----------------------------+-------+
+| Variable_name              | Value |
++----------------------------+-------+
+...
+| Innodb_num_open_files      | 11    |
+| Open_files                 | 22    |
+| Open_streams               | 0     |
+| Open_table_definitions     | 70    |
+| Open_tables                | 63    |
+| Opened_files               | 224   |
+| Opened_table_definitions   | 0     |
+| Opened_tables              | 0     |
+| Slave_open_temp_tables     | 10    |
+...
++----------------------------+-------+
+```</p>
+
+<p><strong>结论</strong>: 复制临时表时,slave上消耗的资源, <code>Innodb_num_open_files</code>会及时回收,也就是说实际消耗的系统资源被及时回收. 但<code>Slave_open_temp_tables</code>会虚高不下,按照Mysql Manual中"Safe slave shutdown when using temporary tables"的叙述, 用<code>Slave_open_temp_tables</code>来判断关闭server的时机时, 会出现判断失误.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[对Mysql bug #70307 的再学习]]></title>
@@ -569,133 +1002,6 @@ thread = 140016942216960}, m_psi = 0x0}
 <p>因此可能的解决方案是IO thread持有读写锁，进行commit时转为持有读锁。show slave status只使用读锁。</p>
 
 <p>只是臆测下解决方法，待<a href="http://bugs.mysql.com/bug.php?id=70307">bug #70307</a>修掉时再学习。</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Mysql 5.6.12 master上flush logs在slave上产生两个relay-log]]></title>
-    <link href="http://ikarishinjieva.github.com/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file/"/>
-    <updated>2013-10-22T21:42:00+08:00</updated>
-    <id>http://ikarishinjieva.github.com/blog/blog/2013/10/22/mysql-flush-logs-make-two-relay-log-file</id>
-    <content type="html"><![CDATA[<h2>现象</h2>
-
-<p>一个碰巧观察到的有趣的现象：mysql 5.6.12 在master上flush logs，在slave上会观察到两个新的relay-log file</p>
-
-<p>举例：</p>
-
-<p>slave-relay-bin.000092</p>
-
-<pre><code> FD event
- Rotate to mysql-bin.000056
- Rotate to slave-relay-bin.000093
-</code></pre>
-
-<p>slave-relay-bin.000093</p>
-
-<pre><code> FD event slave
- Rotate to mysql-bin.000056
- FD event master
- bla bla…
-</code></pre>
-
-<p>可以看到000092这个relay log相当多余。这个现象并不会影响replication的正确性，只是让有强迫症的人有点狂躁</p>
-
-<h2>探索</h2>
-
-<p>在master上net_serv.cc:my_net_write打断点，可以观察到master的确发出了以下三个事件</p>
-
-<ul>
-<li>ROTATE_EVENT</li>
-</ul>
-
-
-<p>backtrace</p>
-
-<pre><code>#0  my_net_write (net=0x1ea2858, packet=0x7fffa4002b70 "", len=48)
-    at /home/vagrant/mysql-5.6.12/sql/net_serv.cc:284
-#1  0x0000000000a48b05 in mysql_binlog_send (thd=0x1ea2600, log_ident=0x7fffa4004c60 "mysql-bin.000052", pos=167,
-    slave_gtid_executed=0x0) at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:1336
-#2  0x0000000000a46ad2 in com_binlog_dump (thd=0x1ea2600, packet=0x1ea5d21 "", packet_length=26)
-    at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:746
-#3  0x00000000007d1ab9 in dispatch_command (command=COM_BINLOG_DUMP, thd=0x1ea2600, packet=0x1ea5d21 "",
-    packet_length=26) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1534
-#4  0x00000000007d017b in do_command (thd=0x1ea2600) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1036
-#5  0x0000000000797a08 in do_handle_one_connection (thd_arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:977
-#6  0x00000000007974e4 in handle_one_connection (arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:893
-#7  0x0000000000aea87a in pfs_spawn_thread (arg=0x1e7aa80)
-    at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
-#8  0x00007ffff7bc7851 in start_thread () from /lib64/libpthread.so.0
-#9  0x00007ffff6b3290d in clone () from /lib64/libc.so.6
-</code></pre>
-
-<ul>
-<li>第二个ROTATE_EVENT</li>
-</ul>
-
-
-<p>backtrace</p>
-
-<pre><code>#0  my_net_write (net=0x1ea2858, packet=0x7fffa4002ab0 "", len=48)
-    at /home/vagrant/mysql-5.6.12/sql/net_serv.cc:284
-#1  0x0000000000a45f04 in fake_rotate_event (net=0x1ea2858, packet=0x1ea2be8,
-    log_file_name=0x7fffc94ff270 "./mysql-bin.000056", position=4, errmsg=0x7fffc94ffdb0,
-    checksum_alg_arg=1 '\001') at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:395
-#2  0x0000000000a4a33d in mysql_binlog_send (thd=0x1ea2600, log_ident=0x7fffa4004c60 "mysql-bin.000052", pos=167,
-    slave_gtid_executed=0x0) at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:1728
-#3  0x0000000000a46ad2 in com_binlog_dump (thd=0x1ea2600, packet=0x1ea5d21 "", packet_length=26)
-    at /home/vagrant/mysql-5.6.12/sql/rpl_master.cc:746
-#4  0x00000000007d1ab9 in dispatch_command (command=COM_BINLOG_DUMP, thd=0x1ea2600, packet=0x1ea5d21 "",
-    packet_length=26) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1534
-#5  0x00000000007d017b in do_command (thd=0x1ea2600) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1036
-#6  0x0000000000797a08 in do_handle_one_connection (thd_arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:977
-#7  0x00000000007974e4 in handle_one_connection (arg=0x1ea2600)
-    at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:893
-#8  0x0000000000aea87a in pfs_spawn_thread (arg=0x1e7aa80)
-    at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
-#9  0x00007ffff7bc7851 in start_thread () from /lib64/libpthread.so.0
-#10 0x00007ffff6b3290d in clone () from /lib64/libc.so.6
-</code></pre>
-
-<ul>
-<li>FORMAT_DESCRIPTION_EVENT</li>
-</ul>
-
-
-<p>可以看到第一个ROTATE_EVENT是由flush logs发出的，第二个ROTATE_EVENT是fake_rotate_event</p>
-
-<h2>关于fake_rotate_event</h2>
-
-<p>以前也<a href="http://ikarishinjieva.github.io/blog/blog/2013/10/16/mysql-mysql_binlog_send-src/">吐槽</a>过fake_rotate_event</p>
-
-<p>master在binlog切换时（不一定是手工flush，也可能是重启，或者容量达到限制）一定要多发一个rotate event，原因如源码rpl_master.cc:mysql_binlog_send中的注释</p>
-
-<pre><code>  /*
-    Call fake_rotate_event() in case the previous log (the one which
-    we have just finished reading) did not contain a Rotate event.
-    There are at least two cases when this can happen:
-
-    - The previous binary log was the last one before the master was
-      shutdown and restarted.
-
-    - The previous binary log was GTID-free (did not contain a
-      Previous_gtids_log_event) and the slave is connecting using
-      the GTID protocol.
-
-    This way we tell the slave about the new log's name and
-    position.  If the binlog is 5.0 or later, the next event we
-    are going to read and send is Format_description_log_event.
-  */
-  if ((file=open_binlog_file(&amp;log, log_file_name, &amp;errmsg)) &lt; 0 ||
-      fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE,
-                        &amp;errmsg, current_checksum_alg))
-</code></pre>
-
-<p>主要是解决之前没有rotate event发送的场景</p>
-
-<p>虽然非常想吐槽，但是我也想不出更好的办法</p>
 ]]></content>
   </entry>
   

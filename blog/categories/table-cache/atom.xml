@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: table_cache | Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/blog/categories/table-cache/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2014-06-12T23:57:38+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[对mysql table_cache的理解]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/05/15/mysql-table-cache/"/>
+    <updated>2014-05-15T20:59:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/05/15/mysql-table-cache</id>
+    <content type="html"><![CDATA[<p>最近读了mysql table_cache部分的一些代码.</p>
+
+<p>首先推荐这篇<a href="http://blog.sina.com.cn/s/blog_4673e60301010r5u.html">导读</a>, 写的比较详尽. 不对其中已有的部分进行重复, 仅记录自己的一些理解.</p>
+
+<h4>最简单的功能</h4>
+
+<p>叫做table_cache, 就是对<code>table</code>做擦车(cache).</p>
+
+<p>其中<code>table</code>是指的mysql打开的表的描述结构(descriptor)(<a href="http://osxr.org/mysql/source/sql/table.h#0974"><code>TABLE</code></a>),  简单理解就是mysql要操作一张表时, 就会先打开其descriptor, 打开后读取其中信息, 然后进行操作.</p>
+
+<p>为了快速访问, cache 往往类似于 Hash. table_cache 的 key 是</p>
+
+<pre><code>db_name + table_name
+</code></pre>
+
+<p>table_cache 的 value 是 descriptor 的集合, 即 <a href="http://osxr.org/mysql/source/sql/table_cache.h#0208"><code>Table_cache_element</code></a>.</p>
+
+<p>value 是 descriptor 的集合而不是 descriptor, 是因为对于同一张表, 在cache中同时会打开多个 descriptor</p>
+
+<p>额外一提, table_cache是按线程号分桶的, 参看<code>Table_cache_manager</code></p>
+
+<h4>进一步, 留下被回收的元素</h4>
+
+<p>传统擦车, 不用的元素就直接回收了. table_cache暂存了不用的元素, 提高命中率.</p>
+
+<p>可以看到<code>Table_cache_element</code>一共两个列表:</p>
+
+<ul>
+<li>used_tables</li>
+<li>free_tables</li>
+</ul>
+
+
+<h4>进一步, 抽出共同的部分</h4>
+
+<p>同一张表的多个 descriptor, 会有公共部分, 抽出这些公共部分, 能有效节省资源.</p>
+
+<p>比如<code>mem_root</code> (个人称之为受管内存区), 此内存区管理着跟某表相关的一些数据结构, 且受mysqld的管制. 如果同一张表的每个 descriptor 都独立管理一篇内存, 会引起不必要的浪费.</p>
+
+<p>抽出的公共部分称为<a href="http://osxr.org/mysql/source/sql/table.h#0584"><code>TABLE_SHARE</code></a></p>
+
+<h4>进一步, 公共部分也得擦车</h4>
+
+<p><code>TABLE_SHARE</code> 也被擦车了, 其被回收的元素跟<code>TABLE</code>一样也被擦车了.</p>
+
+<h4>擦车的步骤</h4>
+
+<p>简述擦车的步骤</p>
+
+<ol>
+<li>在cache中查找<code>TABLE</code></li>
+<li>如果找到<code>TABLE</code>, 则成功</li>
+<li>在cache中查找<code>TABLE_SHARE</code></li>
+<li>如果找不到<code>TABLE_SHARE</code>, 则生成一个</li>
+<li>根据<code>TABLE_SHARE</code>, 生成一个<code>TABLE</code></li>
+<li>维护好cache</li>
+</ol>
+
+
+<h4>如果找不到<code>TABLE_SHARE</code></h4>
+
+<p>参看<a href="http://osxr.org/mysql/ident?_i=get_table_share_with_discover"><code>get_table_share_with_discover</code></a></p>
+
+<p>如果内存中找不到<code>TABLE_SHARE</code>, 则向存储引擎查询, 如果存储引擎可以提供, 则进行<a href="http://osxr.org/mysql/ident?_i=recover_from_failed_open">discover</a></p>
+
+<h4>关于死锁</h4>
+
+<p>table_cache 里有很多代码是关于死锁的处理, 其一个主要原因是因为 mysql 分为了sql层和存储引擎层, MDL的死锁检测限于sql层, 存储引擎层自带死锁检测, 但一个死锁如果跨过两层, 则需要特殊处理</p>
+]]></content>
+  </entry>
+  
+</feed>

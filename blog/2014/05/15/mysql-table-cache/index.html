@@ -1,0 +1,404 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>对mysql table_cache的理解 - Tac say</title>
+  <meta name="author" content="Tac Huang (ikari_shinji@github)">
+
+  
+  <meta name="description" content="最近读了mysql table_cache部分的一些代码. 首先推荐这篇导读, 写的比较详尽. 不对其中已有的部分进行重复, 仅记录自己的一些理解. 最简单的功能 叫做table_cache, 就是对table做擦车(cache). 其中table是指的mysql打开的表的描述结构( &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://ikarishinjieva.github.com/blog/blog/2014/05/15/mysql-table-cache/">
+  <link href="/blog/favicon.png" rel="icon">
+  <link href="/blog/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/blog/javascripts/modernizr-2.0.js"></script>
+  <script src="/blog/javascripts/ender.js"></script>
+  <script src="/blog/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/blog/atom.xml" rel="alternate" title="Tac say" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/blog/">Tac say</a></h1>
+  
+    <h2>只想做个程序演奏家</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/blog/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<ul class="main-navigation">
+  <li><a href="/blog/">Blog</a></li>
+  <li><a href="/blog/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">对mysql Table_cache的理解</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-05-15T20:59:00+08:00" pubdate data-updated="true">May 15<span>th</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+<div class="entry-content"><p>最近读了mysql table_cache部分的一些代码.</p>
+
+<p>首先推荐这篇<a href="http://blog.sina.com.cn/s/blog_4673e60301010r5u.html">导读</a>, 写的比较详尽. 不对其中已有的部分进行重复, 仅记录自己的一些理解.</p>
+
+<h4>最简单的功能</h4>
+
+<p>叫做table_cache, 就是对<code>table</code>做擦车(cache).</p>
+
+<p>其中<code>table</code>是指的mysql打开的表的描述结构(descriptor)(<a href="http://osxr.org/mysql/source/sql/table.h#0974"><code>TABLE</code></a>),  简单理解就是mysql要操作一张表时, 就会先打开其descriptor, 打开后读取其中信息, 然后进行操作.</p>
+
+<p>为了快速访问, cache 往往类似于 Hash. table_cache 的 key 是</p>
+
+<pre><code>db_name + table_name
+</code></pre>
+
+<p>table_cache 的 value 是 descriptor 的集合, 即 <a href="http://osxr.org/mysql/source/sql/table_cache.h#0208"><code>Table_cache_element</code></a>.</p>
+
+<p>value 是 descriptor 的集合而不是 descriptor, 是因为对于同一张表, 在cache中同时会打开多个 descriptor</p>
+
+<p>额外一提, table_cache是按线程号分桶的, 参看<code>Table_cache_manager</code></p>
+
+<h4>进一步, 留下被回收的元素</h4>
+
+<p>传统擦车, 不用的元素就直接回收了. table_cache暂存了不用的元素, 提高命中率.</p>
+
+<p>可以看到<code>Table_cache_element</code>一共两个列表:</p>
+
+<ul>
+<li>used_tables</li>
+<li>free_tables</li>
+</ul>
+
+
+<h4>进一步, 抽出共同的部分</h4>
+
+<p>同一张表的多个 descriptor, 会有公共部分, 抽出这些公共部分, 能有效节省资源.</p>
+
+<p>比如<code>mem_root</code> (个人称之为受管内存区), 此内存区管理着跟某表相关的一些数据结构, 且受mysqld的管制. 如果同一张表的每个 descriptor 都独立管理一篇内存, 会引起不必要的浪费.</p>
+
+<p>抽出的公共部分称为<a href="http://osxr.org/mysql/source/sql/table.h#0584"><code>TABLE_SHARE</code></a></p>
+
+<h4>进一步, 公共部分也得擦车</h4>
+
+<p><code>TABLE_SHARE</code> 也被擦车了, 其被回收的元素跟<code>TABLE</code>一样也被擦车了.</p>
+
+<h4>擦车的步骤</h4>
+
+<p>简述擦车的步骤</p>
+
+<ol>
+<li>在cache中查找<code>TABLE</code></li>
+<li>如果找到<code>TABLE</code>, 则成功</li>
+<li>在cache中查找<code>TABLE_SHARE</code></li>
+<li>如果找不到<code>TABLE_SHARE</code>, 则生成一个</li>
+<li>根据<code>TABLE_SHARE</code>, 生成一个<code>TABLE</code></li>
+<li>维护好cache</li>
+</ol>
+
+
+<h4>如果找不到<code>TABLE_SHARE</code></h4>
+
+<p>参看<a href="http://osxr.org/mysql/ident?_i=get_table_share_with_discover"><code>get_table_share_with_discover</code></a></p>
+
+<p>如果内存中找不到<code>TABLE_SHARE</code>, 则向存储引擎查询, 如果存储引擎可以提供, 则进行<a href="http://osxr.org/mysql/ident?_i=recover_from_failed_open">discover</a></p>
+
+<h4>关于死锁</h4>
+
+<p>table_cache 里有很多代码是关于死锁的处理, 其一个主要原因是因为 mysql 分为了sql层和存储引擎层, MDL的死锁检测限于sql层, 存储引擎层自带死锁检测, 但一个死锁如果跨过两层, 则需要特殊处理</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Tac Huang (ikari_shinji@github)</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-05-15T20:59:00+08:00" pubdate data-updated="true">May 15<span>th</span>, 2014</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/blog/categories/mysql/'>mysql</a>, <a class='category' href='/blog/blog/categories/table-cache/'>table_cache</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/blog/2014/04/17/PREVIOUS_GTIDS_LOG_EVENT/" title="Previous Post: PREVIOUS_GTIDS_LOG_EVENT的格式">&laquo; PREVIOUS_GTIDS_LOG_EVENT的格式</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/blog/2014/06/12/temporary-table-binlog/" title="Next Post: 测试Mysql临时表的binlog">测试Mysql临时表的binlog &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/06/12/temporary-table-replication/">测试Mysql临时表的复制</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/06/12/temporary-table-binlog/">测试Mysql临时表的binlog</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/05/15/mysql-table-cache/">对mysql table_cache的理解</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/17/PREVIOUS_GTIDS_LOG_EVENT/">PREVIOUS_GTIDS_LOG_EVENT的格式</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/05/MDL_map_partition-lock-split/">MDL_map_partition中对锁的过渡</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/04/MDL/">整理一下最近读的MDL源码</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/04/01/study-mysql-bug-70307-2/">对Mysql bug #70307 的再学习</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/26/mysql-fake-master-server/">mysql, 利用假master重放binlog</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/25/go-leak-fd/">golang, cmd会泄露文件句柄</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/20/go-file-lock/">golang, windows和linux上的文件锁</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/03/02/gen/">推荐下我修改的gen</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/02/22/go-exec-command-block-when-redirect-stdout/">GO exec.command.Wait 执行后台程序,在重定向输出时卡住</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/02/11/try-rollback-master-back-to-slave-by-mysql-plugin/">尝试使用mysql plugin将RESET SLAVE后的节点重新恢复成slave</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/01/28/compile-mysql-plugin/">编译mysql插件的碰到的问题</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/01/08/jruby-bug-tcp-timeout/">jruby中tcp阻塞时Timeout::timeout失效</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/26/go-iterate-variable/">栽在Go中for的变量</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/19/paxos-lease-2/">对于PaxosLease的个人理解 2</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/19/paxos-lease/">对于PaxosLease的个人理解 1</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/12/09/test-framework-exp/">关于DEV测试的一些经验总结</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2013/11/11/study-memory-reorder-cont/">对Memory Reordering Caught in the Act的学习 续 - 关于go的部分</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Weibo</h1>
+  <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=10&isTitle=1&noborder=0&isWeibo=1&isFans=0&uid=1460219211&verifier=4d7daebc&dpc=1"></iframe>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/ikarishinjieva">@ikarishinjieva</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'ikarishinjieva',
+            count: 5,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/blog/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 - Tac Huang (ikari_shinji@github) -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a>. Design by <a href="http://octopressthemes.com">Octopress Themes</a>.</span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'tacsay';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://ikarishinjieva.github.com/blog/blog/2014/05/15/mysql-table-cache/';
+        var disqus_url = 'http://ikarishinjieva.github.com/blog/blog/2014/05/15/mysql-table-cache/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fa62a96d9f5c956ea3ddb6cca8ad83aa3' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

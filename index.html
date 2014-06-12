@@ -9,8 +9,7 @@
   <meta name="author" content="Tac Huang (ikari_shinji@github)">
 
   
-  <meta name="description" content="并没找到特别好的对PREVIOUS_GTIDS_LOG_EVENT格式的描述, 自己写一个 据下面这个例子, 是mysqlbinlog的分析结果 # at 120
-#140417 15:50:36 server id 904898000 end_log_pos 311 CRC32 &hellip;">
+  <meta name="description" content="测试一下Mysql 5.6.17对临时表的复制 参考资料 Percona这篇08年的blog Can MySQL temporary tables be made safe for statement-based replication?, 是对于Mysql 5.1这方面的测试. &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -62,6 +61,2206 @@
   
   
     <article class="b1">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2014/06/12/temporary-table-replication/" style='font-size:20px'>测试Mysql临时表的复制</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-06-12T22:32:00+08:00" pubdate data-updated="true">Jun 12<span>th</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2014/06/12/temporary-table-replication/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"测试Mysql临时表的复制", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>测试一下Mysql 5.6.17对临时表的复制</p>
+
+<h4>参考资料</h4>
+
+<ol>
+<li>Percona这篇08年的blog <a href="http://www.mysqlperformanceblog.com/2008/05/26/mysql-temporary-tables-safe-for-statement-based-replication/">Can MySQL temporary tables be made safe for statement-based replication?</a>, 是对于Mysql 5.1这方面的测试. 但根据对Mysql 5.6的相关测试, 其结论已经不适用. 其方法可供参考</li>
+<li><p>Mysql Manual 对于临时表复制的<a href="http://dev.mysql.com/doc/refman/5.6/en/replication-features-temptables.html">讨论</a>, 其中一些重要的描述列在下面:</p></li>
+<li><p>Safe slave shutdown when using temporary tables</p></li>
+<li>By default, all temporary tables are replicated; this happens whether or not there are any matching <code>--replicate-do-db</code>, <code>--replicate-do-table</code>, or <code>--replicate-wild-do-table</code> options in effect</li>
+<li>the <code>--replicate-ignore-table</code> and <code>--replicate-wild-ignore-table</code> options are honored for temporary tables</li>
+</ol>
+
+
+<h4>概述</h4>
+
+<p>总共做了两个测试:</p>
+
+<ol>
+<li>Mysql Manual中&#8221;Safe slave shutdown when using temporary tables&#8221;一节, 验证为何需要如此安全关闭slave</li>
+<li>验证在复制临时表时, master意外crash, 是否会造成slave上的资源泄露</li>
+</ol>
+
+
+<p>每个测试后都有结论</p>
+
+<h4>测试一</h4>
+
+<p>针对Mysql Manual提到的&#8221;Safe slave shutdown when using temporary tables&#8221;, 重现一下:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#准备环境, 断开复制
+</span><span class='line'>mysql-master&gt; select @@binlog_format;
+</span><span class='line'>+-----------------+
+</span><span class='line'>| @@binlog_format |
+</span><span class='line'>+-----------------+
+</span><span class='line'>| MIXED           |
+</span><span class='line'>+-----------------+
+</span><span class='line'>1 row in set (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; stop slave;
+</span><span class='line'>Query OK, 0 rows affected (0.03 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#在master上构造使用临时表的两个transaction
+</span><span class='line'>mysql-master&gt; flush logs;
+</span><span class='line'>Query OK, 0 rows affected (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; create temporary table test.t(t int);
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; commit;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; insert into test.a select t from test.t;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>Records: 0  Duplicates: 0  Warnings: 0
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; commit;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#查看master的binlog
+</span><span class='line'>mysql-master&gt; show binlog events in "mysql-bin.000036" \G
+</span><span class='line'>*************************** 1. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 4
+</span><span class='line'> Event_type: Format_desc
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 120
+</span><span class='line'>       Info: Server ver: 5.6.17-debug-log, Binlog ver: 4
+</span><span class='line'>*************************** 2. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 120
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 195
+</span><span class='line'>       Info: BEGIN
+</span><span class='line'>*************************** 3. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 195
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 301
+</span><span class='line'>       Info: create temporary table test.t(t int)
+</span><span class='line'>*************************** 4. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 301
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 370
+</span><span class='line'>       Info: COMMIT
+</span><span class='line'>*************************** 5. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 370
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 445
+</span><span class='line'>       Info: BEGIN
+</span><span class='line'>*************************** 6. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 445
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 554
+</span><span class='line'>       Info: insert into test.a select t from test.t
+</span><span class='line'>*************************** 7. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000036
+</span><span class='line'>        Pos: 554
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 623
+</span><span class='line'>       Info: COMMIT
+</span><span class='line'>7 rows in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#开启复制,让复制在两个transaction之间中断
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; start slave until master_log_file='mysql-bin.000036', master_log_pos=370;
+</span><span class='line'>Query OK, 0 rows affected, 1 warning (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; show slave status\G
+</span><span class='line'>*************************** 1. row ***************************
+</span><span class='line'>               Slave_IO_State: Waiting for master to send event
+</span><span class='line'>...
+</span><span class='line'>              Master_Log_File: mysql-bin.000036
+</span><span class='line'>          Read_Master_Log_Pos: 623
+</span><span class='line'>...
+</span><span class='line'>        Relay_Master_Log_File: mysql-bin.000036
+</span><span class='line'>             Slave_IO_Running: Yes
+</span><span class='line'>            Slave_SQL_Running: No
+</span><span class='line'>...
+</span><span class='line'>          Exec_Master_Log_Pos: 370
+</span><span class='line'>...
+</span><span class='line'>1 row in set (0.00 sec)
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#查看slave正在使用的临时表, 并重启slave
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; show status like '%temp%';                      
+</span><span class='line'>+------------------------+-------+
+</span><span class='line'>| Variable_name          | Value |
+</span><span class='line'>+------------------------+-------+
+</span><span class='line'>| Slave_open_temp_tables | 1     |
+</span><span class='line'>+------------------------+-------+
+</span><span class='line'>1 row in set (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>slave&gt; service mysqld restart</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#验证slave status
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; show slave status\G
+</span><span class='line'>*************************** 1. row ***************************
+</span><span class='line'>...
+</span><span class='line'>              Master_Log_File: mysql-bin.000036
+</span><span class='line'>          Read_Master_Log_Pos: 623
+</span><span class='line'>...
+</span><span class='line'>        Relay_Master_Log_File: mysql-bin.000036
+</span><span class='line'>             Slave_IO_Running: Yes
+</span><span class='line'>            Slave_SQL_Running: No
+</span><span class='line'>...
+</span><span class='line'>                   Last_Errno: 1146
+</span><span class='line'>                   Last_Error: Error 'Table 'test.t' doesn't exist' on query. Default database: ''. Query: 'insert into test.a select t from test.t'
+</span><span class='line'>...
+</span><span class='line'>          Exec_Master_Log_Pos: 370
+</span><span class='line'>...
+</span><span class='line'>               Last_SQL_Errno: 1146
+</span><span class='line'>               Last_SQL_Error: Error 'Table 'test.t' doesn't exist' on query. Default database: ''. Query: 'insert into test.a select t from test.t'
+</span><span class='line'>  Replicate_Ignore_Server_Ids:
+</span><span class='line'>...
+</span><span class='line'>1 row in set (0.00 sec)
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>结论</strong>: 使用临时表时, slave并不保证crash-safe, 而且若在连续的transaction中复用同一个临时表, 完全没办法安全修复.</p>
+
+<h4>测试2</h4>
+
+<p>对于一个<code>create temporary table</code>, 已知<code>drop temporary table</code>会在session结束时写进binlog. 那么如果master意外退出, 是不是会对slave造成资源泄露? 比如不释放文件句柄</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#准备master环境
+</span><span class='line'>mysql-master&gt; select @@binlog_format;
+</span><span class='line'>+-----------------+
+</span><span class='line'>| @@binlog_format |
+</span><span class='line'>+-----------------+
+</span><span class='line'>| MIXED           |
+</span><span class='line'>+-----------------+
+</span><span class='line'>1 row in set (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-master&gt; select @@gtid_mode;
+</span><span class='line'>+-------------+
+</span><span class='line'>| @@gtid_mode |
+</span><span class='line'>+-------------+
+</span><span class='line'>| OFF         |
+</span><span class='line'>+-------------+
+</span><span class='line'>1 row in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#检查slave上的资源
+</span><span class='line'>mysql-slave&gt; show status like '%open%';
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>| Variable_name              | Value |
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>...
+</span><span class='line'>| Innodb_num_open_files      | 6     |
+</span><span class='line'>| Open_files                 | 22    |
+</span><span class='line'>| Open_streams               | 0     |
+</span><span class='line'>| Open_table_definitions     | 70    |
+</span><span class='line'>| Open_tables                | 63    |
+</span><span class='line'>| Opened_files               | 164   |
+</span><span class='line'>| Opened_table_definitions   | 0     |
+</span><span class='line'>| Opened_tables              | 0     |
+</span><span class='line'>| Slave_open_temp_tables     | 0     |
+</span><span class='line'>...
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>14 rows in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#在master上创建5张临时表
+</span><span class='line'>mysql-master&gt; create temporary table test.t1 (t int);create temporary table test.t2 (t int);create temporary table test.t3 (t int);create temporary table test.t4 (t int);create temporary table test.t5 (t int);
+</span><span class='line'>Query OK, 0 rows affected (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#检查slave上的资源
+</span><span class='line'>mysql-slave&gt; show status like '%open%';
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>| Variable_name              | Value |
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>...
+</span><span class='line'>| Innodb_num_open_files      | 11    |
+</span><span class='line'>| Open_files                 | 22    |
+</span><span class='line'>| Open_streams               | 0     |
+</span><span class='line'>| Open_table_definitions     | 70    |
+</span><span class='line'>| Open_tables                | 63    |
+</span><span class='line'>| Opened_files               | 179   |
+</span><span class='line'>| Opened_table_definitions   | 0     |
+</span><span class='line'>| Opened_tables              | 0     |
+</span><span class='line'>| Slave_open_temp_tables     | 5     |
+</span><span class='line'>...
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>14 rows in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#引发master故障, 重启master库
+</span><span class='line'>master&gt; pkill -9 mysqld
+</span><span class='line'>master&gt; /opt/mysql/bin/mysqld_safe &</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#重启slave复制, 检查slave上的资源
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; stop slave io_thread;
+</span><span class='line'>Query OK, 0 rows affected (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; start slave io_thread;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; show status like '%open%';
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>| Variable_name              | Value |
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>...
+</span><span class='line'>| Innodb_num_open_files      | 6     |
+</span><span class='line'>| Open_files                 | 22    |
+</span><span class='line'>| Open_streams               | 0     |
+</span><span class='line'>| Open_table_definitions     | 70    |
+</span><span class='line'>| Open_tables                | 63    |
+</span><span class='line'>| Opened_files               | 209   |
+</span><span class='line'>| Opened_table_definitions   | 0     |
+</span><span class='line'>| Opened_tables              | 0     |
+</span><span class='line'>| Slave_open_temp_tables     | 5     |
+</span><span class='line'>...
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>14 rows in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#在master上再次创建5张临时表, 检查slave上的资源
+</span><span class='line'>mysql-master&gt; create temporary table test.t1 (t int);create temporary table test.t2 (t int);create temporary table test.t3 (t int);create temporary table test.t4 (t int);create temporary table test.t5 (t int);
+</span><span class='line'>Query OK, 0 rows affected (0.09 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>mysql-slave&gt; show status like '%open%';
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>| Variable_name              | Value |
+</span><span class='line'>+----------------------------+-------+
+</span><span class='line'>...
+</span><span class='line'>| Innodb_num_open_files      | 11    |
+</span><span class='line'>| Open_files                 | 22    |
+</span><span class='line'>| Open_streams               | 0     |
+</span><span class='line'>| Open_table_definitions     | 70    |
+</span><span class='line'>| Open_tables                | 63    |
+</span><span class='line'>| Opened_files               | 224   |
+</span><span class='line'>| Opened_table_definitions   | 0     |
+</span><span class='line'>| Opened_tables              | 0     |
+</span><span class='line'>| Slave_open_temp_tables     | 10    |
+</span><span class='line'>...
+</span><span class='line'>+----------------------------+-------+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>结论</strong>: 复制临时表时,slave上消耗的资源, <code>Innodb_num_open_files</code>会及时回收,也就是说实际消耗的系统资源被及时回收. 但<code>Slave_open_temp_tables</code>会虚高不下,按照Mysql Manual中&#8221;Safe slave shutdown when using temporary tables&#8221;的叙述, 用<code>Slave_open_temp_tables</code>来判断关闭server的时机时, 会出现判断失误.</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b2">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2014/06/12/temporary-table-binlog/" style='font-size:20px'>测试Mysql临时表的binlog</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-06-12T22:30:00+08:00" pubdate data-updated="true">Jun 12<span>th</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2014/06/12/temporary-table-binlog/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"测试Mysql临时表的binlog", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>在Mysql 5.6.17上测试临时表生成的binlog</p>
+
+<h3>测试用例</h3>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th align="left">用例</th>
+<th align="center">row</th>
+<th align="center">statement</th>
+<th align="center">mixed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td align="left"><code>create temporary table</code> 产生的binlog</td>
+<td align="center">1.1</td>
+<td align="center">1.2</td>
+<td align="center">1.3|</td>
+</tr>
+<tr>
+<td></td>
+<td align="left"><code>create temporary table</code> 产生的binlog (<code>mysqlbinlog</code>)</td>
+<td align="center">2.1</td>
+<td align="center">2.2</td>
+<td align="center">-|</td>
+</tr>
+<tr>
+<td></td>
+<td align="left">临时表对非临时表数据产生影响时, 产生的binlog</td>
+<td align="center">3.1</td>
+<td align="center">3.2</td>
+<td align="center">-|</td>
+</tr>
+<tr>
+<td></td>
+<td align="left">临时表对非临时表数据产生影响, 并rollback时, 产生的binlog</td>
+<td align="center">4.1</td>
+<td align="center">4.2</td>
+<td align="center">-|</td>
+</tr>
+<tr>
+<td></td>
+<td align="left">多session同时创建临时表, 产生的binlog</td>
+<td align="center">-</td>
+<td align="center">5.1</td>
+<td align="center">-|</td>
+</tr>
+<tr>
+<td></td>
+<td align="left">开启<code>enforce-gtid-consistency</code>时, <code>create temporary table</code></td>
+<td align="center">-</td>
+<td align="center">6.1</td>
+<td align="center">-|</td>
+</tr>
+</tbody>
+</table>
+
+
+<h3>测试结论</h3>
+
+<h4>1. <code>create temporary table</code> 产生的binlog</h4>
+
+<p>结论: 可以看到<code>statement</code>和<code>mixed</code>模式生成的binlog一样. 而<code>row</code>模式中, 因为临时表并没有产生实际影响, 所以没有产生额外的binlog event</p>
+
+<h4>2. <code>create temporary table</code> 产生的binlog (<code>mysqlbinlog</code>)</h4>
+
+<p><code>show binlog events</code> 的输出只是摘要了binlog的内容, <code>mysqlbinlog</code>的输出才能精准的显示binlog的内容</p>
+
+<p>重做<code>row</code>模式和<code>statement</code>模式的测试, 可以看到<code>row</code>模式虽然不产生<code>create temporary table</code>, 但是会产生一个<code>drop temporary table if exists</code>; <code>statement</code>模式产生<code>create temporary table</code>, 但不产生<code>drop temporary table</code></p>
+
+<h4>3. 临时表对非临时表数据产生影响时, 产生的binlog</h4>
+
+<p>可以看到<code>row</code>模式会产生非临时表的行日志.<code>statement</code>模式会严格记录语句.</p>
+
+<h4>4. 临时表对非临时表数据产生影响,并rollback时, 产生的binlog</h4>
+
+<p>可以看到<code>row</code>模式下, rollback不会对binlog产生影响. 在<code>statement</code>模式下, 所有的语句都会如实反映在binlog里, 并进行rollback</p>
+
+<h4>5. 多session同时创建临时表, 产生的binlog</h4>
+
+<p>不同于典型DDL, <code>create temporary table</code>记在transaction中.</p>
+
+<p>由session结束产生的<code>drop temporary table</code>则类似于典型的DDL.</p>
+
+<h4>6. 开启<code>enforce-gtid-consistency</code>时, <code>create temporary table</code></h4>
+
+<p>开启<code>enforce-gtid-consistency</code>时, 在transaction内创建临时表会得到warning:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>ERROR 1787 (HY000): When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1.</span></code></pre></td></tr></table></div></figure>
+
+
+<hr />
+
+<h3>元日志</h3>
+
+<h4>1.1</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql&gt; select @@gtid_mode;
+</span><span class='line'>+-------------+
+</span><span class='line'>| @@gtid_mode |
+</span><span class='line'>+-------------+
+</span><span class='line'>| OFF         |
+</span><span class='line'>+-------------+
+</span><span class='line'>1 row in set (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; set @@session.binlog_format="row";
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; flush logs;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; create temporary table test.t (t int);
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; commit;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql&gt; show binlog events in 'mysql-bin.000014' \G
+</span><span class='line'>*************************** 1. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000014
+</span><span class='line'>        Pos: 4
+</span><span class='line'> Event_type: Format_desc
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 120
+</span><span class='line'>       Info: Server ver: 5.6.17-debug-log, Binlog ver: 4</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>1.2</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql&gt; select @@gtid_mode;
+</span><span class='line'>
+</span><span class='line'>+-------------+
+</span><span class='line'>| @@gtid_mode |
+</span><span class='line'>+-------------+
+</span><span class='line'>| OFF         |
+</span><span class='line'>+-------------+
+</span><span class='line'>1 row in set (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; set @@session.binlog_format="statement";
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; flush logs;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; create temporary table test.t (t int);
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; commit;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql&gt; show binlog events in 'mysql-bin.000015' \G
+</span><span class='line'>*************************** 1. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000015
+</span><span class='line'>        Pos: 4
+</span><span class='line'> Event_type: Format_desc
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 120
+</span><span class='line'>       Info: Server ver: 5.6.17-debug-log, Binlog ver: 4
+</span><span class='line'>*************************** 2. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000015
+</span><span class='line'>        Pos: 120
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 195
+</span><span class='line'>       Info: BEGIN
+</span><span class='line'>*************************** 3. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000015
+</span><span class='line'>        Pos: 195
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 302
+</span><span class='line'>       Info: create temporary table test.t (t int)
+</span><span class='line'>*************************** 4. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000015
+</span><span class='line'>        Pos: 302
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 371
+</span><span class='line'>       Info: COMMIT
+</span><span class='line'>4 rows in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>1.3</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql&gt; select @@gtid_mode;
+</span><span class='line'>+-------------+
+</span><span class='line'>| @@gtid_mode |
+</span><span class='line'>+-------------+
+</span><span class='line'>| OFF         |
+</span><span class='line'>+-------------+
+</span><span class='line'>1 row in set (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; select @@binlog_format;
+</span><span class='line'>+-----------------+
+</span><span class='line'>| @@binlog_format |
+</span><span class='line'>+-----------------+
+</span><span class='line'>| MIXED           |
+</span><span class='line'>+-----------------+
+</span><span class='line'>1 row in set (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; flush logs;
+</span><span class='line'>Query OK, 0 rows affected (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; create temporary table test.t (t int);
+</span><span class='line'>Query OK, 0 rows affected (0.05 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; commit;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql&gt; show binlog events in 'mysql-bin.000011'\G
+</span><span class='line'>*************************** 1. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000011
+</span><span class='line'>        Pos: 4
+</span><span class='line'> Event_type: Format_desc
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 120
+</span><span class='line'>       Info: Server ver: 5.6.17-debug-log, Binlog ver: 4
+</span><span class='line'>*************************** 2. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000011
+</span><span class='line'>        Pos: 120
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 195
+</span><span class='line'>       Info: BEGIN
+</span><span class='line'>*************************** 3. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000011
+</span><span class='line'>        Pos: 195
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 302
+</span><span class='line'>       Info: create temporary table test.t (t int)
+</span><span class='line'>*************************** 4. row ***************************
+</span><span class='line'>   Log_name: mysql-bin.000011
+</span><span class='line'>        Pos: 302
+</span><span class='line'> Event_type: Query
+</span><span class='line'>  Server_id: 1
+</span><span class='line'>End_log_pos: 371
+</span><span class='line'>       Info: COMMIT</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>2.1</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[root@localhost data]# /opt/mysql/bin/mysqlbinlog --base64-output=decode-rows mysql-bin.000014
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+</span><span class='line'>/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+</span><span class='line'>/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+</span><span class='line'>DELIMITER /*!*/;
+</span><span class='line'># at 4
+</span><span class='line'>#140612  4:38:58 server id 1  end_log_pos 120 CRC32 0xb935033a    Start: binlog v 4, server v 5.6.17-debug-log created 140612  4:38:58
+</span><span class='line'># at 120
+</span><span class='line'>#140612  4:42:30 server id 1  end_log_pos 257 CRC32 0x8f9ccf27    Query   thread_id=2 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402548150/*!*/;
+</span><span class='line'>SET @@session.pseudo_thread_id=2/*!*/;
+</span><span class='line'>SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+</span><span class='line'>SET @@session.sql_mode=1075838976/*!*/;
+</span><span class='line'>SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+</span><span class='line'>/*!\C utf8 *//*!*/;
+</span><span class='line'>SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=33/*!*/;
+</span><span class='line'>SET @@session.lc_time_names=0/*!*/;
+</span><span class='line'>SET @@session.collation_database=DEFAULT/*!*/;
+</span><span class='line'>DROP TEMPORARY TABLE IF EXISTS `test`.`t` /* generated by server */
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 257
+</span><span class='line'>#140612  4:42:51 server id 1  end_log_pos 304 CRC32 0x62766a77    Rotate to mysql-bin.000015  pos: 4
+</span><span class='line'>DELIMITER ;
+</span><span class='line'># End of log file
+</span><span class='line'>ROLLBACK /* added by mysqlbinlog */;
+</span><span class='line'>/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>2.2</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[root@localhost data]# /opt/mysql/bin/mysqlbinlog --base64-output=decode-rows mysql-bin.000015
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+</span><span class='line'>/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+</span><span class='line'>/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+</span><span class='line'>DELIMITER /*!*/;
+</span><span class='line'># at 4
+</span><span class='line'>#140612  4:42:51 server id 1  end_log_pos 120 CRC32 0xc3707cb7    Start: binlog v 4, server v 5.6.17-debug-log created 140612  4:42:51
+</span><span class='line'># Warning: this binlog is either in use or was not closed properly.
+</span><span class='line'># at 120
+</span><span class='line'>#140612  4:42:58 server id 1  end_log_pos 195 CRC32 0x2fd0ed95    Query   thread_id=2 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402548178/*!*/;
+</span><span class='line'>SET @@session.pseudo_thread_id=2/*!*/;
+</span><span class='line'>SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+</span><span class='line'>SET @@session.sql_mode=1075838976/*!*/;
+</span><span class='line'>SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+</span><span class='line'>/*!\C utf8 *//*!*/;
+</span><span class='line'>SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=33/*!*/;
+</span><span class='line'>SET @@session.lc_time_names=0/*!*/;
+</span><span class='line'>SET @@session.collation_database=DEFAULT/*!*/;
+</span><span class='line'>BEGIN
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 195
+</span><span class='line'>#140612  4:42:58 server id 1  end_log_pos 302 CRC32 0xfc742b50    Query   thread_id=2 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402548178/*!*/;
+</span><span class='line'>create temporary table test.t (t int)
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 302
+</span><span class='line'>#140612  4:43:00 server id 1  end_log_pos 371 CRC32 0x25648832    Query   thread_id=2 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402548180/*!*/;
+</span><span class='line'>COMMIT
+</span><span class='line'>/*!*/;
+</span><span class='line'>DELIMITER ;
+</span><span class='line'># End of log file
+</span><span class='line'>ROLLBACK /* added by mysqlbinlog */;
+</span><span class='line'>/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>3.1</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql&gt; select @@gtid_mode;
+</span><span class='line'>+-------------+
+</span><span class='line'>| @@gtid_mode |
+</span><span class='line'>+-------------+
+</span><span class='line'>| OFF         |
+</span><span class='line'>+-------------+
+</span><span class='line'>1 row in set (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; set @@session.binlog_format="row";
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; flush logs;
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt;  create temporary table test.t (t int);
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; insert into test.t values(2);
+</span><span class='line'>Query OK, 1 row affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; insert into test.a select t from test.t;
+</span><span class='line'>Query OK, 1 row affected (0.00 sec)
+</span><span class='line'>Records: 1  Duplicates: 0  Warnings: 0
+</span><span class='line'>
+</span><span class='line'>mysql&gt; commit;
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[root@localhost data]# /opt/mysql/bin/mysqlbinlog --base64-output=decode-rows -v mysql-bin.000020
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+</span><span class='line'>/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+</span><span class='line'>/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+</span><span class='line'>DELIMITER /*!*/;
+</span><span class='line'># at 4
+</span><span class='line'>#140612  6:02:38 server id 1  end_log_pos 120 CRC32 0x31b6357c    Start: binlog v 4, server v 5.6.17-debug-log created 140612  6:02:38
+</span><span class='line'># Warning: this binlog is either in use or was not closed properly.
+</span><span class='line'># at 120
+</span><span class='line'>#140612  6:02:53 server id 1  end_log_pos 188 CRC32 0x23bceabc    Query   thread_id=6 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402552973/*!*/;
+</span><span class='line'>SET @@session.pseudo_thread_id=6/*!*/;
+</span><span class='line'>SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+</span><span class='line'>SET @@session.sql_mode=1075838976/*!*/;
+</span><span class='line'>SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+</span><span class='line'>/*!\C utf8 *//*!*/;
+</span><span class='line'>SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=33/*!*/;
+</span><span class='line'>SET @@session.lc_time_names=0/*!*/;
+</span><span class='line'>SET @@session.collation_database=DEFAULT/*!*/;
+</span><span class='line'>BEGIN
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 188
+</span><span class='line'>#140612  6:02:53 server id 1  end_log_pos 232 CRC32 0x1a87cc74    Table_map: `test`.`a` mapped to number 70
+</span><span class='line'># at 232
+</span><span class='line'>#140612  6:02:53 server id 1  end_log_pos 272 CRC32 0xf0c862fb    Write_rows: table id 70 flags: STMT_END_F
+</span><span class='line'>### INSERT INTO `test`.`a`
+</span><span class='line'>### SET
+</span><span class='line'>###   @1=2
+</span><span class='line'># at 272
+</span><span class='line'>#140612  6:02:55 server id 1  end_log_pos 303 CRC32 0xb2f66e82    Xid = 92
+</span><span class='line'>COMMIT/*!*/;
+</span><span class='line'>DELIMITER ;
+</span><span class='line'># End of log file
+</span><span class='line'>ROLLBACK /* added by mysqlbinlog */;
+</span><span class='line'>/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>3.2</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql&gt; select @@gtid_mode;
+</span><span class='line'>+-------------+
+</span><span class='line'>| @@gtid_mode |
+</span><span class='line'>+-------------+
+</span><span class='line'>| OFF         |
+</span><span class='line'>+-------------+
+</span><span class='line'>1 row in set (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; set @@session.binlog_format="statement";
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; flush logs;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; create temporary table test.t (t int);
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; insert into test.t values(3);
+</span><span class='line'>Query OK, 1 row affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; insert into test.a select t from test.t;
+</span><span class='line'>Query OK, 1 row affected (0.00 sec)
+</span><span class='line'>Records: 1  Duplicates: 0  Warnings: 0
+</span><span class='line'>
+</span><span class='line'>mysql&gt; commit;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[root@localhost data]# /opt/mysql/bin/mysqlbinlog --base64-output=decode-rows mysql-bin.000021
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+</span><span class='line'>/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+</span><span class='line'>/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+</span><span class='line'>DELIMITER /*!*/;
+</span><span class='line'># at 4
+</span><span class='line'>#140612  6:07:43 server id 1  end_log_pos 120 CRC32 0xbcd985c3    Start: binlog v 4, server v 5.6.17-debug-log created 140612  6:07:43
+</span><span class='line'># Warning: this binlog is either in use or was not closed properly.
+</span><span class='line'># at 120
+</span><span class='line'>#140612  6:07:50 server id 1  end_log_pos 195 CRC32 0xf5ea27f6    Query   thread_id=7 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402553270/*!*/;
+</span><span class='line'>SET @@session.pseudo_thread_id=7/*!*/;
+</span><span class='line'>SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+</span><span class='line'>SET @@session.sql_mode=1075838976/*!*/;
+</span><span class='line'>SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+</span><span class='line'>/*!\C utf8 *//*!*/;
+</span><span class='line'>SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=33/*!*/;
+</span><span class='line'>SET @@session.lc_time_names=0/*!*/;
+</span><span class='line'>SET @@session.collation_database=DEFAULT/*!*/;
+</span><span class='line'>BEGIN
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 195
+</span><span class='line'>#140612  6:07:50 server id 1  end_log_pos 302 CRC32 0xa52fbe74    Query   thread_id=7 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402553270/*!*/;
+</span><span class='line'>create temporary table test.t (t int)
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 302
+</span><span class='line'>#140612  6:07:55 server id 1  end_log_pos 400 CRC32 0x037b8754    Query   thread_id=7 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402553275/*!*/;
+</span><span class='line'>insert into test.t values(3)
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 400
+</span><span class='line'>#140612  6:07:59 server id 1  end_log_pos 509 CRC32 0xa1dc2124    Query   thread_id=7 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402553279/*!*/;
+</span><span class='line'>insert into test.a select t from test.t
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 509
+</span><span class='line'>#140612  6:08:01 server id 1  end_log_pos 540 CRC32 0xf7e3aa59    Xid = 102
+</span><span class='line'>COMMIT/*!*/;
+</span><span class='line'>DELIMITER ;
+</span><span class='line'># End of log file
+</span><span class='line'>ROLLBACK /* added by mysqlbinlog */;
+</span><span class='line'>/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>4.1</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql&gt; select @@gtid_mode;
+</span><span class='line'>+-------------+
+</span><span class='line'>| @@gtid_mode |
+</span><span class='line'>+-------------+
+</span><span class='line'>| OFF         |
+</span><span class='line'>+-------------+
+</span><span class='line'>1 row in set (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; set @@session.binlog_format="row";
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; flush logs;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; create temporary table test.t (t int);
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; insert into test.t values(5);
+</span><span class='line'>Query OK, 1 row affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; insert into test.a select t from test.t;
+</span><span class='line'>Query OK, 1 row affected (0.00 sec)
+</span><span class='line'>Records: 1  Duplicates: 0  Warnings: 0
+</span><span class='line'>
+</span><span class='line'>mysql&gt; rollback;
+</span><span class='line'>Query OK, 0 rows affected, 1 warning (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; show warnings;
+</span><span class='line'>+---------+------+-----------------------------------------------------------------+
+</span><span class='line'>| Level   | Code | Message                                                         |
+</span><span class='line'>+---------+------+-----------------------------------------------------------------+
+</span><span class='line'>| Warning | 1751 | The creation of some temporary tables could not be rolled back. |
+</span><span class='line'>+---------+------+-----------------------------------------------------------------+
+</span><span class='line'>1 row in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[root@localhost data]# /opt/mysql/bin/mysqlbinlog --base64-output=decode-rows mysql-bin.000024
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+</span><span class='line'>/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+</span><span class='line'>/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+</span><span class='line'>DELIMITER /*!*/;
+</span><span class='line'># at 4
+</span><span class='line'>#140612  6:25:58 server id 1  end_log_pos 120 CRC32 0x8f8f4247    Start: binlog v 4, server v 5.6.17-debug-log created 140612  6:25:58
+</span><span class='line'># Warning: this binlog is either in use or was not closed properly.
+</span><span class='line'>DELIMITER ;
+</span><span class='line'># End of log file
+</span><span class='line'>ROLLBACK /* added by mysqlbinlog */;
+</span><span class='line'>/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>4.2</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql&gt; select @@gtid_mode;
+</span><span class='line'>+-------------+
+</span><span class='line'>| @@gtid_mode |
+</span><span class='line'>+-------------+
+</span><span class='line'>| OFF         |
+</span><span class='line'>+-------------+
+</span><span class='line'>1 row in set (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; set @@session.binlog_format="statement";
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; flush logs;
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; create temporary table test.t (t int);
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; insert into test.t values(4);
+</span><span class='line'>Query OK, 1 row affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; insert into test.a select t from test.t;
+</span><span class='line'>Query OK, 1 row affected (0.00 sec)
+</span><span class='line'>Records: 1  Duplicates: 0  Warnings: 0
+</span><span class='line'>
+</span><span class='line'>mysql&gt; rollback;
+</span><span class='line'>Query OK, 0 rows affected, 1 warning (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; show warnings;
+</span><span class='line'>+---------+------+-----------------------------------------------------------------+
+</span><span class='line'>| Level   | Code | Message                                                         |
+</span><span class='line'>+---------+------+-----------------------------------------------------------------+
+</span><span class='line'>| Warning | 1751 | The creation of some temporary tables could not be rolled back. |
+</span><span class='line'>+---------+------+-----------------------------------------------------------------+
+</span><span class='line'>1 row in set (0.00 sec)</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[root@localhost data]# /opt/mysql/bin/mysqlbinlog --base64-output=decode-rows mysql-bin.000023
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+</span><span class='line'>/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+</span><span class='line'>/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+</span><span class='line'>DELIMITER /*!*/;
+</span><span class='line'># at 4
+</span><span class='line'>#140612  6:22:03 server id 1  end_log_pos 120 CRC32 0x8ebd7db6    Start: binlog v 4, server v 5.6.17-debug-log created 140612  6:22:03
+</span><span class='line'># Warning: this binlog is either in use or was not closed properly.
+</span><span class='line'># at 120
+</span><span class='line'>#140612  6:22:13 server id 1  end_log_pos 195 CRC32 0x2ef37ea7    Query   thread_id=9 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402554133/*!*/;
+</span><span class='line'>SET @@session.pseudo_thread_id=9/*!*/;
+</span><span class='line'>SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+</span><span class='line'>SET @@session.sql_mode=1075838976/*!*/;
+</span><span class='line'>SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+</span><span class='line'>/*!\C utf8 *//*!*/;
+</span><span class='line'>SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=33/*!*/;
+</span><span class='line'>SET @@session.lc_time_names=0/*!*/;
+</span><span class='line'>SET @@session.collation_database=DEFAULT/*!*/;
+</span><span class='line'>BEGIN
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 195
+</span><span class='line'>#140612  6:22:13 server id 1  end_log_pos 302 CRC32 0xc642d4a1    Query   thread_id=9 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402554133/*!*/;
+</span><span class='line'>create temporary table test.t (t int)
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 302
+</span><span class='line'>#140612  6:22:17 server id 1  end_log_pos 400 CRC32 0x076861c4    Query   thread_id=9 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402554137/*!*/;
+</span><span class='line'>insert into test.t values(4)
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 400
+</span><span class='line'>#140612  6:22:21 server id 1  end_log_pos 509 CRC32 0x2e43db50    Query   thread_id=9 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402554141/*!*/;
+</span><span class='line'>insert into test.a select t from test.t
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 509
+</span><span class='line'>#140612  6:22:24 server id 1  end_log_pos 580 CRC32 0xdefa8f3d    Query   thread_id=9 exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402554144/*!*/;
+</span><span class='line'>ROLLBACK
+</span><span class='line'>/*!*/;
+</span><span class='line'>DELIMITER ;
+</span><span class='line'># End of log file
+</span><span class='line'>ROLLBACK /* added by mysqlbinlog */;
+</span><span class='line'>/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>5.1</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql-session1&gt; set @@session.binlog_format="statement";
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-session2&gt; set @@session.binlog_format="statement";
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-session1&gt; flush logs;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-session1&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-session1&gt; create temporary table test.t(t int);
+</span><span class='line'>Query OK, 0 rows affected (0.01 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-session2&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-session2&gt; create temporary table test.t(t int);
+</span><span class='line'>Query OK, 0 rows affected (0.02 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-session1&gt; commit;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-session2&gt; commit;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql-session1&gt; exit;
+</span><span class='line'>Bye
+</span><span class='line'>
+</span><span class='line'>mysql-session2&gt; exit;
+</span><span class='line'>Bye</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>
+</span><span class='line'>[root@localhost data]# /opt/mysql/bin/mysqlbinlog --base64-output=decode-rows mysql-bin.000028
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+</span><span class='line'>/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+</span><span class='line'>/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+</span><span class='line'>DELIMITER /*!*/;
+</span><span class='line'># at 4
+</span><span class='line'>#140612  6:45:24 server id 1  end_log_pos 120 CRC32 0x0ad8e5a0    Start: binlog v 4, server v 5.6.17-debug-log created 140612  6:45:24
+</span><span class='line'># Warning: this binlog is either in use or was not closed properly.
+</span><span class='line'># at 120
+</span><span class='line'>#140612  6:45:58 server id 1  end_log_pos 195 CRC32 0x59b581d0    Query   thread_id=14    exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402555558/*!*/;
+</span><span class='line'>SET @@session.pseudo_thread_id=14/*!*/;
+</span><span class='line'>SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+</span><span class='line'>SET @@session.sql_mode=1075838976/*!*/;
+</span><span class='line'>SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+</span><span class='line'>/*!\C utf8 *//*!*/;
+</span><span class='line'>SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=33/*!*/;
+</span><span class='line'>SET @@session.lc_time_names=0/*!*/;
+</span><span class='line'>SET @@session.collation_database=DEFAULT/*!*/;
+</span><span class='line'>BEGIN
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 195
+</span><span class='line'>#140612  6:45:58 server id 1  end_log_pos 301 CRC32 0x274004b9    Query   thread_id=14    exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402555558/*!*/;
+</span><span class='line'>create temporary table test.t(t int)
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 301
+</span><span class='line'>#140612  6:46:54 server id 1  end_log_pos 370 CRC32 0x9f2ca921    Query   thread_id=14    exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402555614/*!*/;
+</span><span class='line'>COMMIT
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 370
+</span><span class='line'>#140612  6:46:17 server id 1  end_log_pos 445 CRC32 0x3f1094c3    Query   thread_id=16    exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402555577/*!*/;
+</span><span class='line'>SET @@session.pseudo_thread_id=16/*!*/;
+</span><span class='line'>BEGIN
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 445
+</span><span class='line'>#140612  6:46:17 server id 1  end_log_pos 551 CRC32 0x754cae85    Query   thread_id=16    exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402555577/*!*/;
+</span><span class='line'>create temporary table test.t(t int)
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 551
+</span><span class='line'>#140612  6:46:58 server id 1  end_log_pos 620 CRC32 0x73eb6f5a    Query   thread_id=16    exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402555618/*!*/;
+</span><span class='line'>COMMIT
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 620
+</span><span class='line'>#140612  6:47:22 server id 1  end_log_pos 733 CRC32 0xb4c3b1c0    Query   thread_id=14    exec_time=0 error_code=0
+</span><span class='line'>use `test`/*!*/;
+</span><span class='line'>SET TIMESTAMP=1402555642/*!*/;
+</span><span class='line'>SET @@session.pseudo_thread_id=14/*!*/;
+</span><span class='line'>DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t`
+</span><span class='line'>/*!*/;
+</span><span class='line'># at 733
+</span><span class='line'>#140612  6:47:38 server id 1  end_log_pos 846 CRC32 0x1287fb24    Query   thread_id=16    exec_time=0 error_code=0
+</span><span class='line'>SET TIMESTAMP=1402555658/*!*/;
+</span><span class='line'>SET @@session.pseudo_thread_id=16/*!*/;
+</span><span class='line'>DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t`
+</span><span class='line'>/*!*/;
+</span><span class='line'>DELIMITER ;
+</span><span class='line'># End of log file
+</span><span class='line'>ROLLBACK /* added by mysqlbinlog */;
+</span><span class='line'>/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+</span><span class='line'>/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>6.1</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mysql&gt; select @@GTID_MODE;
+</span><span class='line'>+-------------+
+</span><span class='line'>| @@GTID_MODE |
+</span><span class='line'>+-------------+
+</span><span class='line'>| ON          |
+</span><span class='line'>+-------------+
+</span><span class='line'>1 row in set (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; select @@enforce_gtid_consistency;
+</span><span class='line'>+----------------------------+
+</span><span class='line'>| @@enforce_gtid_consistency |
+</span><span class='line'>+----------------------------+
+</span><span class='line'>|                          1 |
+</span><span class='line'>+----------------------------+
+</span><span class='line'>1 row in set (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; begin;
+</span><span class='line'>Query OK, 0 rows affected (0.00 sec)
+</span><span class='line'>
+</span><span class='line'>mysql&gt; create temporary table test.t(t int);
+</span><span class='line'>ERROR 1787 (HY000): When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1.</span></code></pre></td></tr></table></div></figure>
+
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b3">
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/blog/2014/05/15/mysql-table-cache/" style='font-size:20px'>对mysql Table_cache的理解</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-05-15T20:59:00+08:00" pubdate data-updated="true">May 15<span>th</span>, 2014</time>
+        
+		<script type="text/javascript" charset="utf-8">
+		(function(){
+		  var _w = 72 , _h = 16;
+		  var param = {
+			url:location.href.substring(0, location.href.length) + "/blog/2014/05/15/mysql-table-cache/",
+			type:'3',
+			count:'1', 
+			appkey:'', 
+			title:"对mysql table_cache的理解", 
+			pic:'', 
+			ralateUid:'1460219211', 
+			language:'zh_cn', 
+			rnd:new Date().valueOf()
+		  }
+		  var temp = [];
+		  for( var p in param ){
+			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
+		  }
+		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
+		})()
+		</script>
+      </p>
+	  
+    
+  </header>
+
+
+  <div class="entry-content"><p>最近读了mysql table_cache部分的一些代码.</p>
+
+<p>首先推荐这篇<a href="http://blog.sina.com.cn/s/blog_4673e60301010r5u.html">导读</a>, 写的比较详尽. 不对其中已有的部分进行重复, 仅记录自己的一些理解.</p>
+
+<h4>最简单的功能</h4>
+
+<p>叫做table_cache, 就是对<code>table</code>做擦车(cache).</p>
+
+<p>其中<code>table</code>是指的mysql打开的表的描述结构(descriptor)(<a href="http://osxr.org/mysql/source/sql/table.h#0974"><code>TABLE</code></a>),  简单理解就是mysql要操作一张表时, 就会先打开其descriptor, 打开后读取其中信息, 然后进行操作.</p>
+
+<p>为了快速访问, cache 往往类似于 Hash. table_cache 的 key 是</p>
+
+<pre><code>db_name + table_name
+</code></pre>
+
+<p>table_cache 的 value 是 descriptor 的集合, 即 <a href="http://osxr.org/mysql/source/sql/table_cache.h#0208"><code>Table_cache_element</code></a>.</p>
+
+<p>value 是 descriptor 的集合而不是 descriptor, 是因为对于同一张表, 在cache中同时会打开多个 descriptor</p>
+
+<p>额外一提, table_cache是按线程号分桶的, 参看<code>Table_cache_manager</code></p>
+
+<h4>进一步, 留下被回收的元素</h4>
+
+<p>传统擦车, 不用的元素就直接回收了. table_cache暂存了不用的元素, 提高命中率.</p>
+
+<p>可以看到<code>Table_cache_element</code>一共两个列表:</p>
+
+<ul>
+<li>used_tables</li>
+<li>free_tables</li>
+</ul>
+
+
+<h4>进一步, 抽出共同的部分</h4>
+
+<p>同一张表的多个 descriptor, 会有公共部分, 抽出这些公共部分, 能有效节省资源.</p>
+
+<p>比如<code>mem_root</code> (个人称之为受管内存区), 此内存区管理着跟某表相关的一些数据结构, 且受mysqld的管制. 如果同一张表的每个 descriptor 都独立管理一篇内存, 会引起不必要的浪费.</p>
+
+<p>抽出的公共部分称为<a href="http://osxr.org/mysql/source/sql/table.h#0584"><code>TABLE_SHARE</code></a></p>
+
+<h4>进一步, 公共部分也得擦车</h4>
+
+<p><code>TABLE_SHARE</code> 也被擦车了, 其被回收的元素跟<code>TABLE</code>一样也被擦车了.</p>
+
+<h4>擦车的步骤</h4>
+
+<p>简述擦车的步骤</p>
+
+<ol>
+<li>在cache中查找<code>TABLE</code></li>
+<li>如果找到<code>TABLE</code>, 则成功</li>
+<li>在cache中查找<code>TABLE_SHARE</code></li>
+<li>如果找不到<code>TABLE_SHARE</code>, 则生成一个</li>
+<li>根据<code>TABLE_SHARE</code>, 生成一个<code>TABLE</code></li>
+<li>维护好cache</li>
+</ol>
+
+
+<h4>如果找不到<code>TABLE_SHARE</code></h4>
+
+<p>参看<a href="http://osxr.org/mysql/ident?_i=get_table_share_with_discover"><code>get_table_share_with_discover</code></a></p>
+
+<p>如果内存中找不到<code>TABLE_SHARE</code>, 则向存储引擎查询, 如果存储引擎可以提供, 则进行<a href="http://osxr.org/mysql/ident?_i=recover_from_failed_open">discover</a></p>
+
+<h4>关于死锁</h4>
+
+<p>table_cache 里有很多代码是关于死锁的处理, 其一个主要原因是因为 mysql 分为了sql层和存储引擎层, MDL的死锁检测限于sql层, 存储引擎层自带死锁检测, 但一个死锁如果跨过两层, 则需要特殊处理</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article class="b4">
       
   <header>
     
@@ -223,7 +2422,7 @@
     </article>
   
   
-    <article class="b2">
+    <article class="b5">
       
   <header>
     
@@ -388,7 +2587,7 @@
     </article>
   
   
-    <article class="b3">
+    <article class="b6">
       
   <header>
     
@@ -678,7 +2877,7 @@ while(1) {
     </article>
   
   
-    <article class="b4">
+    <article class="b7">
       
   <header>
     
@@ -801,7 +3000,7 @@ while(1) {
     </article>
   
   
-    <article class="b5">
+    <article class="b1">
       
   <header>
     
@@ -1030,7 +3229,7 @@ packet 2
     </article>
   
   
-    <article class="b6">
+    <article class="b2">
       
   <header>
     
@@ -1125,7 +3324,7 @@ lsof    6191 root  cwd    DIR  253,0   32768 3506177 .
     </article>
   
   
-    <article class="b7">
+    <article class="b3">
       
   <header>
     
@@ -1214,7 +3413,7 @@ lsof    6191 root  cwd    DIR  253,0   32768 3506177 .
     </article>
   
   
-    <article class="b1">
+    <article class="b4">
       
   <header>
     
@@ -1313,7 +3512,7 @@ signal.Notify(c, syscall.SIGTTIN)
     </article>
   
   
-    <article class="b2">
+    <article class="b5">
       
   <header>
     
@@ -1450,7 +3649,7 @@ if e := c.Wait(); nil != e {
     </article>
   
   
-    <article class="b3">
+    <article class="b6">
       
   <header>
     
@@ -1690,7 +3889,7 @@ void ha_reset_slave(THD *thd);
     </article>
   
   
-    <article class="b4">
+    <article class="b7">
       
   <header>
     
@@ -1783,7 +3982,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b5">
+    <article class="b1">
       
   <header>
     
@@ -1975,7 +4174,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b6">
+    <article class="b2">
       
   <header>
     
@@ -2087,7 +4286,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b7">
+    <article class="b3">
       
   <header>
     
@@ -2325,7 +4524,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b1">
+    <article class="b4">
       
   <header>
     
@@ -2551,7 +4750,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b2">
+    <article class="b5">
       
   <header>
     
@@ -2634,7 +4833,7 @@ delta = 0x18F8
     </article>
   
   
-    <article class="b3">
+    <article class="b6">
       
   <header>
     
@@ -2760,414 +4959,6 @@ Software Developer’s Manual</a>，可知<code>dec</code>有多种形式</p>
 
     </article>
   
-  
-    <article class="b4">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/11/07/study-memory-reorder/" style='font-size:20px'>对Memory Reordering Caught in the Act的学习</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-11-07T21:40:00+08:00" pubdate data-updated="true">Nov 7<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/11/07/study-memory-reorder/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"对Memory Reordering Caught in the Act的学习", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>最近迷上了preshing.com，真的是非常专业的blog，每篇深浅合适而且可以相互印证，达到出书的质量了</p>
-
-<p>学习了<a href="http://preshing.com/20120515/memory-reordering-caught-in-the-act/">Memory Reordering Caught in the Act</a>，内容很简单，主要是说“即使汇编码是顺序的，CPU执行时会对Load-Save进行乱序执行，导致无锁的两线程出现意料之外的结果”</p>
-
-<p>简述一下：</p>
-
-<ul>
-<li>首先我们有两个线程，Ta和Tb，且有四个公共变量，a,b,r1,r2</li>
-<li>Ta的代码是 a=1, r1=b</li>
-<li>Tb的代码是 b=1, r2=a</li>
-<li>保证编译器不做乱序优化</li>
-<li>由于两个线程的读都在写之后，那么理论上，r1和r2中至少有一个应为1，或者都为1</li>
-<li>但实际并非如此</li>
-</ul>
-
-
-<p>原因是CPU会做乱序执行，因为Ta/Tb的代码乱序后，比如r1=b, a=1，从单线程的角度来看对结果没有影响。而对于多线程，就会出现r1=r2=0的状况</p>
-
-<p>解决方案是在两句之间插入Load-Save fence，参看<a href="http://preshing.com/20120710/memory-barriers-are-like-source-control-operations/">这里</a></p>
-
-<p>我自己用go想重现这个场景，代码参看最后。但是奇怪的是go的编译码跟文章描述的差不多</p>
-
-<pre><code>[thread 1]
-...
-MOVQ    $1,a+0(SB)
-MOVQ    b+0(SB),BX
-MOVQ    BX,r1+0(SB)
-
-[thread 2]
-MOVQ    $1,b+0(SB)
-MOVQ    a+0(SB),BX
-MOVQ    BX,r2+0(SB)
-</code></pre>
-
-<p>但是在MBP (Intel Core i7)上跑并没有出现CPU乱序的现象，希望有同学能帮我提供线索，谢谢</p>
-
-<p>(2013.11.11 更新：关于以上现象的原因参看<a href="http://ikarishinjieva.github.io/blog/blog/2013/11/11/study-memory-reorder-cont/">续 - 关于go的部分</a>)</p>
-
-<p>go 代码：</p>
-
-<pre><code>package main
-
-import (
-    "fmt"
-    "math/rand"
-)
-
-var x, y, r1, r2 int
-var detected = 0
-
-func randWait() {
-    for rand.Intn(8) != 0 {
-    }
-}
-
-func main() {
-    beginSig1 := make(chan bool, 1)
-    beginSig2 := make(chan bool, 1)
-    endSig1 := make(chan bool, 1)
-    endSig2 := make(chan bool, 1)
-    go func() {
-        for {
-            &lt;-beginSig1
-            randWait()
-            x = 1
-            r1 = y
-            endSig1 &lt;- true
-        }
-    }()
-    go func() {
-        for {
-            &lt;-beginSig2
-            randWait()
-            y = 1
-            r2 = x
-            endSig2 &lt;- true
-        }
-    }()
-    for i := 1; ; i = i + 1 {
-        x = 0
-        y = 0
-        beginSig1 &lt;- true
-        beginSig2 &lt;- true
-        &lt;-endSig1
-        &lt;-endSig2
-        if r1 == 0 &amp;&amp; r2 == 0 {
-            detected = detected + 1
-            fmt.Println(detected, "reorders detected after ", i, "iterations")
-        }
-    }
-}
-</code></pre>
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article class="b5">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/11/05/accrual-failure-detector/" style='font-size:20px'>对heartbeat φ累积失败检测算法的学习</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-11-05T21:50:00+08:00" pubdate data-updated="true">Nov 5<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/11/05/accrual-failure-detector/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"对heartbeat φ累积失败检测算法的学习", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>偶尔读到了这篇&#8221;<a href="http://blog.csdn.net/chen77716/article/details/6541968">φ累积失败检测算法</a>&#8220;，写的非常不错。藉此了解了这个用于heartbeat检测的算法，在此记录一下我自己理解的简单版本</p>
-
-<p>heartbeat时我们使用固定的时间限制t0，当heartbeat的返回时长超过t0时，就认为heartbeat失败。这个方法的弊端是：固定的t0是在事先测定的，不会随网络状况的变化而智能变化。φ累积失败检测算法就是要解决这个问题</p>
-
-<p>失败检验算法的基本思想就是：成功判定“heartbeat失败”的概率符合<a href="http://zh.wikipedia.org/wiki/%E6%AD%A3%E6%80%81%E5%88%86%E5%B8%83">正态分布曲线</a>，x轴是本次心跳距上次心跳的差距时间，y轴是差距为x的心跳的概率。</p>
-
-<br/>也就是说，假设我们已经有一条正态分布的曲线，当前时间是Tnow，上次心跳成功的时间是Tlast，那么从(Tlast-Tnow) ~ +∞这个区间内的积分（设为w，w<1）就代表某心跳间隔从Tlast维持到大于Tnow的时间的概率，即在Tnow时判定“heartbeat失败”的<b>失败率</b>，就是说如果我们在Tnow这个时间点判定“heartbeat失败”，那么有w的概率我们做出了错误的判定（heartbeat本该是成功的，也许只是被延迟了= =）
-
-
-<p>臆测这个算法的基本步骤是：</p>
-
-<ol>
-<li>我们假设判定失败率的阈值是&lt;=10%，也就是允许我们判定“heartbeat失败”时最大失败率为10%。</li>
-<li>取样本空间，比如前N次心跳的差距时间（心跳接收时间-上次心跳的接收时间）。计算这个样本空间的均值和方差，就可以计算出正态分布曲线</li>
-<li>在某时间Tnow，计算(Tlast-Tnow) ~ +∞这个区间内的积分（设为w），即为判定“heartbeat失败”的<b>失败率</b>，若大于阈值10%，则可以判定“heartbeat”失败</li>
-<li>重复取样，继续算法</li>
-</ol>
-
-
-<p>到此基本结束，以下是对原文&#8221;<a href="http://blog.csdn.net/chen77716/article/details/6541968">φ累积失败检测算法</a>&#8220;的一些个人补充</p>
-
-<ul>
-<li>原文有φ这个变量，主要是因为计算出来的判定失败率可能经常是非常小的小数，所以φ取其负对数，方便比较</li>
-<li>在此不再重复引用原文的公式</li>
-</ul>
-
-
-<p>最后，可参考论文<a href="https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;ved=0CDEQFjAA&amp;url=http%3A%2F%2Fddg.jaist.ac.jp%2Fpub%2FHDY%2B04.pdf&amp;ei=L_94Uo3OGomciQLCx4GQBg&amp;usg=AFQjCNGYrM_1R5LmY4wrDlKnykatr3VBRA&amp;sig2=G8d5gBsR8MpIwgfU9Xbt7A&amp;bvm=bv.55980276,d.cGE">
-The φ Accrual Failure Detector</a>：</p>
-
-<ul>
-<li>这篇论文非常详细（啰嗦）地描述了要解决的问题场景</li>
-<li>这篇论文给出了一般性的累积失败检测法要满足的特性</li>
-<li>这篇论文给出了用正态分布曲线来计算的步骤</li>
-<li>这篇论文给出了算法正确性的比较结果</li>
-</ul>
-
-
-<p>最后的最后，推荐<a href="http://blog.csdn.net/chen77716">这个大牛陈国庆的blog</a>，其中文章写的质量高，里面也有对Paxos算法的介绍，配合paxos的wiki，解析的很到位</p>
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article class="b6">
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/blog/2013/10/25/study-mysql-bug-70307/" style='font-size:20px'>对Mysql Bug #70307 的学习</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-10-25T22:00:00+08:00" pubdate data-updated="true">Oct 25<span>th</span>, 2013</time>
-        
-		<script type="text/javascript" charset="utf-8">
-		(function(){
-		  var _w = 72 , _h = 16;
-		  var param = {
-			url:location.href.substring(0, location.href.length) + "/blog/2013/10/25/study-mysql-bug-70307/",
-			type:'3',
-			count:'1', 
-			appkey:'', 
-			title:"对Mysql bug #70307 的学习", 
-			pic:'', 
-			ralateUid:'1460219211', 
-			language:'zh_cn', 
-			rnd:new Date().valueOf()
-		  }
-		  var temp = [];
-		  for( var p in param ){
-			temp.push(p + '=' + encodeURIComponent( param[p] || '' ) )
-		  }
-		  document.write('<iframe allowTransparency="true" frameborder="0" scrolling="no" src="http://hits.sinajs.cn/A1/weiboshare.html?' + temp.join('&') + '" width="'+ _w+'" height="'+_h+'" style="margin-left:10px;"></iframe>')
-		})()
-		</script>
-      </p>
-	  
-    
-  </header>
-
-
-  <div class="entry-content"><p>之前描述<a href="http://ikarishinjieva.github.io/blog/blog/2013/10/11/hole-in-mysql-56-replication-dead-lock/">Mysql 5.6.15 Replication中碰到的死锁</a>的情况，这次尝试debug下原因。</p>
-
-<h2>debug的过程</h2>
-
-<p>用参数&#8211;gdb启动mysql，按照<a href="http://bugs.mysql.com/file.php?id=20542">步骤</a>重现bug（让slave &#8220;show slave status&#8221;时卡住）。然后用gdb attach到slave mysql实例上。</p>
-
-<pre><code>(gdb) thread apply all bt
-</code></pre>
-
-<p>输出所有线程的backtrace，找到show slave status卡住的线程和位置</p>
-
-<pre><code>Thread 2 (Thread 0x7f583c166700 (LWP 2440)):
-#0  0x00007f583f484054 in __lll_lock_wait () from /lib64/libpthread.so.0
-#1  0x00007f583f47f3be in _L_lock_995 () from /lib64/libpthread.so.0
-#2  0x00007f583f47f326 in pthread_mutex_lock () from /lib64/libpthread.so.0
-#3  0x0000000000aa3cde in safe_mutex_lock (mp=0x3516ae8, try_lock=0 '\000', file=0xfb8e58 "/home/vagrant/mysql-5.6.12/sql/rpl_slave.cc", line=2611) at /home/vagrant/mysql-5.6.12/mysys/thr_mutex.c:152
-#4  0x0000000000a4b993 in inline_mysql_mutex_lock (that=0x3516ae8, src_file=0xfb8e58 "/home/vagrant/mysql-5.6.12/sql/rpl_slave.cc", src_line=2611) at /home/vagrant/mysql-5.6.12/include/mysql/psi/mysql_thread.h:686
-#5  0x0000000000a53cb3 in show_slave_status (thd=0x352e3d0, mi=0x34b4f20) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:2611
-#6  0x00000000007d45f4 in mysql_execute_command (thd=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:2766
-#7  0x00000000007ddc46 in mysql_parse (thd=0x352e3d0, rawbuf=0x7f57ec005010 "show slave status", length=17, parser_state=0x7f583c165660) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:6187
-#8  0x00000000007d1019 in dispatch_command (command=COM_QUERY, thd=0x352e3d0, packet=0x3534e51 "", packet_length=17) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1334
-#9  0x00000000007d017b in do_command (thd=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_parse.cc:1036
-#10 0x0000000000797a08 in do_handle_one_connection (thd_arg=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:977
-#11 0x00000000007974e4 in handle_one_connection (arg=0x352e3d0) at /home/vagrant/mysql-5.6.12/sql/sql_connect.cc:893
-#12 0x0000000000aea87a in pfs_spawn_thread (arg=0x351b510) at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
-#13 0x00007f583f47d851 in start_thread () from /lib64/libpthread.so.0
-#14 0x00007f583e3e890d in clone () from /lib64/libc.so.6
-</code></pre>
-
-<p>可以看到show slave status卡在</p>
-
-<pre><code>#5  0x0000000000a53cb3 in show_slave_status (thd=0x352e3d0, mi=0x34b4f20) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:2611
-</code></pre>
-
-<p>查找源码可以看到show slave status卡在获取锁mi->rli->data_lock上<br/>(科普下缩写: mi=master info, rli=relay log info</p>
-
-<p>在gdb中运行命令</p>
-
-<pre><code>(gdb) thread 2
-(gdb) f 5
-(gdb) print mi-&gt;rli-&gt;data_lock
-</code></pre>
-
-<p>切换到thread 2堆栈第5层的上下文，打印出mi->rli->data_lock变量，输出如下</p>
-
-<pre><code>$1 = {m_mutex = {global = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 2, __spins = 0,
-    __list = {__prev = 0x0, __next = 0x0}},
-  __size = '\000' &lt;repeats 16 times&gt;, "\002", '\000' &lt;repeats 22 times&gt;, __align = 0}, mutex = {__data = {
-    __lock = 2, __count = 0, __owner = 2435, __nusers = 1, __kind = 3, __spins = 0, __list = {__prev = 0x0,
-      __next = 0x0}},
-  __size = "\002\000\000\000\000\000\000\000\203\t\000\000\001\000\000\000\003", '\000' &lt;repeats 22 times&gt;,
-  __align = 2}, file = 0xfa4520 "/home/vagrant/mysql-5.6.12/sql/log_event.cc", line = 7259, count = 1,
-thread = 140016942216960}, m_psi = 0x0}
-</code></pre>
-
-<p>看到锁的owner是线程(LWP 2435)，为Thread 3</p>
-
-<p>Thread 3的backtrace如下</p>
-
-<pre><code>Thread 3 (Thread 0x7f583c1a7700 (LWP 2435)):
-#0  0x00007f583f4817bb in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
-#1  0x0000000000aa429d in safe_cond_timedwait (cond=0x7f57f4000ba8, mp=0x7f57f4000b38, abstime=0x7f583c1a60f0, file=0xedc960 "/home/vagrant/mysql-5.6.12/include/mysql/psi/mysql_thread.h", line=1199) at /home/vagrant/mysql-5.6.12/mysys/thr_mutex.c:278
-#2  0x00000000007121f4 in inline_mysql_cond_timedwait (that=0x7f57f4000ba8, mutex=0x7f57f4000b38, abstime=0x7f583c1a60f0, src_file=0xedcb98 "/home/vagrant/mysql-5.6.12/sql/mdl.cc", src_line=1306) at /home/vagrant/mysql-5.6.12/include/mysql/psi/mysql_thread.h:1199
-#3  0x0000000000713111 in MDL_wait::timed_wait (this=0x7f57f4000b38, owner=0x7f57f4000a50, abs_timeout=0x7f583c1a60f0, set_status_on_timeout=true, wait_state_name=0x14d0488) at /home/vagrant/mysql-5.6.12/sql/mdl.cc:1306
-#4  0x0000000000714811 in MDL_context::acquire_lock (this=0x7f57f4000b38, mdl_request=0x7f583c1a6180, lock_wait_timeout=31536000) at /home/vagrant/mysql-5.6.12/sql/mdl.cc:2241
-#5  0x000000000063656a in ha_commit_trans (thd=0x7f57f4000a50, all=true) at /home/vagrant/mysql-5.6.12/sql/handler.cc:1396 (COMMIT LOCK)
-#6  0x00000000008a010b in trans_commit (thd=0x7f57f4000a50) at /home/vagrant/mysql-5.6.12/sql/transaction.cc:228
-#7  0x0000000000a081bb in Xid_log_event::do_commit (this=0x7f57f4004730, thd=0x7f57f4000a50) at /home/vagrant/mysql-5.6.12/sql/log_event.cc:7174
-#8  0x0000000000a0886e in Xid_log_event::do_apply_event (this=0x7f57f4004730, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/log_event.cc:7310 (rli-&gt;data_lock)
-#9  0x00000000009fd956 in Log_event::apply_event (this=0x7f57f4004730, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/log_event.cc:3049
-#10 0x0000000000a55e31 in apply_event_and_update_pos (ptr_ev=0x7f583c1a68a0, thd=0x7f57f4000a50, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:3374
-#11 0x0000000000a56e45 in exec_relay_log_event (thd=0x7f57f4000a50, rli=0x3516650) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:3742
-#12 0x0000000000a5c334 in handle_slave_sql (arg=0x34b4f20) at /home/vagrant/mysql-5.6.12/sql/rpl_slave.cc:5552
-#13 0x0000000000aea87a in pfs_spawn_thread (arg=0x350a800) at /home/vagrant/mysql-5.6.12/storage/perfschema/pfs.cc:1855
-#14 0x00007f583f47d851 in start_thread () from /lib64/libpthread.so.0
-#15 0x00007f583e3e890d in clone () from /lib64/libc.so.6
-</code></pre>
-
-<p>可以看到Thread 3卡在commit lock上，同时查源码看到Thread 3同时占有了rli->data_lock (log_event.cc:7259)</p>
-
-<h2>锁的状态</h2>
-
-<p>按照bug的描述，</p>
-
-<ol>
-<li>flush tables with read lock; 会持有commit lock</li>
-<li>IO thread (Thread 3)会持有rli->data_lock，并等待commit lock</li>
-<li>show slave status; 会等待rli->data_lock</li>
-</ol>
-
-
-<p>结果导致show slave status卡住不可用</p>
-
-<h2>臆测一下解决方法</h2>
-
-<p>鉴于功底不深，只能臆测一下</p>
-
-<ol>
-<li>IO thread持有锁rli->data_lock的原因是要更新relay log的状态，然后进行commit(Xid_log_event::do_apply_event (log_event.cc:7248))。在commit的时候不会更新rli的数据。</li>
-<li>show slave status不会更新rli的数据，需要锁rli->data_lock的原因是要一致性数据。</li>
-</ol>
-
-
-<p>因此可能的解决方案是IO thread持有读写锁，进行commit时转为持有读锁。show slave status只使用读锁。</p>
-
-<p>只是臆测下解决方法，待<a href="http://bugs.mysql.com/bug.php?id=70307">bug #70307</a>修掉时再学习。</p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/blog/blog/page/2/">&larr; Older</a>
@@ -3181,6 +4972,18 @@ thread = 140016942216960}, m_psi = 0x0}
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/blog/2014/06/12/temporary-table-replication/">测试Mysql临时表的复制</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/06/12/temporary-table-binlog/">测试Mysql临时表的binlog</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/blog/2014/05/15/mysql-table-cache/">对mysql table_cache的理解</a>
+      </li>
     
       <li class="post">
         <a href="/blog/blog/2014/04/17/PREVIOUS_GTIDS_LOG_EVENT/">PREVIOUS_GTIDS_LOG_EVENT的格式</a>
@@ -3248,18 +5051,6 @@ thread = 140016942216960}, m_psi = 0x0}
     
       <li class="post">
         <a href="/blog/blog/2013/11/11/study-memory-reorder-cont/">对Memory Reordering Caught in the Act的学习 续 - 关于go的部分</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/11/07/study-memory-reorder/">对Memory Reordering Caught in the Act的学习</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/11/05/accrual-failure-detector/">对heartbeat φ累积失败检测算法的学习</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/blog/2013/10/25/study-mysql-bug-70307/">对Mysql bug #70307 的学习</a>
       </li>
     
   </ul>
