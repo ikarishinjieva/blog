@@ -10,14 +10,17 @@ categories:  mysql temporary_table binlog
 
 ###测试用例
 
+(现在用的jekyll对table显示有点问题, 请意会...)
+
 |用例|row|statement|mixed|
-|:--------|:--------:|:--------:|:--------:|
+|--------|--------|--------|--------|
 |`create temporary table` 产生的binlog|1.1|1.2|1.3|
 |`create temporary table` 产生的binlog (`mysqlbinlog`)|2.1|2.2|-|
 |临时表对非临时表数据产生影响时, 产生的binlog|3.1|3.2|-|
 |临时表对非临时表数据产生影响, 并rollback时, 产生的binlog|4.1|4.2|-|
 |多session同时创建临时表, 产生的binlog|-|5.1|-|
 |开启`enforce-gtid-consistency`时, `create temporary table`|-|6.1|-|
+
 
 ###测试结论
 
