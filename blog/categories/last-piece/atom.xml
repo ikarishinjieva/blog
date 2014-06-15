@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: last_piece | Tac say]]></title>
+  <link href="http://ikarishinjieva.github.com/blog/blog/categories/last-piece/atom.xml" rel="self"/>
+  <link href="http://ikarishinjieva.github.com/blog/"/>
+  <updated>2014-06-15T11:23:47+08:00</updated>
+  <id>http://ikarishinjieva.github.com/blog/</id>
+  <author>
+    <name><![CDATA[Tac Huang (ikari_shinji@github)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[BLOG迁移]]></title>
+    <link href="http://ikarishinjieva.github.com/blog/blog/2014/06/15/last-piece/"/>
+    <updated>2014-06-15T11:12:00+08:00</updated>
+    <id>http://ikarishinjieva.github.com/blog/blog/2014/06/15/last-piece</id>
+    <content type="html"><![CDATA[<p>Blog 迁移到 (http://ikarishinjieva.github.io/tachikoma-blog/)[http://ikarishinjieva.github.io/tachikoma-blog/].</p>
+
+<p>这个repo留给以前的外链接.</p>
+]]></content>
+  </entry>
+  
+</feed>
