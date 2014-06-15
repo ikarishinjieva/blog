@@ -6,6 +6,6 @@ comments: true
 categories:  last_piece
 ---
 
-Blog 迁移到 (http://ikarishinjieva.github.io/tachikoma-blog/)[http://ikarishinjieva.github.io/tachikoma-blog/].
+Blog 迁移到 [http://ikarishinjieva.github.io/tachikoma-blog/](http://ikarishinjieva.github.io/tachikoma-blog/).
 
 这个repo留给以前的外链接.
